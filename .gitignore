@@ -16,6 +16,7 @@
 /database/*.sqlite
 /database/*.sqlite-journal
 /database/*.sqlite3
+/database/sqlite-to-mysql.sql
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
