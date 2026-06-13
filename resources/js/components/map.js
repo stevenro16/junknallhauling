@@ -68,7 +68,7 @@ function popupHtml(inq) {
     if (inq.equipment_type) html += `<div style="font-size:11px;margin-top:2px;color:#CA8A04">${esc(inq.equipment_type)}</div>`;
     if (inq.quoted_price) html += `<div style="font-size:11px;margin-top:2px"><span style="color:#9ca3af">Quoted:</span> <span style="color:#059669;font-weight:500">$${esc(inq.quoted_price)}</span></div>`;
     if (inq.payment_method) html += `<div style="font-size:11px;margin-top:2px"><span style="color:#9ca3af">Paid via:</span> <span style="color:#059669;font-weight:500">${esc(inq.payment_method)}</span></div>`;
-    html += `<a href="/admin/inquiries/${esc(inq.id)}" target="_blank" style="display:inline-block;margin-top:6px;color:#CA8A04;font-size:11px">View details &rarr;</a>`;
+    html += `<a href="${window.appBaseUrl}/admin/inquiries/${esc(inq.id)}" target="_blank" style="display:inline-block;margin-top:6px;color:#CA8A04;font-size:11px">View details &rarr;</a>`;
     html += `</div>`;
     return html;
 }

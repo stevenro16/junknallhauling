@@ -37,7 +37,7 @@
             </div>
 
             <div data-reveal="right" data-reveal-delay="120" class="relative rounded-3xl overflow-hidden shadow-2xl aspect-[16/10] lg:aspect-auto lg:min-h-[420px]">
-                <img src="/images/about-team.jpg" alt="Our hauling team" class="absolute inset-0 w-full h-full object-cover">
+                <img src="{{ asset('images/about-team.jpg') }}" alt="Our hauling team" class="absolute inset-0 w-full h-full object-cover">
             </div>
         </div>
 

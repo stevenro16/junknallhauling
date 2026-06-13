@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="app-base-url" content="{{ url('/') }}">
     <title>@yield('title', 'Admin — '.config('business.name'))</title>
-    <link rel="icon" href="/images/logo.jpg">
+    <link rel="icon" href="{{ asset('images/logo.jpg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>

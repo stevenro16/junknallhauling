@@ -120,7 +120,7 @@ Alpine.data('quoteForm', () => ({
     errors: {},
 
     init() {
-        fetch('/api/services')
+        fetch(window.apiUrl('/api/services'))
             .then((r) => r.json())
             .then((d) => { if (d.services && d.services.length) this.serviceOptions = d.services; })
             .catch(() => {});
@@ -145,7 +145,7 @@ Alpine.data('quoteForm', () => ({
         if (this.serviceType === 'equipment') {
             if (this.equipmentOptions.length === 0) {
                 this.loadingEquipment = true;
-                fetch('/api/equipment')
+                fetch(window.apiUrl('/api/equipment'))
                     .then((r) => r.json())
                     .then((d) => { this.equipmentOptions = d.equipment || []; })
                     .catch(() => {})
@@ -214,7 +214,7 @@ Alpine.data('quoteForm', () => ({
             }
         }
         try {
-            const res = await fetch('/api/quote', { method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload) });
+            const res = await fetch(window.apiUrl('/api/quote'), { method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload) });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Request failed');
             this.submittedRef = json.ref || null;
@@ -250,7 +250,7 @@ Alpine.data('statusLookup', () => ({
         if (!this.phone || !this.email) return;
         this.loading = true; this.error = ''; this.searched = true;
         try {
-            const res = await fetch(`/api/lookup?phone=${encodeURIComponent(this.phone)}&email=${encodeURIComponent(this.email)}`);
+            const res = await fetch(window.apiUrl(`/api/lookup?phone=${encodeURIComponent(this.phone)}&email=${encodeURIComponent(this.email)}`));
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             this.inquiries = data.inquiries || [];
@@ -306,7 +306,7 @@ Alpine.data('agreementForm', (token) => ({
     init() {
         const today = new Date();
         this.pickupDate = today.toISOString().split('T')[0];
-        fetch(`/api/rental-agreement/${this.token}`)
+        fetch(window.apiUrl(`/api/rental-agreement/${this.token}`))
             .then(async (res) => {
                 const json = await res.json();
                 if (!res.ok) {
@@ -416,7 +416,7 @@ Alpine.data('agreementForm', (token) => ({
                 },
                 signature_base64: signatureData,
             };
-            const res = await fetch(`/api/rental-agreement/${this.token}`, {
+            const res = await fetch(window.apiUrl(`/api/rental-agreement/${this.token}`), {
                 method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload),
             });
             const json = await res.json();

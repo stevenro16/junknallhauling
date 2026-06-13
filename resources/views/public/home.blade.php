@@ -4,7 +4,7 @@
 <div class="overflow-hidden">
     {{-- Hero --}}
     <section class="relative min-h-[620px] flex items-center pt-16"
-             style="background-image: linear-gradient(to left, rgba(15,23,42,0.18), rgba(0,0,0,1)), url('/images/hero-truck.jpg'); background-size: cover; background-position: center 30%;">
+             style="background-image: linear-gradient(to left, rgba(15,23,42,0.18), rgba(0,0,0,1)), url('{{ asset('images/hero-truck.jpg') }}'); background-size: cover; background-position: center 30%;">
         <div class="container-wide relative z-10">
             <div class="max-w-3xl text-white">
                 <div data-reveal="up" class="inline-block uppercase tracking-[3px] text-xs font-bold bg-orange-500/90 px-4 py-1 rounded mb-6">
@@ -98,7 +98,7 @@
         <div class="container-wide">
             <div class="grid lg:grid-cols-2 gap-14 items-center">
                 <div data-reveal="left" class="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] lg:aspect-auto lg:h-[520px]">
-                    <img src="/images/trailer.jpg" alt="Junk N All Hauling team at work" class="absolute inset-0 w-full h-full object-cover">
+                    <img src="{{ asset('images/trailer.jpg') }}" alt="Junk N All Hauling team at work" class="absolute inset-0 w-full h-full object-cover">
                     <div class="absolute inset-0 bg-gradient-to-r from-black/40 to-black/10"></div>
                 </div>
                 <div data-reveal="right" data-reveal-delay="120">

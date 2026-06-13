@@ -4,7 +4,7 @@
             {{-- Brand --}}
             <div>
                 <a href="{{ route('home') }}" class="inline-block mb-3">
-                    <img src="/images/logo.jpg" alt="{{ config('business.name') }}" width="240" height="63"
+                    <img src="{{ asset('images/logo.jpg') }}" alt="{{ config('business.name') }}" width="240" height="63"
                          class="h-[63px] w-auto drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
                 </a>
                 <p class="text-slate-400 text-sm leading-relaxed mb-5">

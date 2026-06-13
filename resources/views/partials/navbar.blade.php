@@ -14,7 +14,7 @@
     <nav class="border-b border-white/10 bg-charcoal-800 sticky top-0 z-50">
         <div class="container-wide flex h-16 items-center justify-between">
             <a href="{{ route('home') }}" class="flex items-center">
-                <img src="/images/logo.jpg" alt="{{ config('business.name') }}" width="160" height="42"
+                <img src="{{ asset('images/logo.jpg') }}" alt="{{ config('business.name') }}" width="160" height="42"
                      class="h-9 w-auto drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
             </a>
 

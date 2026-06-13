@@ -19,6 +19,15 @@ window.jsonHeaders = (withCsrf = false) => {
     return h;
 };
 
+// Base URL of the app, so fetch() calls work when installed in a subfolder
+// (e.g. /junknallhauling). Read from the <meta name="app-base-url"> tag.
+window.appBaseUrl = (
+    document.querySelector('meta[name="app-base-url"]')?.getAttribute('content') ?? ''
+).replace(/\/$/, '');
+
+window.apiUrl = (path) =>
+    window.appBaseUrl + (String(path).startsWith('/') ? path : '/' + path);
+
 // Alpine.data() component registrations are appended below as features are built.
 // @see resources/js/components/*
 
