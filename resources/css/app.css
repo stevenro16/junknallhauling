@@ -1,0 +1,185 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views';
+
+@theme {
+  /* === Brand Colors (derived from logo.jpg — dark charcoal + #F8C820 / #EAB308 yellow/gold accent) === */
+  --color-charcoal-600: #3D3D3D;
+  --color-charcoal-700: #2D2D2D;
+  --color-charcoal-800: #1C1C1C;
+  --color-charcoal-900: #111111;
+
+  /* Logo-accurate gold/yellow scale (replaces previous orange for public + admin accents) */
+  --color-orange-100: #FEF3C7;
+  --color-orange-200: #FDE68A;
+  --color-orange-400: #FACC15;
+  --color-orange-500: #EAB308;
+  --color-orange-600: #CA8A04;
+  --color-orange-700: #A16207;
+
+  --color-brand-yellow: #F8C820;
+  --color-brand-gold: #D4A017;
+
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-heading: 'Geist', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base - Light professional theme with dark charcoal + yellow/gold accents pulled from logo.jpg */
+:root {
+  --background: #ffffff;
+  --foreground: #111827;
+}
+
+body {
+  background: #ffffff;
+  color: #111827;
+  font-family: var(--font-sans);
+}
+
+[x-cloak] { display: none !important; }
+
+/* === Scroll-reveal animations =============================================
+   Elements tagged with `data-reveal` start hidden + offset and ease into
+   place when they scroll into view (the `is-visible` class is added by
+   resources/js/components/reveal.js). Direction is set by the attribute
+   value; an optional `data-reveal-delay` (ms) staggers grouped items.
+   Fully disabled under prefers-reduced-motion so content is shown instantly. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  [data-reveal="up"]    { transform: translateY(40px); }
+  [data-reveal="down"]  { transform: translateY(-40px); }
+  [data-reveal="left"]  { transform: translateX(-48px); }
+  [data-reveal="right"] { transform: translateX(48px); }
+  [data-reveal="scale"] { transform: scale(0.92); }
+
+  [data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Light marketing theme utilities (public pages) */
+@utility card {
+  @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+}
+
+@utility input {
+  @apply w-full rounded-lg bg-white border border-gray-300
+         px-4 py-3 text-sm text-slate-900 placeholder:text-gray-400
+         focus:border-[#EAB308] focus:outline-none focus:ring-1
+         focus:ring-[#EAB308] transition-colors;
+}
+
+/* === Reusable Component Classes (Tailwind v4 @utility syntax) === */
+@utility container-wide {
+  @apply w-full max-w-7xl mx-auto px-5 sm:px-8 lg:px-12;
+}
+
+/* Primary CTA - dark charcoal + bright yellow/gold to match logo aesthetic (dark + yellow pop) */
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 px-8 py-4
+         rounded-lg bg-charcoal-800 text-[#F8C820] font-bold text-sm uppercase
+         tracking-[1px] transition-all border border-[#F8C820]/25
+         hover:bg-black hover:text-[#FACC15] active:scale-[0.985]
+         focus:outline-none focus:ring-2 focus:ring-[#F8C820] focus:ring-offset-2 focus:ring-offset-white
+         disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+}
+
+/* Secondary / outline - yellow/gold border + invert on hover for logo fidelity */
+@utility btn-outline {
+  @apply inline-flex items-center justify-center gap-2 px-8 py-4
+         rounded-lg border-2 border-[#EAB308] text-[#CA8A04]
+         font-bold text-sm uppercase tracking-[1px] transition-all
+         hover:bg-[#EAB308] hover:text-charcoal-900 hover:border-[#EAB308]
+         focus:outline-none focus:ring-2 focus:ring-[#EAB308] focus:ring-offset-2 focus:ring-offset-white;
+}
+
+/* Keep old input-dark for admin */
+@utility input-dark {
+  @apply w-full rounded-lg bg-charcoal-700 border border-charcoal-600
+         px-4 py-3 text-sm text-white placeholder:text-gray-400
+         focus:border-[#EAB308] focus:outline-none focus:ring-1
+         focus:ring-[#EAB308] transition-colors;
+}
+
+/* Light-theme input for admin detail pages */
+@utility input-light {
+  @apply w-full rounded-lg bg-white border border-gray-300
+         px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400
+         focus:border-[#EAB308] focus:outline-none focus:ring-1
+         focus:ring-[#EAB308]/40 transition-colors;
+}
+
+/* Light card for admin detail pages */
+@utility card-light {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm text-gray-800;
+}
+
+@utility section-label {
+  @apply text-[#EAB308] text-xs font-bold uppercase tracking-[0.2em] mb-3;
+}
+
+/* Keep card-dark for admin panels & contrast sections */
+@utility card-dark {
+  @apply bg-charcoal-700 rounded-xl border border-charcoal-600 text-gray-200;
+}
+
+/* Light service card matching reference style */
+@utility service-card {
+  @apply bg-white border border-gray-200 rounded-2xl p-8 text-center
+         transition-all hover:shadow-md hover:border-[#EAB308]/30 flex flex-col items-center;
+}
+
+/* === Strong contrast for Service Catalog + Equipment Catalog (add forms + edit tables) === */
+#service-catalog-form input,
+#service-catalog-form select,
+#equipment-catalog-form input,
+#equipment-catalog-form select,
+.card-dark input.input-dark,
+.card-dark select.input-dark,
+.card-dark table input,
+.card-dark table select {
+  color: #f1f5f9 !important;
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+/* Dropdown option items (limited OS/browser support but helps) */
+#service-catalog-form option,
+#equipment-catalog-form option,
+.card-dark option {
+  color: #f1f5f9;
+  background-color: #374151;
+}
+
+#service-catalog-form input:focus,
+#service-catalog-form select:focus,
+#equipment-catalog-form input:focus,
+#equipment-catalog-form select:focus,
+.card-dark input.input-dark:focus,
+.card-dark select.input-dark:focus,
+.card-dark table input:focus,
+.card-dark table select:focus {
+  border-color: #EAB308 !important;
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.15) !important;
+}
+
+/* Status badges (used in admin + public status) */
+.status-new      { @apply bg-blue-500/15 text-blue-600 border-blue-500/30; }
+.status-left_voicemail { @apply bg-yellow-500/15 text-yellow-700 border-yellow-500/30; }
+.status-reviewing  { @apply bg-yellow-500/15 text-yellow-700 border-yellow-500/30; }
+.status-quoted     { @apply bg-orange-500/15 text-orange-600 border-orange-500/30; }
+.status-scheduled  { @apply bg-purple-500/15 text-purple-600 border-purple-500/30; }
+.status-service_performed { @apply bg-teal-500/15 text-teal-600 border-teal-500/30; }
+.status-completed  { @apply bg-green-500/15 text-green-700 border-green-500/30; }
+.status-cancelled  { @apply bg-gray-500/15 text-gray-600 border-gray-500/30; }

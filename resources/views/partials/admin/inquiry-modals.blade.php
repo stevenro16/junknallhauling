@@ -1,0 +1,73 @@
+{{-- Schedule confirmation --}}
+<div x-show="showScheduleConfirm" x-cloak class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-md">
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-3">Schedule this quote?</h3>
+            <p class="text-gray-700 mb-4">This quote is not fully verified. The following are missing:</p>
+            <ul class="list-disc pl-5 mb-5 text-sm text-gray-700 space-y-1">
+                <li x-show="!addressVerified">Address not verified</li>
+                <li x-show="!dateTimeVerified">Date/Time not verified</li>
+                <li x-show="!quoteVerified">Quote not verified</li>
+            </ul>
+            <p class="text-gray-700 mb-6">Would you like to <strong>auto-verify</strong> all fields and schedule?</p>
+            <div class="flex flex-col gap-3">
+                <button type="button" @click="confirmScheduleAutoVerify()" class="btn-primary w-full">Auto-verify all fields &amp; Schedule</button>
+                <button type="button" @click="confirmScheduleAnyway()" class="btn-outline w-full">Schedule Anyway (without full verification)</button>
+                <button type="button" @click="showScheduleConfirm = false; pendingScheduleStatus = null" class="text-sm text-gray-500 hover:text-gray-800 mt-1">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Photo full-size --}}
+<div x-show="showPhotoModal" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4" @click="showPhotoModal = false">
+    <div class="max-w-[95vw] max-h-[90vh] overflow-auto" @click.stop>
+        <div class="flex justify-end mb-2"><button type="button" @click="showPhotoModal = false" class="text-gray-300 hover:text-white text-sm px-3 py-1">Close &times;</button></div>
+        <img :src="inquiry.photo_base64 ? ('data:' + inquiry.photo_mime + ';base64,' + inquiry.photo_base64) : ''" alt="Customer photo" class="max-w-full max-h-[85vh] rounded-2xl border border-gray-300 shadow-2xl object-contain bg-gray-900">
+        <p class="text-center text-xs text-gray-400 mt-2">Click outside or press close to dismiss</p>
+    </div>
+</div>
+
+{{-- All verifications complete --}}
+<div x-show="showAllVerifiedSchedulePrompt" x-cloak class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-md">
+        <div class="p-6">
+            <div class="flex items-center gap-3 mb-3"><div class="text-2xl">&#9989;</div><h3 class="text-xl font-bold">All items verified!</h3></div>
+            <p class="text-gray-700 mb-2">This request now has <strong>Address</strong>, <strong>Date/Time</strong>, and <strong>Quote</strong> all verified.</p>
+            <p class="text-gray-700 mb-6">Would you like to move it to <strong>Scheduled</strong> status now?</p>
+            <div class="flex flex-col gap-3">
+                <button type="button" @click="confirmAllVerifiedSchedule()" class="btn-primary w-full">Yes, Schedule It</button>
+                <button type="button" @click="showAllVerifiedSchedulePrompt = false" class="btn-outline w-full">Not Yet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Left voicemail note --}}
+<div x-show="showVoicemailModal" x-cloak class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-md">
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-3">Left Voicemail</h3>
+            <p class="text-gray-700 mb-4 text-sm">Record details about the voicemail you left for the customer. This note will be visible to them on the status page.</p>
+            <textarea x-model="voicemailNote" placeholder="E.g. Left message about rescheduling to Tuesday..." class="input-light w-full min-h-[120px] text-sm resize-y" rows="4"></textarea>
+            <div class="flex flex-col gap-3 mt-5">
+                <button type="button" @click="handleSaveVoicemail()" :disabled="saving" class="btn-primary w-full"><span x-text="saving ? 'Saving...' : 'Save Note & Mark as Left Voicemail'"></span></button>
+                <button type="button" @click="showVoicemailModal = false; voicemailNote = ''" class="btn-outline w-full">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Cancel confirmation --}}
+<div x-show="showCancelConfirm" x-cloak class="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-md">
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-3 text-red-600">Cancel this quote?</h3>
+            <p class="text-gray-700 mb-6 text-sm">This will mark the quote as <strong>Cancelled</strong>. The customer will be able to see this status on their status page. This action can be reversed later by changing the status again.</p>
+            <div class="flex flex-col gap-3">
+                <button type="button" @click="handleConfirmCancel()" :disabled="saving" class="w-full px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"><span x-text="saving ? 'Cancelling...' : 'Yes, Cancel This Quote'"></span></button>
+                <button type="button" @click="showCancelConfirm = false" class="btn-outline w-full">No, Keep It Active</button>
+            </div>
+        </div>
+    </div>
+</div>
