@@ -9,7 +9,7 @@
     changePwdUrl: '{{ route('admin.change-password.update') }}',
     dashboardUrl: '{{ route('admin.dashboard') }}',
     changePwdPage: '{{ route('admin.change-password') }}',
-})" @keydown.escape.window="showLogin = false; showPwd = false">
+})" @keydown.escape.window="showLogin = false; showPwd = false; mobileOpen = false">
 
     <nav class="border-b border-white/10 bg-charcoal-800 sticky top-0 z-50">
         <div class="container-wide flex h-16 items-center justify-between">
@@ -18,18 +18,18 @@
                      class="h-9 w-auto drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
             </a>
 
-            <div class="flex items-center gap-4 sm:gap-8 text-sm font-medium">
-                <a href="{{ route('services') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors hidden sm:block">Services</a>
-                <a href="{{ route('about') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors hidden sm:block">About</a>
-                <a href="{{ route('reviews') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors hidden sm:block">Reviews</a>
+            <div class="hidden lg:flex items-center gap-8 text-sm font-medium">
+                <a href="{{ route('services') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors">Services</a>
+                <a href="{{ route('about') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors">About</a>
+                <a href="{{ route('reviews') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors">Reviews</a>
                 <a href="{{ route('contact') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors">Get Quote</a>
                 <a href="{{ route('status') }}" class="text-slate-200 hover:text-[#F8C820] transition-colors font-semibold">Check Status</a>
                 <a href="tel:{{ config('business.phoneRaw') }}" class="flex items-center gap-2 text-[#F8C820] hover:text-[#FACC15] font-semibold transition-colors">
                     <x-icon name="phone" class="w-4 h-4"/>
-                    <span class="hidden sm:inline">{{ config('business.phone') }}</span>
+                    <span>{{ config('business.phone') }}</span>
                 </a>
 
-                <div class="border-l border-white/15 pl-3 sm:pl-5 sm:ml-2 flex items-center gap-4">
+                <div class="border-l border-white/15 pl-5 ml-2 flex items-center gap-4">
                     @if($isAdmin)
                         <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-1.5 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors">
                             <x-icon name="lock" class="w-3 h-3"/> Admin Portal
@@ -60,6 +60,41 @@
                         </button>
                     @endif
                 </div>
+            </div>
+
+            {{-- Mobile hamburger --}}
+            <button type="button" @click="mobileOpen = !mobileOpen"
+                    class="lg:hidden inline-flex items-center justify-center w-10 h-10 -mr-2 text-slate-200 hover:text-[#F8C820] transition-colors"
+                    aria-label="Toggle navigation menu" :aria-expanded="mobileOpen">
+                <x-icon name="menu" class="w-6 h-6" x-show="!mobileOpen"/>
+                <x-icon name="x" class="w-6 h-6" x-show="mobileOpen" x-cloak/>
+            </button>
+        </div>
+
+        {{-- Mobile menu --}}
+        <div x-show="mobileOpen" x-cloak x-transition
+             class="lg:hidden border-t border-white/10 bg-charcoal-800">
+            <div class="container-wide py-2 flex flex-col text-sm font-medium">
+                <a href="{{ route('services') }}" @click="mobileOpen = false" class="py-3 text-slate-200 hover:text-[#F8C820] border-b border-white/5 transition-colors">Services</a>
+                <a href="{{ route('about') }}" @click="mobileOpen = false" class="py-3 text-slate-200 hover:text-[#F8C820] border-b border-white/5 transition-colors">About</a>
+                <a href="{{ route('reviews') }}" @click="mobileOpen = false" class="py-3 text-slate-200 hover:text-[#F8C820] border-b border-white/5 transition-colors">Reviews</a>
+                <a href="{{ route('contact') }}" @click="mobileOpen = false" class="py-3 text-slate-200 hover:text-[#F8C820] border-b border-white/5 transition-colors">Get Quote</a>
+                <a href="{{ route('status') }}" @click="mobileOpen = false" class="py-3 text-slate-200 hover:text-[#F8C820] border-b border-white/5 transition-colors font-semibold">Check Status</a>
+                <a href="tel:{{ config('business.phoneRaw') }}" class="py-3 flex items-center gap-2 text-[#F8C820] hover:text-[#FACC15] border-b border-white/5 font-semibold transition-colors">
+                    <x-icon name="phone" class="w-4 h-4"/> {{ config('business.phone') }}
+                </a>
+                @if($isAdmin)
+                    <a href="{{ route('admin.dashboard') }}" @click="mobileOpen = false" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors">
+                        <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                    </a>
+                    <button type="button" @click="mobileOpen = false; signOut()" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-red-400 hover:text-red-300 transition-colors text-left">
+                        <x-icon name="log-out" class="w-3 h-3"/> Sign Out
+                    </button>
+                @else
+                    <button type="button" @click="mobileOpen = false; openLogin()" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors text-left">
+                        <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                    </button>
+                @endif
             </div>
         </div>
     </nav>

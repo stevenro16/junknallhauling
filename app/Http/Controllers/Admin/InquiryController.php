@@ -20,6 +20,8 @@ class InquiryController extends Controller
             'inquiry'        => $inquiry,
             'history'        => $inquiry->statusHistory()->orderByDesc('changed_at')->get(),
             'equipment'      => EquipmentType::active()->orderBy('name')->get(),
+            'agreements'     => $inquiry->rentalAgreements()->orderByDesc('created_at')->get()
+                ->map(fn ($a) => InquiryApiController::agreementPayload($a))->values(),
             // Lightweight list for the "previous customer addresses" feature.
             'allInquiries'   => Inquiry::orderByDesc('created_at')->get([
                 'id', 'phone', 'email', 'address', 'created_at',

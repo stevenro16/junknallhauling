@@ -19,9 +19,10 @@
         <a href="{{ route('admin.dashboard') }}" class="text-sm text-amber-600 hover:text-amber-700 transition-colors">&larr; Back to list</a>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {{-- MAIN COLUMN --}}
-        <div class="lg:col-span-7 xl:col-span-8 space-y-6">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
+
+        {{-- Column 1: customer + job details --}}
+        <div class="space-y-5">
 
             {{-- Card 1: Customer --}}
             <div class="card-light border-l-2 border-[#F8C820] p-5">
@@ -182,6 +183,26 @@
                         </template>
                     </div>
 
+                    {{-- Service notes --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Notes <span class="text-xs text-emerald-600">(visible to customer)</span></label>
+                        <textarea rows="2" x-model="adminNotes" placeholder="Updates, instructions, or notes for the customer..." class="input-light text-sm py-2 w-full resize-none"></textarea>
+                    </div>
+
+                    <div>
+                        <button type="button" @click="save()" :disabled="saving" class="w-full btn-primary text-sm py-2"><span x-text="saving ? 'Saving...' : 'Save Job Details'"></span></button>
+                    </div>
+                </div>
+            </div>
+
+            </div>{{-- /column 1 --}}
+
+            {{-- Column 2: scheduling + payment --}}
+            <div class="space-y-5">
+            {{-- Card: Visit Date & Time --}}
+            <div class="card-light border-l-2 border-[#F8C820] p-5">
+                <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Visit Date &amp; Time</div><div class="h-px flex-1 bg-gray-200"></div></div>
+                <div class="space-y-3">
                     {{-- Date / Time / Duration --}}
                     <div>
                         <div class="grid grid-cols-3 gap-3">
@@ -220,14 +241,8 @@
                         </template>
                     </div>
 
-                    {{-- Service notes --}}
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Notes <span class="text-xs text-emerald-600">(visible to customer)</span></label>
-                        <textarea rows="2" x-model="adminNotes" placeholder="Updates, instructions, or notes for the customer..." class="input-light text-sm py-2 w-full resize-none"></textarea>
-                    </div>
-
-                    <div>
-                        <button type="button" @click="save()" :disabled="saving" class="w-full btn-primary text-sm py-2"><span x-text="saving ? 'Saving...' : 'Save Job Details'"></span></button>
+                        <button type="button" @click="save()" :disabled="saving" class="w-full btn-primary text-sm py-2"><span x-text="saving ? 'Saving...' : 'Save Date & Time'"></span></button>
                     </div>
                 </div>
             </div>
@@ -270,19 +285,18 @@
                         </div>
                     </div>
 
-                    @include('partials.admin.service-agreement')
-
                     <div>
                         <button type="button" @click="save()" :disabled="saving" class="w-full btn-primary text-sm py-2"><span x-text="saving ? 'Saving...' : 'Save Payment'"></span></button>
                     </div>
                 </div>
             </div>
-        </div>
+            </div>{{-- /column 2 --}}
 
-        {{-- RIGHT SIDEBAR --}}
-        <div class="lg:col-span-5 xl:col-span-4">
-            <div class="lg:sticky lg:top-2 space-y-4">
+        {{-- Column 3: status timeline, rental agreement, history --}}
+        <div class="space-y-4 xl:sticky xl:top-2">
                 @include('partials.admin.status-timeline')
+
+                @include('partials.admin.rental-agreement-panel')
 
                 <template x-if="history.length > 0">
                     <div>
@@ -305,9 +319,8 @@
                         </div>
                     </div>
                 </template>
-            </div>
-        </div>
-    </div>
+        </div>{{-- /column 3 --}}
+    </div>{{-- /grid --}}
 
     @include('partials.admin.inquiry-modals')
 </div>

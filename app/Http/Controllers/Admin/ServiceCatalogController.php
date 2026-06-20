@@ -69,7 +69,7 @@ class ServiceCatalogController extends Controller
             return response()->json(['error' => 'Service not found'], 404);
         }
 
-        $service->update(['active' => false]); // soft hide
+        $service->delete(); // permanent delete
 
         return response()->json(['success' => true]);
     }

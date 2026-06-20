@@ -17,7 +17,7 @@ class DashboardController extends Controller
         DemoSeeder::ensure();
 
         $section = $request->query('section', 'inquiries');
-        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'admins'], true)) {
+        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true)) {
             $section = 'inquiries';
         }
 

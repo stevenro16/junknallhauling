@@ -39,26 +39,4 @@
         </div>
     </div>
 
-    {{-- Verification checklist --}}
-    <div class="mt-4 pt-4 border-t border-gray-200">
-        <div class="flex items-center justify-between mb-2 px-1">
-            <div class="text-sm font-semibold text-gray-700">Verification Checklist</div>
-            <span x-show="allVerified" class="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">Ready for next step</span>
-        </div>
-        <div class="space-y-1">
-            <label class="flex items-center gap-2.5 text-sm px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" :checked="quoteVerified" @change="toggleVerification('quote_verified', $event.target.checked)" class="w-4 h-4 accent-orange-500" :disabled="saving">
-                <span :class="quoteVerified ? 'text-emerald-600 line-through opacity-70' : 'text-gray-700'">Quote Verified</span>
-            </label>
-            <label class="flex items-center gap-2.5 text-sm px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" :checked="addressVerified" @change="toggleVerification('address_verified', $event.target.checked)" class="w-4 h-4 accent-orange-500" :disabled="saving">
-                <span :class="addressVerified ? 'text-emerald-600 line-through opacity-70' : 'text-gray-700'">Address Verified</span>
-            </label>
-            <label class="flex items-center gap-2.5 text-sm px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" :checked="dateTimeVerified" @change="toggleVerification('date_time_verified', $event.target.checked)" class="w-4 h-4 accent-orange-500" :disabled="saving">
-                <span :class="dateTimeVerified ? 'text-emerald-600 line-through opacity-70' : 'text-gray-700'">Date/Time Verified</span>
-            </label>
-        </div>
-        <p class="text-[10px] text-gray-400 mt-2 px-2 leading-tight">All three must be checked before moving to <span class="font-medium text-amber-700">Scheduled</span> or <span class="font-medium text-amber-700">Service Performed</span>.</p>
-    </div>
 </div>

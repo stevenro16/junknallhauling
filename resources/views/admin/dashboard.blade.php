@@ -10,6 +10,7 @@
                 @case('stats') Analytics &amp; Stats @break
                 @case('services') Service Catalog @break
                 @case('equipment') Equipment Catalog @break
+                @case('content') Site Content @break
                 @case('admins') Admin Accounts @break
                 @default Quotes
             @endswitch
@@ -20,6 +21,7 @@
         @case('stats') @include('partials.admin.analytics-section') @break
         @case('services') @include('partials.admin.services-section') @break
         @case('equipment') @include('partials.admin.equipment-section') @break
+        @case('content') @include('partials.admin.content-section') @break
         @case('admins') @include('partials.admin.admins-section') @break
         @default @include('partials.admin.inquiries-section')
     @endswitch

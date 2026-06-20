@@ -3,8 +3,7 @@
         'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'phone' => $i->phone, 'email' => $i->email,
         'status' => $i->status, 'service_type' => $i->service_type, 'zip_code' => $i->zip_code,
         'confirmed_date_time' => $i->confirmed_date_time, 'quoted_price' => $i->quoted_price,
-        'quote_verified' => $i->quote_verified, 'address_verified' => $i->address_verified,
-        'date_time_verified' => $i->date_time_verified, 'payment_method' => $i->payment_method,
+        'payment_method' => $i->payment_method,
         'created_at' => $i->created_at,
     ])->values();
 @endphp
@@ -77,7 +76,6 @@
                         <th class="text-left px-4 py-3">Ref</th>
                         <th class="text-left px-4 py-3">Confirmed</th>
                         <th class="text-left px-4 py-3">Customer</th>
-                        <th class="text-center px-4 py-3">Verified</th>
                         <th class="text-left px-4 py-3">Service</th>
                         <th class="text-left px-4 py-3">Payment</th>
                     </tr>
@@ -91,13 +89,6 @@
                             <td class="px-4 py-3">
                                 <div class="font-medium text-gray-900" x-text="i.name || '(no name)'"></div>
                                 <div class="text-xs text-gray-500" x-text="i.phone"></div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-1">
-                                    <x-icon name="map-pin" class="w-3.5 h-3.5" ::class="i.address_verified ? 'text-green-600' : 'text-gray-300'"/>
-                                    <x-icon name="calendar" class="w-3.5 h-3.5" ::class="i.date_time_verified ? 'text-green-600' : 'text-gray-300'"/>
-                                    <x-icon name="dollar-sign" class="w-3.5 h-3.5" ::class="i.quote_verified ? 'text-green-600' : 'text-gray-300'"/>
-                                </div>
                             </td>
                             <td class="px-4 py-3 text-gray-600 capitalize" x-text="serviceLabel(i.service_type)"></td>
                             <td class="px-4 py-3">

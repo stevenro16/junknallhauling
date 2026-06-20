@@ -248,7 +248,7 @@
                 <div class="pt-6 border-t text-sm text-slate-600">
                     <div class="flex items-start gap-3 mb-2">
                         <x-icon name="map-pin" class="w-4 h-4 mt-1 text-orange-500"/>
-                        <div>Serving Yucaipa, Redlands, Beaumont, Highland, Loma Linda,<br>San Bernardino and surrounding Inland Empire communities.</div>
+                        <div>Serving {{ implode(', ', \App\Models\SiteContent::list('serving_areas')) }} and surrounding Inland Empire communities.</div>
                     </div>
                 </div>
                 <div class="text-xs text-slate-500">Same-day service available in most areas. Call in the morning for afternoon pickup.</div>

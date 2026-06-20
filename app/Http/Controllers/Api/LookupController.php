@@ -30,13 +30,6 @@ class LookupController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $out = $inquiries->map(function (Inquiry $inq) {
-            $arr = $inq->toArray();
-            $arr['verification_history'] = $inq->verificationHistory()->get()->toArray();
-
-            return $arr;
-        });
-
-        return response()->json(['inquiries' => $out]);
+        return response()->json(['inquiries' => $inquiries]);
     }
 }

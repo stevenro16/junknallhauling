@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
+use App\Models\RentalAgreement;
 use App\Services\DemoSeeder;
 use App\Services\GeocodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class InquiryApiController extends Controller
 {
@@ -85,12 +87,6 @@ class InquiryApiController extends Controller
                 $updates[$k] = $b[$k] === null || $b[$k] === '' ? null : (int) $b[$k];
             }
         }
-        foreach (['quote_verified', 'address_verified', 'date_time_verified', 'contact_verified'] as $k) {
-            if (array_key_exists($k, $b)) {
-                $updates[$k] = (bool) $b[$k];
-            }
-        }
-
         // Geocode whenever the address is being set/changed; clear coords when emptied.
         if (array_key_exists('address', $b)) {
             if (! empty($b['address'])) {
@@ -161,5 +157,53 @@ class InquiryApiController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * POST /admin/api/inquiries/{id}/rental-agreement
+     * Generate (or reuse an active, unsigned) rental-agreement signing link the
+     * admin can send to the customer at any point in the workflow.
+     */
+    public function agreement(string $id): JsonResponse
+    {
+        $inquiry = Inquiry::find($id);
+        if (! $inquiry) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        // Reuse a still-usable (unsigned, not cancelled, not expired) link;
+        // otherwise mint a fresh one and log that an agreement was sent.
+        $agreement = $inquiry->rentalAgreements()
+            ->whereNull('signed_at')
+            ->whereNull('cancelled_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(fn (RentalAgreement $a) => $a->isUsable());
+
+        if (! $agreement) {
+            $agreement = $inquiry->rentalAgreements()->create([
+                'token'     => (string) Str::uuid(),
+                'form_data' => [],
+            ]);
+            $inquiry->logAudit('rental_agreement_sent');
+        }
+
+        return response()->json(['agreement' => self::agreementPayload($agreement)]);
+    }
+
+    public static function agreementPayload(RentalAgreement $a): array
+    {
+        return [
+            'id'           => $a->id,
+            'token'        => $a->token,
+            'url'          => route('rental-agreement.show', $a->token),
+            'admin_url'    => route('admin.rental-agreement.show', $a->id),
+            'signed_at'    => $a->signed_at,
+            'cancelled_at' => $a->cancelled_at,
+            'created_at'   => $a->created_at,
+            'usable'       => $a->isUsable(),
+            // Signature thumbnail (signed agreements only) for the admin panel.
+            'signature_base64' => $a->signed_at ? $a->signature_base64 : null,
+        ];
     }
 }

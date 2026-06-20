@@ -66,6 +66,7 @@
                                 <span>
                                     <button @click="startEdit(s)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700">Edit</button>
                                     <button @click="toggleActive(s)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700" x-text="s.active ? 'Hide' : 'Show'"></button>
+                                    <button @click="remove(s)" class="text-xs px-2 py-1 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10">Delete</button>
                                 </span>
                             </template>
                         </td>

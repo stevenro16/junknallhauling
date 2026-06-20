@@ -17,10 +17,10 @@
         logoutUrl: '{{ route('admin.logout') }}',
         loginUrl: '{{ route('admin.login') }}',
         currentUsername: @js(session('admin_username')),
-    })" class="flex h-screen overflow-hidden bg-gray-100 text-gray-800">
+    })" class="flex h-screen overflow-hidden bg-gray-200 text-gray-800 print:block print:h-auto print:overflow-visible print:bg-white">
 
     {{-- Desktop sidebar --}}
-    <div class="hidden lg:block h-full">
+    <div class="hidden lg:block h-full print:hidden">
         @include('partials.admin.sidebar')
     </div>
 
@@ -35,13 +35,13 @@
     </div>
 
     {{-- Main --}}
-    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div class="lg:hidden h-10 border-b border-gray-200 bg-white flex items-center px-3 flex-shrink-0">
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
+        <div class="lg:hidden h-10 border-b border-gray-200 bg-white flex items-center px-3 flex-shrink-0 print:hidden">
             <button @click="mobileOpen = true" class="p-1.5 text-gray-500 hover:text-gray-800" aria-label="Open menu">
                 <x-icon name="menu" class="w-5 h-5"/>
             </button>
         </div>
-        <div class="flex-1 overflow-auto p-4 lg:p-6">
+        <div class="flex-1 overflow-auto p-4 lg:p-6 print:overflow-visible print:p-0">
             @yield('admin-content')
         </div>
     </div>

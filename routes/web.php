@@ -7,7 +7,9 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
+use App\Http\Controllers\Admin\RentalAgreementController as AdminRentalAgreementController;
 use App\Http\Controllers\Admin\ServiceCatalogController;
+use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\RentalAgreementController;
 use App\Http\Controllers\Public\StatusController;
@@ -53,6 +55,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('admin.password')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
+        Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 
         Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
         // Placeholder replaced in Phase 9.
@@ -73,12 +76,17 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::patch('/inquiries/{id}', [InquiryApiController::class, 'update'])->name('inquiries.update');
             Route::get('/inquiries/{id}/history', [InquiryApiController::class, 'history'])->name('inquiries.history');
             Route::post('/inquiries/{id}/audit', [InquiryApiController::class, 'audit'])->name('inquiries.audit');
+            Route::post('/inquiries/{id}/rental-agreement', [InquiryApiController::class, 'agreement'])->name('inquiries.agreement');
+            Route::delete('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'destroy'])->name('rental-agreement.destroy');
 
             // Service catalog
             Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');
             Route::post('/services', [ServiceCatalogController::class, 'store'])->name('services.store');
             Route::patch('/services/{id}', [ServiceCatalogController::class, 'update'])->name('services.update');
             Route::delete('/services/{id}', [ServiceCatalogController::class, 'destroy'])->name('services.destroy');
+
+            // Site content (marketing copy + serving areas)
+            Route::patch('/content', [SiteContentController::class, 'update'])->name('content.update');
 
             // Equipment catalog
             Route::get('/equipment', [AdminEquipmentController::class, 'index'])->name('equipment.index');

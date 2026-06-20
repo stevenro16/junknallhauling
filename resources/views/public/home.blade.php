@@ -46,43 +46,26 @@
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div data-reveal="up" class="service-card">
-                    <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6">
-                        <x-icon name="truck" class="w-9 h-9 text-orange-600"/>
+            @php($serviceCards = \App\Models\SiteContent::cards('home_service_cards'))
+            <div class="flex flex-wrap justify-center gap-6">
+                @foreach($serviceCards as $i => $card)
+                    <div data-reveal="up" @if($i) data-reveal-delay="{{ $i * 100 }}" @endif
+                         class="service-card basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)] max-w-sm">
+                        <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6 overflow-hidden">
+                            @if(!empty($card['image']))
+                                <img src="{{ $card['image'] }}" alt="{{ $card['title'] ?? '' }}" class="w-10 h-10 object-contain">
+                            @else
+                                <x-icon :name="$card['icon'] ?? 'truck'" class="w-9 h-9 text-orange-600"/>
+                            @endif
+                        </div>
+                        <h3 class="font-black text-2xl mb-3">{{ $card['title'] ?? '' }}</h3>
+                        @if(!empty($card['subheader']))
+                            <p class="text-slate-500 text-sm mb-3">{{ $card['subheader'] }}</p>
+                        @endif
+                        <div class="text-slate-600 text-[15px] mb-6 flex-1 cms-content">{!! $card['body'] ?? '' !!}</div>
+                        <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Request a Quote <x-icon name="arrow-right" class="w-4 h-4"/></a>
                     </div>
-                    <h3 class="font-black text-2xl mb-3">Junk Removal</h3>
-                    <p class="text-slate-600 text-[15px] mb-6 flex-1">1/4, 1/2, 3/4 or full truck loads. We load everything — furniture, debris, appliances, yard waste.</p>
-                    <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Book Now <x-icon name="arrow-right" class="w-4 h-4"/></a>
-                </div>
-                <div data-reveal="up" data-reveal-delay="100" class="service-card">
-                    <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6">
-                        <x-icon name="package" class="w-9 h-9 text-orange-600"/>
-                    </div>
-                    <h3 class="font-black text-2xl mb-3">Dumpster Rental</h3>
-                    <p class="text-slate-600 text-[15px] mb-6 flex-1">10-yard and 20-yard roll-offs. 1-2 tons disposal included. Perfect for renovations and cleanouts.</p>
-                    <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Get Pricing <x-icon name="arrow-right" class="w-4 h-4"/></a>
-                </div>
-                <div data-reveal="up" data-reveal-delay="200" class="service-card">
-                    <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6">
-                        <x-icon name="hammer" class="w-9 h-9 text-orange-600"/>
-                    </div>
-                    <h3 class="font-black text-2xl mb-3">Light Demolition</h3>
-                    <p class="text-slate-600 text-[15px] mb-3">Our light demolition services include:</p>
-                    <ul class="text-slate-600 text-[15px] mb-6 flex-1 list-disc list-inside space-y-1">
-                        <li>Kitchen/Bathroom Gutting: Ripping out old cabinetry, countertops, sinks, and built-in vanities.</li>
-                        <li>Flooring Removal: Tearing up carpeting, hardwood, laminate, or chipping away old ceramic tile and subflooring.</li>
-                    </ul>
-                    <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Request Quote <x-icon name="arrow-right" class="w-4 h-4"/></a>
-                </div>
-                <div data-reveal="up" data-reveal-delay="300" class="service-card">
-                    <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6">
-                        <x-icon name="wrench" class="w-9 h-9 text-orange-600"/>
-                    </div>
-                    <h3 class="font-black text-2xl mb-3">Hauling &amp; Equipment</h3>
-                    <p class="text-slate-600 text-[15px] mb-6 flex-1">Specialty hauling, scissor lifts, excavators, and heavy equipment rentals for larger jobs.</p>
-                    <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Learn More <x-icon name="arrow-right" class="w-4 h-4"/></a>
-                </div>
+                @endforeach
             </div>
 
             <div class="text-center mt-10">
@@ -104,10 +87,7 @@
                 <div data-reveal="right" data-reveal-delay="120">
                     <p class="section-label">About Us</p>
                     <h2 class="text-5xl font-black tracking-tighter mb-6">ABOUT JUNK N ALL HAULING</h2>
-                    <div class="space-y-5 text-lg text-slate-700 leading-relaxed">
-                        <p>We are a locally owned and operated hauling company proudly serving the Inland Empire since 2019. Our team shows up on time, gives honest upfront pricing, and works hard to recycle or donate as much material as possible.</p>
-                        <p>Whether you need a single piece of furniture removed, a full property cleanout, or a dumpster for your renovation — we make the process simple, fast, and stress-free.</p>
-                    </div>
+                    <div class="text-lg text-slate-700 leading-relaxed cms-content">{!! \App\Models\SiteContent::html('home_about') !!}</div>
                     <div class="mt-8 grid sm:grid-cols-2 gap-4">
                         <div class="rounded-2xl border border-gray-200 bg-white p-6">
                             <div class="font-bold text-orange-600 mb-1">Licensed &amp; Insured</div>

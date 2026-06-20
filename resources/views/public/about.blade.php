@@ -15,9 +15,7 @@
     <section class="container-wide py-16">
         <div class="grid lg:grid-cols-2 gap-14">
             <div data-reveal="left" class="text-slate-700">
-                <p class="text-xl mb-5">Junk N All Hauling is a family-owned and operated junk removal and dumpster rental company proudly serving Yucaipa, Redlands, Beaumont, Highland, and all of the Inland Empire since 2019.</p>
-                <p class="mb-5">We believe in showing up on time, giving honest upfront pricing with no surprises, and doing everything we can to recycle or donate usable items instead of sending them to the landfill.</p>
-                <p>From single-item pickups to full property cleanouts and construction debris, our experienced team handles it all safely and efficiently.</p>
+                <div class="text-lg leading-relaxed cms-content">{!! \App\Models\SiteContent::html('about_page') !!}</div>
 
                 <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach([

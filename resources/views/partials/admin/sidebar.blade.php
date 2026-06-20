@@ -2,9 +2,9 @@
     $path = request()->path();
     $onDashboard = $path === 'admin';
     $qsection = request()->query('section', 'inquiries');
-    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'admins'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
+    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
     $onCalendar = $path === 'admin/calendar';
-    $isAnySettingActive = in_array($current, ['admins', 'services', 'equipment'], true);
+    $isAnySettingActive = in_array($current, ['admins', 'services', 'equipment', 'content'], true);
 
     $main = [
         ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
@@ -12,6 +12,7 @@
         ['key' => 'stats', 'label' => 'Analytics', 'icon' => 'bar-chart', 'href' => route('admin.dashboard', ['section' => 'stats']), 'active' => $current === 'stats'],
     ];
     $settingsItems = [
+        ['key' => 'content', 'label' => 'Site Content', 'icon' => 'pencil', 'href' => route('admin.dashboard', ['section' => 'content']), 'active' => $current === 'content'],
         ['key' => 'admins', 'label' => 'Admin Accounts', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
         ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
         ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
@@ -22,8 +23,13 @@
 
 <div class="w-64 bg-charcoal-800 border-r border-charcoal-700 flex flex-col h-full">
     <div class="p-4 border-b border-charcoal-700">
-        <div class="text-sm uppercase tracking-widest text-gray-400 mb-1">Admin</div>
-        <div class="font-semibold text-[#F8C820]">Junk N All Hauling</div>
+        <a href="{{ route('home') }}" @click="mobileOpen = false"
+           title="Back to main website"
+           class="flex items-center hover:opacity-90 transition-opacity">
+            <img src="{{ asset('images/logo.jpg') }}" alt="{{ config('business.name') }}" width="160" height="42"
+                 class="h-9 w-auto drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
+        </a>
+        <div class="text-[11px] uppercase tracking-widest text-gray-400 mt-2">Admin Panel</div>
     </div>
 
     <nav class="flex-1 p-2 space-y-1 overflow-y-auto">

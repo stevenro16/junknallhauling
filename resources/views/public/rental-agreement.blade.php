@@ -104,19 +104,7 @@
                     <div>
                         <h2 class="font-semibold text-lg mb-3 text-gray-800">Customer Acknowledgments</h2>
                         <div class="space-y-3 text-sm">
-                            @foreach([
-                                'I understand any overage, overloading or additional days requested will be billed.',
-                                'I understand no loading beyond the height of the walls.',
-                                'I understand strict weight limitations, dump fees and additional materials will be billed at $74 per ton above agreed ton/s.',
-                                'Full payment will be due on the date this agreement is signed.',
-                                'I understand a $50 non refundable deposit when reserving the dumpster more than 3 days in advance.',
-                                'I understand dumpster rental included use for up to days agreed to any additional day will be an additional $45 a day.',
-                                'Customer is responsible for additional fees. Payment for all base fees due upon delivery. Any additional fees due to over usage not paid upon delivery are due within 7 days.',
-                                'I understand cancellation must be made 24hrs prior to schedule drop off.',
-                                'I understand any extra fee after 7 days will accumulate 15% interest from date. There will be a late fee of $25.',
-                                'If paying by check and check is returned for insufficient funds from banking institution the customer is responsible for fees.',
-                                'Delivery Cancellation / Dry Run Fee: Customer agrees that any cancellation made after service has been scheduled and the company has dispatched or en route will result in a $100 Dry Run / cancellation fee, which is due within 24 hours.',
-                            ] as $ack)
+                            @foreach(config('agreement.acknowledgments') as $ack)
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="checkbox" class="mt-1 w-4 h-4 accent-[#EAB308]" required>
                                     <span>{{ $ack }}</span>
@@ -126,13 +114,11 @@
                             <div class="pt-2">
                                 <p class="font-medium mb-1">Prohibited Items:</p>
                                 <p class="text-gray-700 text-sm">I understand that the following items are <strong>not allowed</strong> to be placed in the dumpster:
-                                    aerosol cans, all liquids, Animals, Antifreeze, Asbestos, Batteries, Barrels, Chemical products, Computers,
-                                    Dirt/Soil, Concrete, Rocks, and Bricks, Hazardous waste, Herbicides and pesticides, and other materials
-                                    were discussed with JunknallHauling.</p>
+                                    {{ config('agreement.prohibited_items') }}</p>
                             </div>
                             <div>
-                                <p class="text-sm">Passenger tires and SUV tires @ <strong>$10.00 each</strong>, tires with rim @ <strong>$20.00 each</strong>.</p>
-                                <p class="text-sm mt-1">I understand that tires can be taken at an additional cost, if applicable please discuss with Junk-N-All Hauling.</p>
+                                <p class="text-sm">{{ config('agreement.tire_pricing') }}</p>
+                                <p class="text-sm mt-1">{{ config('agreement.tire_note') }}</p>
                             </div>
                         </div>
                     </div>

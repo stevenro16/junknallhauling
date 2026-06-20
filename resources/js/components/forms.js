@@ -9,6 +9,7 @@ import Alpine from 'alpinejs';
 Alpine.data('navbar', (cfg = {}) => ({
     cfg,
     menuOpen: false,
+    mobileOpen: false,
     // login modal
     showLogin: false,
     login: { username: '', password: '', remember: false, error: '', loading: false },

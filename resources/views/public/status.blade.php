@@ -58,11 +58,6 @@
                     <div class="flex items-center gap-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border"
                               :class="statusClass(inq.status)" x-text="statusLabel(inq.status)"></span>
-                        <div class="flex items-center gap-1 text-gray-400">
-                            <x-icon name="map-pin" class="w-4 h-4" ::class="inq.address_verified ? 'text-green-600' : 'text-gray-400'"/>
-                            <x-icon name="calendar" class="w-4 h-4" ::class="inq.date_time_verified ? 'text-green-600' : 'text-gray-400'"/>
-                            <x-icon name="dollar-sign" class="w-4 h-4" ::class="inq.quote_verified ? 'text-green-600' : 'text-gray-400'"/>
-                        </div>
                     </div>
                 </div>
 
@@ -104,14 +99,6 @@
                     </div>
                 </div>
 
-                <div x-show="inq.verification_history && inq.verification_history.length > 0" class="mt-4 pt-4 border-t border-gray-200">
-                    <div class="text-xs uppercase text-slate-500 mb-2">Verification History</div>
-                    <div class="space-y-1 text-xs text-slate-600">
-                        <template x-for="(entry, idx) in inq.verification_history" :key="idx">
-                            <div><span x-text="entry.new_status"></span> — <span x-text="dateTime(entry.changed_at)"></span></div>
-                        </template>
-                    </div>
-                </div>
             </div>
         </template>
     </div>

@@ -201,18 +201,15 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     equipmentRentalDuration: '', equipmentRentalUnit: '',
     expectedDurationValue: '', expectedDurationUnit: 'hours', adminHoursPerDay: '8',
     expectedDurationMinutes: 120,
-    quotedPrice: '', quoteVerified: false,
+    quotedPrice: '',
     paymentMethod: '', paymentMethodOther: '', paymentDate: '', paymentNotes: '',
-    addressVerified: false, dateTimeVerified: false,
 
     // status flow
     flow: ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed'],
     get flowIndex() { return this.flow.indexOf(this.status); },
-    get allVerified() { return this.addressVerified && this.dateTimeVerified && this.quoteVerified; },
 
     // modals
-    showScheduleConfirm: false, pendingScheduleStatus: null,
-    showPhotoModal: false, showAllVerifiedSchedulePrompt: false,
+    showPhotoModal: false,
     showVoicemailModal: false, voicemailNote: '', showCancelConfirm: false,
 
     init() {
@@ -246,7 +243,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.quotedPrice = inq.quoted_price ?? '';
         this.equipmentRentalDuration = inq.equipment_rental_duration ?? '';
         this.equipmentRentalUnit = inq.equipment_rental_unit ?? '';
-        this.quoteVerified = !!inq.quote_verified;
 
         const known = ['Cash', 'Check', 'Credit/Debit Card', 'Venmo', 'Zelle', 'PayPal', 'Invoice'];
         const pm = inq.payment_method || '';
@@ -260,8 +256,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         }
         this.paymentNotes = inq.payment_notes || '';
         this.expectedDurationMinutes = inq.expected_duration_minutes ?? 120;
-        this.addressVerified = !!inq.address_verified;
-        this.dateTimeVerified = !!inq.date_time_verified;
 
         if (inq.equipment_rental_duration != null && inq.equipment_rental_unit) {
             this.expectedDurationValue = inq.equipment_rental_duration;
@@ -330,8 +324,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             admin_notes: this.adminNotes,
             address: this.address || null,
             confirmed_date_time: this.confirmedDateTime || null,
-            address_verified: this.addressVerified,
-            date_time_verified: this.dateTimeVerified,
             phone: this.phone || null,
             email: this.email || null,
             preferred_contact_method: this.preferredContactMethod,
@@ -342,7 +334,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             equipment_rental_duration: this.equipmentRentalDuration === '' ? null : Number(this.equipmentRentalDuration),
             equipment_rental_unit: this.equipmentRentalUnit || null,
             quoted_price: this.quotedPrice === '' ? null : Number(this.quotedPrice),
-            quote_verified: this.quoteVerified,
             payment_method: this.paymentMethod === 'Other' ? (this.paymentMethodOther.trim() || null) : (this.paymentMethod || null),
             payment_date: this.paymentDate || null,
             payment_notes: this.paymentNotes.trim() || null,
@@ -351,14 +342,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         };
     },
 
-    async save(overrides = {}, force = false) {
-        const effectiveStatus = overrides.status ?? this.status;
-        if (!force && effectiveStatus === 'scheduled') {
-            const allVerified = (overrides.address_verified ?? this.addressVerified)
-                && (overrides.date_time_verified ?? this.dateTimeVerified)
-                && (overrides.quote_verified ?? this.quoteVerified);
-            if (!allVerified) { this.pendingScheduleStatus = effectiveStatus; this.showScheduleConfirm = true; return; }
-        }
+    async save(overrides = {}) {
         this.saving = true;
         try {
             const res = await fetch(this.urls.update, { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this.buildBody(overrides)) });
@@ -374,10 +358,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     async quickUpdateStatus(newStatus) {
         if (newStatus === 'left_voicemail') { this.voicemailNote = ''; this.showVoicemailModal = true; return; }
         if (newStatus === 'cancelled') { this.showCancelConfirm = true; return; }
-        if (newStatus === 'scheduled') {
-            const allVerified = this.addressVerified && this.dateTimeVerified && this.quoteVerified;
-            if (!allVerified) { this.pendingScheduleStatus = newStatus; this.showScheduleConfirm = true; return; }
-        }
         this.status = newStatus;
         await this.save({ status: newStatus });
     },
@@ -400,41 +380,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.showCancelConfirm = false;
     },
 
-    async toggleVerification(field, value) {
-        if (field === 'address_verified') { this.addressVerified = value; if (value) this.logAudit('Address Verified'); }
-        if (field === 'date_time_verified') { this.dateTimeVerified = value; if (value) this.logAudit('Date/Time Verified'); }
-        if (field === 'quote_verified') { this.quoteVerified = value; if (value) this.logAudit('Quote Verified'); }
-        await this.save({ [field]: value });
-        if (value === true) {
-            const a = field === 'address_verified' ? true : this.addressVerified;
-            const dt = field === 'date_time_verified' ? true : this.dateTimeVerified;
-            const q = field === 'quote_verified' ? true : this.quoteVerified;
-            if (a && dt && q && this.status !== 'scheduled') this.showAllVerifiedSchedulePrompt = true;
-        }
-    },
-
     async togglePreferredContact() {
         this.preferredContactMethod = this.preferredContactMethod === 'phone' ? 'email' : 'phone';
         await this.save({ preferred_contact_method: this.preferredContactMethod });
-    },
-
-    async confirmScheduleAutoVerify() {
-        this.addressVerified = true; this.dateTimeVerified = true; this.quoteVerified = true;
-        this.status = this.pendingScheduleStatus;
-        await this.save({ address_verified: true, date_time_verified: true, quote_verified: true, status: this.pendingScheduleStatus }, true);
-        this.showScheduleConfirm = false; this.pendingScheduleStatus = null;
-    },
-    async confirmScheduleAnyway() {
-        this.status = this.pendingScheduleStatus;
-        await this.save({ status: this.pendingScheduleStatus }, true);
-        this.showScheduleConfirm = false; this.pendingScheduleStatus = null;
-    },
-    async confirmAllVerifiedSchedule() {
-        this.addressVerified = true; this.dateTimeVerified = true; this.quoteVerified = true;
-        this.status = 'scheduled';
-        await this.save({ address_verified: true, date_time_verified: true, quote_verified: true, status: 'scheduled' });
-        await this.logAudit('All Verified → Scheduled');
-        this.showAllVerifiedSchedulePrompt = false;
     },
 
     async logAudit(action) {
@@ -536,7 +484,7 @@ Alpine.data('servicesCatalog', (cfg = {}) => ({
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(s) { await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !s.active }) }); await this.reload(); },
-    async remove(s) { if (!confirm('Hide this service from the public form?')) return; await fetch(this.urls.destroy.replace('__ID__', s.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
+    async remove(s) { if (!confirm(`Permanently delete the "${s.label}" service? This cannot be undone.`)) return; await fetch(this.urls.destroy.replace('__ID__', s.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
     money(n) { return n == null ? '—' : Number(n).toLocaleString(); },
 }));
 
@@ -700,6 +648,242 @@ Alpine.data('calendar', (cfg = {}) => ({
     next() { const d = new Date(this.cur); if (this.viewMode === 'month') d.setMonth(d.getMonth() + 1); else if (this.viewMode === 'week') d.setDate(d.getDate() + 7); else d.setDate(d.getDate() + 1); this.cur = d.getTime(); },
     today() { this.cur = Date.now(); },
     goToDay(d) { this.cur = d.getTime(); this.viewMode = 'day'; },
+}));
+
+// ---------------------------------------------------------------------------
+// Site content editor — collects every Trix hidden input + serving-areas
+// textarea on the page and PATCHes them to the admin content endpoint.
+// ---------------------------------------------------------------------------
+Alpine.data('siteContent', (cfg = {}) => ({
+    cfg,
+    icons: cfg.icons || [],
+    cardMax: cfg.cardMax || {},
+    cardSets: {}, // { fieldKey: [cards] } — populated in init()
+    saving: false,
+    saved: false,
+    dirty: false,
+    ready: false, // gates dirty-tracking until after Trix finishes loading content
+    error: '',
+
+    init() {
+        const sets = this.cfg.cardSets || {};
+        const built = {};
+        for (const key of Object.keys(sets)) {
+            built[key] = (sets[key] || []).map((c, i) => ({
+                icon: c.icon || 'truck',
+                image: c.image || '',
+                title: c.title || '',
+                subheader: c.subheader || '',
+                body: c.body || '',
+                uid: c.uid || (key + i + Math.random().toString(36).slice(2)),
+            }));
+        }
+        this.cardSets = built;
+        setTimeout(() => { this.ready = true; }, 700);
+    },
+
+    maxFor(key) {
+        return this.cardMax[key] || 4;
+    },
+
+    addCard(key) {
+        if ((this.cardSets[key]?.length || 0) >= this.maxFor(key)) return;
+        this.cardSets[key].push({
+            icon: this.icons[0] || 'truck',
+            image: '',
+            title: '',
+            subheader: '',
+            body: '',
+            uid: key + Date.now().toString(36) + Math.random().toString(36).slice(2),
+        });
+        this.dirty = true;
+    },
+
+    removeCard(key, i) {
+        this.cardSets[key].splice(i, 1);
+        this.dirty = true;
+    },
+
+    // Read an uploaded image, downscale it to <=128px, store as a base64 data URL.
+    uploadIcon(card, event) {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = ''; // allow re-selecting the same file later
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { this.error = 'Please choose an image file.'; return; }
+        if (file.size > 10 * 1024 * 1024) { this.error = 'Image is too large (max 10MB).'; return; }
+        this.error = '';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const max = 128;
+                let w = img.width, h = img.height;
+                if (w > max || h > max) {
+                    const scale = max / Math.max(w, h);
+                    w = Math.round(w * scale);
+                    h = Math.round(h * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                card.image = canvas.toDataURL('image/png'); // PNG preserves transparency
+                this.dirty = true;
+            };
+            img.onerror = () => { this.error = 'That image could not be read.'; };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
+
+    clearIcon(card) {
+        card.image = '';
+        this.dirty = true;
+    },
+
+    async save() {
+        this.saving = true;
+        this.saved = false;
+        this.error = '';
+
+        const content = {};
+        document.querySelectorAll('[data-cms-key]').forEach((el) => {
+            const key = el.getAttribute('data-cms-key');
+            if (el.getAttribute('data-cms-type') === 'list') {
+                content[key] = el.value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            } else {
+                content[key] = el.value; // Trix keeps this hidden input in sync
+            }
+        });
+
+        for (const key of Object.keys(this.cardSets)) {
+            content[key] = this.cardSets[key].map((c) => ({ icon: c.icon, image: c.image || '', title: c.title, subheader: c.subheader || '', body: c.body }));
+        }
+
+        try {
+            const res = await fetch(this.cfg.updateUrl, {
+                method: 'PATCH',
+                headers: window.jsonHeaders(true),
+                body: JSON.stringify({ content }),
+            });
+            if (!res.ok) throw new Error('Save failed. Please try again.');
+            this.saved = true;
+            this.dirty = false;
+            setTimeout(() => { this.saved = false; }, 3000);
+        } catch (e) {
+            this.error = e.message || 'Could not save.';
+        } finally {
+            this.saving = false;
+        }
+    },
+}));
+
+// ---------------------------------------------------------------------------
+// Rental agreement sender — generates (or reuses) a signing link for the
+// current inquiry and lets the admin copy it to send to the customer.
+// ---------------------------------------------------------------------------
+Alpine.data('agreementSender', (cfg = {}) => ({
+    cfg,
+    agreements: cfg.agreements || [],
+    preferred: cfg.preferred === 'email' ? 'email' : 'phone',
+    phone: cfg.phone || '',
+    email: cfg.email || '',
+    name: cfg.name || '',
+    sendToContact: false,
+    link: '',
+    sending: false,
+    copied: false,
+    copiedId: '',
+    error: '',
+
+    get contactLabel() {
+        return (this.preferred === 'email' ? 'Email' : 'Text') + ' agreement link';
+    },
+
+    init() {
+        const active = this.agreements.find((a) => a.usable);
+        if (active) this.link = active.url;
+    },
+
+    async send() {
+        this.sending = true;
+        this.error = '';
+        this.copied = false;
+        try {
+            const res = await fetch(this.cfg.createUrl, { method: 'POST', headers: window.jsonHeaders(true) });
+            if (!res.ok) throw new Error('Could not generate the agreement.');
+            const data = await res.json();
+            const a = data.agreement;
+            this.link = a.url;
+            if (!this.agreements.some((x) => x.id === a.id)) {
+                this.agreements.unshift(a);
+            }
+            if (this.sendToContact) this.deliver();
+        } catch (e) {
+            this.error = e.message || 'Error generating the agreement.';
+        } finally {
+            this.sending = false;
+        }
+    },
+
+    // Open the admin's email/SMS app prefilled with the signing link, using the
+    // customer's preferred contact method.
+    deliver() {
+        if (!this.link) return;
+        const msg = `Hi ${this.name || 'there'}, please review and sign your rental agreement here: ${this.link}`;
+        if (this.preferred === 'email') {
+            if (!this.email) { this.error = 'No email address on file for this customer.'; return; }
+            window.location.href = `mailto:${encodeURIComponent(this.email)}`
+                + `?subject=${encodeURIComponent('Your Rental Agreement')}&body=${encodeURIComponent(msg)}`;
+        } else {
+            if (!this.phone) { this.error = 'No phone number on file for this customer.'; return; }
+            window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
+        }
+    },
+
+    async copy() {
+        try {
+            await navigator.clipboard.writeText(this.link);
+            this.copied = true;
+            setTimeout(() => { this.copied = false; }, 2000);
+        } catch {
+            this.error = 'Copy failed — select the link and copy manually.';
+        }
+    },
+
+    async copyAgreement(a) {
+        try {
+            await navigator.clipboard.writeText(a.url);
+            this.copiedId = a.id;
+            setTimeout(() => { if (this.copiedId === a.id) this.copiedId = ''; }, 2000);
+        } catch {
+            this.error = 'Copy failed — open the agreement and copy the link manually.';
+        }
+    },
+
+    async remove(a) {
+        const msg = a.signed_at
+            ? 'Delete this signed agreement and its collected signature? This cannot be undone.'
+            : 'Delete this pending agreement link?';
+        if (!confirm(msg)) return;
+        this.error = '';
+        try {
+            const res = await fetch(this.cfg.deleteUrl.replace('__ID__', a.id), {
+                method: 'DELETE',
+                headers: window.jsonHeaders(true),
+            });
+            if (!res.ok) throw new Error('Could not delete the agreement.');
+            this.agreements = this.agreements.filter((x) => x.id !== a.id);
+            if (this.link && this.link === a.url) this.link = '';
+        } catch (e) {
+            this.error = e.message || 'Delete failed.';
+        }
+    },
+
+    fmt(d) {
+        return d ? new Date(d).toLocaleDateString() : '';
+    },
 }));
 
 export {};
