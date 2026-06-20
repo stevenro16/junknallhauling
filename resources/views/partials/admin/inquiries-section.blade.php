@@ -5,6 +5,9 @@
         'confirmed_date_time' => $i->confirmed_date_time, 'quoted_price' => $i->quoted_price,
         'payment_method' => $i->payment_method,
         'created_at' => $i->created_at,
+        'agreement' => $i->rentalAgreements->isEmpty()
+            ? 'none'
+            : ($i->rentalAgreements->contains(fn ($a) => $a->signed_at) ? 'signed' : 'pending'),
     ])->values();
 @endphp
 
@@ -78,6 +81,7 @@
                         <th class="text-left px-4 py-3">Customer</th>
                         <th class="text-left px-4 py-3">Service</th>
                         <th class="text-left px-4 py-3">Payment</th>
+                        <th class="text-center px-4 py-3">Agreement</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -89,11 +93,19 @@
                             <td class="px-4 py-3">
                                 <div class="font-medium text-gray-900" x-text="i.name || '(no name)'"></div>
                                 <div class="text-xs text-gray-500" x-text="i.phone"></div>
+                                <div class="text-xs text-gray-500" x-show="i.email" x-text="i.email"></div>
                             </td>
                             <td class="px-4 py-3 text-gray-600 capitalize" x-text="serviceLabel(i.service_type)"></td>
                             <td class="px-4 py-3">
                                 <span x-show="i.payment_method" class="text-emerald-600 text-xs font-medium" x-text="i.payment_method"></span>
                                 <span x-show="!i.payment_method" class="text-gray-400 text-xs">—</span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span x-show="i.agreement !== 'none'" x-cloak
+                                      :title="i.agreement === 'signed' ? 'Agreement signed' : 'Agreement sent — awaiting signature'">
+                                    <x-icon name="file-text" class="w-4 h-4 inline-block" ::class="i.agreement === 'signed' ? 'text-green-600' : 'text-gray-400'"/>
+                                </span>
+                                <span x-show="i.agreement === 'none'" class="text-gray-300 text-xs">—</span>
                             </td>
                         </tr>
                     </template>

@@ -20,8 +20,8 @@
     })" class="flex h-screen overflow-hidden bg-gray-200 text-gray-800 print:block print:h-auto print:overflow-visible print:bg-white">
 
     {{-- Desktop sidebar --}}
-    <div class="hidden lg:block h-full print:hidden">
-        @include('partials.admin.sidebar')
+    <div class="hidden lg:block h-full print:hidden" x-data="{ navExpanded: $persist(false).as('admin_nav_expanded') }">
+        @include('partials.admin.sidebar', ['collapsible' => true])
     </div>
 
     {{-- Mobile drawer --}}
@@ -31,7 +31,7 @@
             <div class="text-sm font-semibold text-[#F8C820]">Admin Menu</div>
             <button @click="mobileOpen = false" class="text-gray-400 hover:text-white"><x-icon name="x" class="w-5 h-5"/></button>
         </div>
-        @include('partials.admin.sidebar')
+        @include('partials.admin.sidebar', ['collapsible' => false])
     </div>
 
     {{-- Main --}}

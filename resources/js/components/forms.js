@@ -114,7 +114,6 @@ Alpine.data('quoteForm', () => ({
     loadingEquipment: false,
     equipmentRentalDuration: '',
     equipmentRentalUnit: 'hours',
-    customerSuggestedQuote: '',
     // photo
     photo: null,               // { base64, mime, name }
     photoError: null,
@@ -156,7 +155,6 @@ Alpine.data('quoteForm', () => ({
             this.selectedEquipment = '';
             this.equipmentRentalDuration = '';
             this.equipmentRentalUnit = 'hours';
-            this.customerSuggestedQuote = '';
         }
     },
 
@@ -208,9 +206,7 @@ Alpine.data('quoteForm', () => ({
             if (this.equipmentRentalDuration) {
                 payload.equipment_rental_duration = parseInt(this.equipmentRentalDuration, 10);
                 payload.equipment_rental_unit = this.equipmentRentalUnit;
-                const finalQuote = this.customerSuggestedQuote
-                    ? parseFloat(this.customerSuggestedQuote)
-                    : this.computedEstimate;
+                const finalQuote = this.computedEstimate;
                 if (finalQuote && !isNaN(finalQuote)) payload.initial_estimated_quote = Math.round(finalQuote);
             }
         }

@@ -131,15 +131,6 @@
                                         <div class="text-[10px] text-emerald-600 leading-tight">Based on catalog rate<br>&times; your duration</div>
                                     </div>
                                 </div>
-                                <div class="mt-4 pt-4 border-t border-emerald-200">
-                                    <label class="block text-xs font-medium text-emerald-700 mb-1">Suggest a different amount? (optional)</label>
-                                    <div class="flex gap-2 items-center">
-                                        <span class="text-emerald-700">$</span>
-                                        <input type="number" step="1" min="0" x-model="customerSuggestedQuote" placeholder="Your suggested quote"
-                                               class="input flex-1 text-sm py-2 border-emerald-300 focus:border-emerald-500">
-                                    </div>
-                                    <p class="text-[10px] text-emerald-600 mt-1">If you enter a value, it will be sent to us as your suggested starting quote.</p>
-                                </div>
                             </div>
                         </div>
 

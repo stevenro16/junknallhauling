@@ -3,7 +3,7 @@
 @section('title', 'Admin Dashboard — '.config('business.name'))
 
 @section('admin-content')
-<div class="max-w-7xl mx-auto">
+<div class="w-full">
     <div class="mb-6">
         <h2 class="text-2xl font-semibold">
             @switch($section)
