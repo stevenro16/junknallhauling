@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+/* Trix editor styles (admin Site Content toolbar icons). Bundled into the main
+   stylesheet — not a separate runtime chunk — so the toolbar always has its
+   icons even when public/build is uploaded by hand. */
+@import 'trix/dist/trix.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

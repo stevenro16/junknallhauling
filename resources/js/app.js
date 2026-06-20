@@ -36,11 +36,10 @@ import './components/admin.js';
 import './components/map.js';
 import './components/reveal.js';
 
-// Trix rich-text editor — only pulled in on the admin Site Content page so it
-// never weighs down the public bundle.
+// Trix rich-text editor JS — only pulled in on the admin Site Content page so
+// it never weighs down the public bundle. Its CSS is bundled into app.css.
 if (document.querySelector('trix-editor')) {
     import('trix');
-    import('trix/dist/trix.css');
 }
 
 Alpine.start();
