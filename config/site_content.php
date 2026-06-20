@@ -32,10 +32,10 @@ return [
         'type'    => 'cards',
         'max'     => 4,
         'default' => [
-            ['icon' => 'truck', 'title' => 'Junk Removal', 'body' => '<p>1/4, 1/2, 3/4 or full truck loads. We load everything — furniture, debris, appliances, yard waste.</p>'],
-            ['icon' => 'package', 'title' => 'Dumpster Rental', 'body' => '<p>10-yard and 20-yard roll-offs. 1-2 tons disposal included. Perfect for renovations and cleanouts.</p>'],
-            ['icon' => 'hammer', 'title' => 'Light Demolition', 'body' => '<p>Our light demolition services include:</p><ul><li>Kitchen/Bathroom Gutting: Ripping out old cabinetry, countertops, sinks, and built-in vanities.</li><li>Flooring Removal: Tearing up carpeting, hardwood, laminate, or chipping away old ceramic tile and subflooring.</li></ul>'],
-            ['icon' => 'wrench', 'title' => 'Hauling & Equipment', 'body' => '<p>Specialty hauling, scissor lifts, excavators, and heavy equipment rentals for larger jobs.</p>'],
+            ['icon' => 'truck', 'title' => 'Junk Removal', 'body' => '<p>1/4, 1/2, 3/4 or full truck loads. We load everything — furniture, debris, appliances, yard waste.</p>', 'link_label' => 'Request a Quote', 'link_url' => '/contact'],
+            ['icon' => 'package', 'title' => 'Dumpster Rental', 'body' => '<p>10-yard and 20-yard roll-offs. 1-2 tons disposal included. Perfect for renovations and cleanouts.</p>', 'link_label' => 'Request a Quote', 'link_url' => '/contact'],
+            ['icon' => 'hammer', 'title' => 'Light Demolition', 'body' => '<p>Our light demolition services include:</p><ul><li>Kitchen/Bathroom Gutting: Ripping out old cabinetry, countertops, sinks, and built-in vanities.</li><li>Flooring Removal: Tearing up carpeting, hardwood, laminate, or chipping away old ceramic tile and subflooring.</li></ul>', 'link_label' => 'Request a Quote', 'link_url' => '/contact'],
+            ['icon' => 'wrench', 'title' => 'Hauling & Equipment', 'body' => '<p>Specialty hauling, scissor lifts, excavators, and heavy equipment rentals for larger jobs.</p>', 'link_label' => 'Request a Quote', 'link_url' => '/contact'],
         ],
     ],
 

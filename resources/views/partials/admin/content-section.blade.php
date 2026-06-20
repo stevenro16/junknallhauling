@@ -17,7 +17,7 @@
             continue;
         }
         $initialCardSets[$cardKey] = collect(\App\Models\SiteContent::cards($cardKey))
-            ->map(fn ($c, $i) => array_merge(['icon' => 'truck', 'image' => '', 'title' => '', 'subheader' => '', 'body' => ''], $c, ['uid' => $cardKey.$i]))
+            ->map(fn ($c, $i) => array_merge(['icon' => 'truck', 'image' => '', 'title' => '', 'subheader' => '', 'body' => '', 'link_label' => '', 'link_url' => ''], $c, ['uid' => $cardKey.$i]))
             ->values();
         $cardMax[$cardKey] = $cardField['max'] ?? 4;
     }
@@ -30,7 +30,7 @@
         icons: @js($iconChoices),
     })"
     @input="ready && (dirty = true)" @change="ready && (dirty = true)" @trix-change="ready && (dirty = true)"
-    class="max-w-5xl space-y-6 pb-4">
+    class="w-full space-y-6 pb-4">
 
     <p class="text-sm text-gray-500">
         Edit the marketing copy and serving areas shown on the public site. Changes go live as soon as you save.
@@ -100,6 +100,18 @@
                                                 <input type="hidden" :id="'cardbody-' + card.uid" :value="card.body">
                                                 <trix-editor :input="'cardbody-' + card.uid"
                                                              @trix-change="card.body = $event.target.value"></trix-editor>
+
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                                    <div>
+                                                        <label class="block text-xs text-gray-500 mb-1">Bottom link caption <span class="text-gray-400">(optional)</span></label>
+                                                        <input type="text" x-model="card.link_label" class="input-light text-sm" placeholder="e.g. Request a Quote">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs text-gray-500 mb-1">Bottom link URL <span class="text-gray-400">(optional)</span></label>
+                                                        <input type="text" x-model="card.link_url" class="input-light text-sm" placeholder="/contact or https://…">
+                                                    </div>
+                                                </div>
+                                                <p class="text-xs text-gray-400 mt-1">The link only shows when both a caption and URL are set.</p>
                                             </div>
 
                                             {{-- Live preview --}}
@@ -119,8 +131,8 @@
                                                     <h3 class="font-black text-2xl mb-3" x-text="card.title || 'Card title'"></h3>
                                                     <p x-show="card.subheader" x-cloak class="text-slate-500 text-sm mb-3" x-text="card.subheader"></p>
                                                     <div class="text-slate-600 text-[15px] mb-6 flex-1 cms-content" x-html="card.body"></div>
-                                                    <span class="text-orange-600 font-semibold inline-flex items-center gap-1.5">
-                                                        Request a Quote <x-icon name="arrow-right" class="w-4 h-4"/>
+                                                    <span x-show="card.link_label && card.link_url" x-cloak class="text-orange-600 font-semibold inline-flex items-center gap-1.5">
+                                                        <span x-text="card.link_label"></span> <x-icon name="arrow-right" class="w-4 h-4"/>
                                                     </span>
                                                 </div>
                                             </div>

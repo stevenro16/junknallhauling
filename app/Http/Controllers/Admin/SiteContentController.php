@@ -60,11 +60,21 @@ class SiteContentController extends Controller
                 continue;
             }
             $icon = preg_replace('/[^a-z0-9-]/', '', strtolower((string) ($card['icon'] ?? 'truck')));
+            // Optional bottom call-to-action link (caption + URL). Both must be
+            // present for the public site to render the link.
+            $linkLabel = trim(strip_tags((string) ($card['link_label'] ?? '')));
+            $linkUrl = trim((string) ($card['link_url'] ?? ''));
+            if (preg_match('/^\s*javascript:/i', $linkUrl)) {
+                $linkUrl = '';
+            }
+
             $entry = [
-                'icon'      => $icon !== '' ? $icon : 'truck',
-                'title'     => $title,
-                'subheader' => trim(strip_tags((string) ($card['subheader'] ?? ''))),
-                'body'      => $this->sanitizeHtml((string) ($card['body'] ?? '')),
+                'icon'       => $icon !== '' ? $icon : 'truck',
+                'title'      => $title,
+                'subheader'  => trim(strip_tags((string) ($card['subheader'] ?? ''))),
+                'body'       => $this->sanitizeHtml((string) ($card['body'] ?? '')),
+                'link_label' => $linkLabel,
+                'link_url'   => $linkUrl,
             ];
 
             // Optional uploaded image (small base64 data URL). Falls back to the

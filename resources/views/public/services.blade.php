@@ -31,7 +31,15 @@
                     @endif
                 </div>
                 <div data-reveal="right" data-reveal-delay="120" class="lg:col-span-3">
-                    <div class="card p-7 text-[15px] text-slate-700 cms-content">{!! $card['body'] ?? '' !!}</div>
+                    <div class="card p-7 text-[15px] text-slate-700">
+                        <div class="cms-content">{!! $card['body'] ?? '' !!}</div>
+                        @php($ctaLabel = trim($card['link_label'] ?? ''))
+                        @php($ctaUrl = trim($card['link_url'] ?? ''))
+                        @if($ctaLabel !== '' && $ctaUrl !== '')
+                            <a href="{{ \Illuminate\Support\Str::startsWith($ctaUrl, ['http://', 'https://', 'mailto:', 'tel:', '#']) ? $ctaUrl : url($ctaUrl) }}"
+                               class="mt-5 text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">{{ $ctaLabel }} <x-icon name="arrow-right" class="w-4 h-4"/></a>
+                        @endif
+                    </div>
                 </div>
             </div>
         @endforeach

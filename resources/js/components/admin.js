@@ -675,6 +675,8 @@ Alpine.data('siteContent', (cfg = {}) => ({
                 title: c.title || '',
                 subheader: c.subheader || '',
                 body: c.body || '',
+                link_label: c.link_label || '',
+                link_url: c.link_url || '',
                 uid: c.uid || (key + i + Math.random().toString(36).slice(2)),
             }));
         }
@@ -694,6 +696,8 @@ Alpine.data('siteContent', (cfg = {}) => ({
             title: '',
             subheader: '',
             body: '',
+            link_label: '',
+            link_url: '',
             uid: key + Date.now().toString(36) + Math.random().toString(36).slice(2),
         });
         this.dirty = true;
@@ -758,7 +762,7 @@ Alpine.data('siteContent', (cfg = {}) => ({
         });
 
         for (const key of Object.keys(this.cardSets)) {
-            content[key] = this.cardSets[key].map((c) => ({ icon: c.icon, image: c.image || '', title: c.title, subheader: c.subheader || '', body: c.body }));
+            content[key] = this.cardSets[key].map((c) => ({ icon: c.icon, image: c.image || '', title: c.title, subheader: c.subheader || '', body: c.body, link_label: c.link_label || '', link_url: c.link_url || '' }));
         }
 
         try {

@@ -63,7 +63,12 @@
                             <p class="text-slate-500 text-sm mb-3">{{ $card['subheader'] }}</p>
                         @endif
                         <div class="text-slate-600 text-[15px] mb-6 flex-1 cms-content">{!! $card['body'] ?? '' !!}</div>
-                        <a href="{{ route('contact') }}" class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">Request a Quote <x-icon name="arrow-right" class="w-4 h-4"/></a>
+                        @php($ctaLabel = trim($card['link_label'] ?? ''))
+                        @php($ctaUrl = trim($card['link_url'] ?? ''))
+                        @if($ctaLabel !== '' && $ctaUrl !== '')
+                            <a href="{{ \Illuminate\Support\Str::startsWith($ctaUrl, ['http://', 'https://', 'mailto:', 'tel:', '#']) ? $ctaUrl : url($ctaUrl) }}"
+                               class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">{{ $ctaLabel }} <x-icon name="arrow-right" class="w-4 h-4"/></a>
+                        @endif
                     </div>
                 @endforeach
             </div>
