@@ -184,6 +184,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     urls: cfg.urls,
     inquiry: cfg.inquiry,
     equipmentOptions: cfg.equipment || [],
+    serviceCatalog: cfg.services || [],
     allInquiries: cfg.allInquiries || [],
     history: cfg.history || [],
     saving: false,
@@ -191,7 +192,11 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     TIME_SLOTS: buildTimeSlots(),
     fmtTime12, datePart, timePart,
 
+    // address autocomplete (OpenStreetMap, via admin backend proxy)
+    addrSuggestions: [], addrOpen: false, addrLoading: false, _addrTimer: null, _addrSeq: 0,
+
     // editable fields
+    jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     adminNotes: '', status: 'new',
     address: '', confirmedDateTime: '',
     phone: '', email: '', preferredContactMethod: 'phone',
@@ -240,6 +245,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.customerPreferredTime = inq.preferred_time || '';
         this.serviceType = inq.service_type || '';
         this.equipmentType = inq.equipment_type || '';
+        // Equipment Rental is the legacy service_type === 'equipment' (or any saved
+        // equipment_type); everything else is a Service.
+        this.jobType = (inq.service_type === 'equipment' || inq.equipment_type) ? 'equipment' : 'service';
         this.quotedPrice = inq.quoted_price ?? '';
         this.equipmentRentalDuration = inq.equipment_rental_duration ?? '';
         this.equipmentRentalUnit = inq.equipment_rental_unit ?? '';
@@ -266,7 +274,31 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         }
     },
 
-    get isEquipment() { return this.serviceType === 'equipment'; },
+    get isEquipment() { return this.jobType === 'equipment'; },
+
+    // Pill toggle. Switching to Service ensures a valid catalog selection and
+    // seeds the visit duration from that service's default.
+    setJobType(type) {
+        if (this.jobType === type) return;
+        this.jobType = type;
+        if (type === 'service') {
+            if (!this.serviceType || this.serviceType === 'equipment') {
+                this.serviceType = this.serviceCatalog[0]?.key || '';
+            }
+            this.applyServiceDefaultDuration();
+        }
+    },
+
+    onServiceChange() { this.applyServiceDefaultDuration(); },
+
+    // Seed the Visit "Duration" field from the selected service's default.
+    applyServiceDefaultDuration() {
+        const svc = this.serviceCatalog.find((s) => s.key === this.serviceType);
+        const mins = svc?.default_duration_minutes;
+        if (!mins || mins <= 0) return;
+        this.expectedDurationUnit = 'hours';
+        this.expectedDurationValue = mins / 60; // syncDuration() recomputes minutes
+    },
 
     get previousCustomerAddresses() {
         const np = (this.phone || '').replace(/\D/g, '').slice(-10);
@@ -318,9 +350,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     },
 
     buildBody(overrides = {}) {
+        const isEq = this.jobType === 'equipment';
         return {
             status: this.status,
-            service_type: this.serviceType || null,
+            service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
             address: this.address || null,
             confirmed_date_time: this.confirmedDateTime || null,
@@ -330,9 +363,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             zip_code: this.customerZip || null,
             preferred_day: this.customerPreferredDay || null,
             preferred_time: this.customerPreferredTime || null,
-            equipment_type: (this.equipmentType === '__other__' ? '' : this.equipmentType) || null,
-            equipment_rental_duration: this.equipmentRentalDuration === '' ? null : Number(this.equipmentRentalDuration),
-            equipment_rental_unit: this.equipmentRentalUnit || null,
+            equipment_type: isEq ? ((this.equipmentType === '__other__' ? '' : this.equipmentType) || null) : null,
+            equipment_rental_duration: isEq ? (this.equipmentRentalDuration === '' ? null : Number(this.equipmentRentalDuration)) : null,
+            equipment_rental_unit: isEq ? (this.equipmentRentalUnit || null) : null,
             quoted_price: this.quotedPrice === '' ? null : Number(this.quotedPrice),
             payment_method: this.paymentMethod === 'Other' ? (this.paymentMethodOther.trim() || null) : (this.paymentMethod || null),
             payment_date: this.paymentDate || null,
@@ -387,6 +420,37 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     async logAudit(action) {
         try { await fetch(this.urls.audit, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ action }) }); } catch {}
+    },
+
+    // Debounced address autocomplete. Fires as the admin types; results come
+    // from /admin/api/address-suggest (OpenStreetMap, cached + rate-limited).
+    onAddressInput() {
+        clearTimeout(this._addrTimer);
+        const q = (this.address || '').trim();
+        if (q.length < 3) { this.addrSuggestions = []; this.addrOpen = false; return; }
+        this._addrTimer = setTimeout(() => this.fetchAddressSuggestions(q), 450);
+    },
+
+    async fetchAddressSuggestions(q) {
+        const seq = ++this._addrSeq;
+        this.addrLoading = true;
+        try {
+            const res = await fetch(`${this.urls.addressSuggest}?q=${encodeURIComponent(q)}`, { headers: window.jsonHeaders() });
+            const data = res.ok ? await res.json() : [];
+            if (seq !== this._addrSeq) return; // a newer keystroke superseded this one
+            this.addrSuggestions = Array.isArray(data) ? data : [];
+            this.addrOpen = this.addrSuggestions.length > 0;
+        } catch {
+            if (seq === this._addrSeq) { this.addrSuggestions = []; this.addrOpen = false; }
+        } finally {
+            if (seq === this._addrSeq) this.addrLoading = false;
+        }
+    },
+
+    pickAddress(s) {
+        this.address = s.value;
+        this.addrSuggestions = [];
+        this.addrOpen = false;
     },
 
     openInGoogleMaps() { if (this.address?.trim()) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.address)}`, '_blank'); },
@@ -484,6 +548,7 @@ Alpine.data('servicesCatalog', (cfg = {}) => ({
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(s) { await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !s.active }) }); await this.reload(); },
+    async toggleCustomerVisible(s) { await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ customer_visible: !s.customer_visible }) }); await this.reload(); },
     async remove(s) { if (!confirm(`Permanently delete the "${s.label}" service? This cannot be undone.`)) return; await fetch(this.urls.destroy.replace('__ID__', s.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
     money(n) { return n == null ? '—' : Number(n).toLocaleString(); },
 }));
@@ -514,7 +579,8 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },
-    async remove(e) { if (!confirm('Hide this equipment item?')) return; await fetch(this.urls.destroy.replace('__ID__', e.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
+    async toggleCustomerVisible(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ customer_visible: !e.customer_visible }) }); await this.reload(); },
+    async remove(e) { if (!confirm(`Permanently delete the "${e.name}" equipment item? This cannot be undone.`)) return; await fetch(this.urls.destroy.replace('__ID__', e.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
     money(n) { return n == null ? '—' : Number(n).toLocaleString(); },
 }));
 

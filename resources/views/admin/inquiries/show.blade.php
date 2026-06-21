@@ -6,12 +6,14 @@
 <div x-data="inquiryDetail({
         inquiry: @js($inquiry),
         equipment: @js($equipment),
+        services: @js($services),
         allInquiries: @js($allInquiries),
         history: @js($history),
         urls: {
             update: '{{ route('admin.api.inquiries.update', $inquiry->id) }}',
             history: '{{ route('admin.api.inquiries.history', $inquiry->id) }}',
             audit: '{{ route('admin.api.inquiries.audit', $inquiry->id) }}',
+            addressSuggest: '{{ route('admin.api.address.suggest') }}',
         },
     })" class="w-full pt-1 pb-8">
 
@@ -86,16 +88,44 @@
             <div class="card-light border-l-2 border-[#F8C820] p-5">
                 <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Job Details</div><div class="h-px flex-1 bg-gray-200"></div></div>
                 <div class="space-y-3">
+                    {{-- Job type pill (Service is the default) --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Job Type</label>
+                        <div class="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-0.5">
+                            <button type="button" @click="setJobType('service')"
+                                    class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="!isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Service</button>
+                            <button type="button" @click="setJobType('equipment')"
+                                    class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Equipment Rental</button>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed</label>
-                            <select x-model="serviceType" class="input-light text-sm py-2 w-full">
-                                <option value="junk-removal">Junk Removal</option>
-                                <option value="10yd-dumpster">10 Yard Dumpster Rental</option>
-                                <option value="20yd-dumpster">20 Yard Dumpster Rental</option>
-                                <option value="equipment">Equipment Rental</option>
-                                <option value="other">Other / Not Sure</option>
-                            </select>
+                            {{-- Service picker (from the service catalog) --}}
+                            <div x-show="!isEquipment">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed</label>
+                                <select x-model="serviceType" @change="onServiceChange()" class="input-light text-sm py-2 w-full">
+                                    <option value="">Select a service...</option>
+                                    <template x-for="svc in serviceCatalog" :key="svc.id">
+                                        <option :value="svc.key" x-text="svc.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            {{-- Equipment picker (from the equipment catalog) --}}
+                            <div x-show="isEquipment" x-cloak>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Equipment Needed</label>
+                                <select x-model="equipmentType" class="input-light text-sm py-2 w-full">
+                                    <option value="">Select equipment type...</option>
+                                    <template x-for="opt in equipmentOptions" :key="opt.id">
+                                        <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' (~$' + opt.avg_cost_per_hour + '/hr)' : '')"></option>
+                                    </template>
+                                    <option value="__other__">Other (specify below)</option>
+                                </select>
+                                <input x-show="equipmentType === '__other__'" type="text" @input="equipmentType = $event.target.value" placeholder="Specify equipment type" class="input-light text-sm py-2 mt-2 w-full" x-cloak>
+                            </div>
+                            {{-- Customer photo --}}
                             <template x-if="inquiry.photo_base64 && inquiry.photo_mime">
                                 <div class="mt-2">
                                     <button type="button" @click="showPhotoModal = true" class="block overflow-hidden rounded-lg border border-gray-300 hover:border-[#F8C820] transition-colors" title="Click to view full size">
@@ -114,27 +144,14 @@
                         </div>
                     </div>
 
-                    {{-- Equipment row --}}
-                    <div class="grid grid-cols-2 gap-4" x-show="isEquipment" x-cloak>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Equipment Needed</label>
-                            <select x-model="equipmentType" class="input-light text-sm py-2 w-full">
-                                <option value="">Select equipment type...</option>
-                                <template x-for="opt in equipmentOptions" :key="opt.id">
-                                    <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' (~$' + opt.avg_cost_per_hour + '/hr)' : '')"></option>
-                                </template>
-                                <option value="__other__">Other (specify below)</option>
+                    {{-- Requested rental duration (equipment mode) --}}
+                    <div x-show="isEquipment" x-cloak>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Requested Rental Duration</label>
+                        <div class="flex gap-2 max-w-xs">
+                            <input type="number" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
+                            <select x-model="equipmentRentalUnit" class="input-light text-sm py-2 flex-1">
+                                <option value="">Unit</option><option value="hours">Hours</option><option value="days">Days</option>
                             </select>
-                            <input x-show="equipmentType === '__other__'" type="text" @input="equipmentType = $event.target.value" placeholder="Specify equipment type" class="input-light text-sm py-2 mt-2 w-full" x-cloak>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Requested Rental Duration</label>
-                            <div class="flex gap-2">
-                                <input type="number" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
-                                <select x-model="equipmentRentalUnit" class="input-light text-sm py-2 flex-1">
-                                    <option value="">Unit</option><option value="hours">Hours</option><option value="days">Days</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -165,7 +182,25 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Pickup Address</label>
                         <div class="flex gap-2">
-                            <input type="text" x-model="address" placeholder="123 Main St, Yucaipa..." class="input-light text-sm py-2 flex-1">
+                            <div class="relative flex-1" @click.outside="addrOpen = false">
+                                <input type="text" x-model="address" @input="onAddressInput()"
+                                       @focus="addrSuggestions.length && (addrOpen = true)"
+                                       @keydown.escape="addrOpen = false" autocomplete="off"
+                                       placeholder="123 Main St, Yucaipa..." class="input-light text-sm py-2 w-full">
+                                <div x-show="addrLoading" x-cloak class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
+                                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/></svg>
+                                </div>
+                                <div x-show="addrOpen && addrSuggestions.length" x-cloak
+                                     class="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                    <template x-for="(s, i) in addrSuggestions" :key="i">
+                                        <button type="button" @click="pickAddress(s)"
+                                                class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 border-b border-gray-100 last:border-0 flex items-start gap-2">
+                                            <x-icon name="map-pin" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500"/>
+                                            <span x-text="s.label"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                             <button type="button" @click="openInGoogleMaps()" :disabled="!address.trim()" class="btn-outline !px-3 !py-2" title="Open in Google Maps"><x-icon name="map" class="w-4 h-4"/></button>
                         </div>
                         <template x-if="previousCustomerAddresses.length > 0">

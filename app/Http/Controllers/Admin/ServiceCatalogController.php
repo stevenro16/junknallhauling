@@ -26,11 +26,12 @@ class ServiceCatalogController extends Controller
         }
 
         $service = ServiceCatalog::create([
-            'key'                      => $key,
-            'label'                    => $label,
-            'default_price'            => $request->input('default_price') !== null ? (float) $request->input('default_price') : null,
+            'key' => $key,
+            'label' => $label,
+            'default_price' => $request->input('default_price') !== null ? (float) $request->input('default_price') : null,
             'default_duration_minutes' => $request->input('default_duration_minutes') !== null ? (int) $request->input('default_duration_minutes') : 120,
-            'active'                   => true,
+            'active' => true,
+            'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
         ]);
 
         return response()->json(['service' => $service], 201);
@@ -55,6 +56,9 @@ class ServiceCatalogController extends Controller
         }
         if ($request->has('active')) {
             $updates['active'] = (bool) $request->input('active');
+        }
+        if ($request->has('customer_visible')) {
+            $updates['customer_visible'] = (bool) $request->input('customer_visible');
         }
 
         $service->update($updates);

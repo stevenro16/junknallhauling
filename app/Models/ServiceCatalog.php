@@ -17,9 +17,10 @@ class ServiceCatalog extends Model
     protected function casts(): array
     {
         return [
-            'default_price'            => 'float',
+            'default_price' => 'float',
             'default_duration_minutes' => 'integer',
-            'active'                   => 'boolean',
+            'active' => 'boolean',
+            'customer_visible' => 'boolean',
         ];
     }
 

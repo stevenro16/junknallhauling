@@ -25,10 +25,11 @@ class EquipmentController extends Controller
         }
 
         $equipment = EquipmentType::create([
-            'name'              => $name,
+            'name' => $name,
             'avg_cost_per_hour' => $request->input('avg_cost_per_hour') !== null && $request->input('avg_cost_per_hour') !== '' ? (float) $request->input('avg_cost_per_hour') : null,
-            'daily_rate'        => $request->input('daily_rate') !== null && $request->input('daily_rate') !== '' ? (float) $request->input('daily_rate') : null,
-            'active'            => true,
+            'daily_rate' => $request->input('daily_rate') !== null && $request->input('daily_rate') !== '' ? (float) $request->input('daily_rate') : null,
+            'active' => true,
+            'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
         ]);
 
         return response()->json(['equipment' => $equipment], 201);
@@ -54,6 +55,9 @@ class EquipmentController extends Controller
         if ($request->has('active')) {
             $updates['active'] = (bool) $request->input('active');
         }
+        if ($request->has('customer_visible')) {
+            $updates['customer_visible'] = (bool) $request->input('customer_visible');
+        }
 
         $equipment->update($updates);
 
@@ -67,7 +71,7 @@ class EquipmentController extends Controller
             return response()->json(['error' => 'Equipment item not found'], 404);
         }
 
-        $equipment->update(['active' => false]); // soft hide
+        $equipment->delete(); // permanent delete (matches the service catalog)
 
         return response()->json(['success' => true]);
     }

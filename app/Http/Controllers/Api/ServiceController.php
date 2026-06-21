@@ -10,12 +10,12 @@ class ServiceController extends Controller
 {
     public function index(): JsonResponse
     {
-        $services = ServiceCatalog::active()->orderBy('key')->get()
+        $services = ServiceCatalog::active()->where('customer_visible', true)->orderBy('key')->get()
             ->map(fn (ServiceCatalog $s) => [
-                'id'                       => $s->id,
-                'key'                      => $s->key,
-                'label'                    => $s->label,
-                'default_price'            => $s->default_price,
+                'id' => $s->id,
+                'key' => $s->key,
+                'label' => $s->label,
+                'default_price' => $s->default_price,
                 'default_duration_minutes' => $s->default_duration_minutes,
             ]);
 

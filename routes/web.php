@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AddressController;
 use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CalendarController;
@@ -84,6 +85,9 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::post('/services', [ServiceCatalogController::class, 'store'])->name('services.store');
             Route::patch('/services/{id}', [ServiceCatalogController::class, 'update'])->name('services.update');
             Route::delete('/services/{id}', [ServiceCatalogController::class, 'destroy'])->name('services.destroy');
+
+            // Address autocomplete (OpenStreetMap)
+            Route::get('/address-suggest', [AddressController::class, 'suggest'])->name('address.suggest');
 
             // Site content (marketing copy + serving areas)
             Route::patch('/content', [SiteContentController::class, 'update'])->name('content.update');

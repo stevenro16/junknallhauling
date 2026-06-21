@@ -10,12 +10,12 @@ class EquipmentController extends Controller
 {
     public function index(): JsonResponse
     {
-        $equipment = EquipmentType::active()->orderBy('name')->get()
+        $equipment = EquipmentType::active()->where('customer_visible', true)->orderBy('name')->get()
             ->map(fn (EquipmentType $e) => [
-                'id'                => $e->id,
-                'name'              => $e->name,
+                'id' => $e->id,
+                'name' => $e->name,
                 'avg_cost_per_hour' => $e->avg_cost_per_hour,
-                'daily_rate'        => $e->daily_rate,
+                'daily_rate' => $e->daily_rate,
             ]);
 
         return response()->json(['equipment' => $equipment]);

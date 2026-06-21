@@ -26,7 +26,7 @@
     <div class="card-dark p-5">
         <table class="w-full text-sm text-gray-200">
             <thead class="text-xs uppercase tracking-wider text-gray-400 border-b border-charcoal-600">
-                <tr><th class="text-left py-2">Name</th><th class="text-left py-2">$/hr</th><th class="text-left py-2">Daily</th><th class="text-left py-2">Active</th><th class="text-right py-2">Actions</th></tr>
+                <tr><th class="text-left py-2">Name</th><th class="text-left py-2">$/hr</th><th class="text-left py-2">Daily</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-right py-2">Actions</th></tr>
             </thead>
             <tbody>
                 <template x-for="e in equipment" :key="e.id">
@@ -44,6 +44,13 @@
                             <input x-show="editingId === e.id" type="number" x-model="ed.daily" class="input-dark py-1 text-sm w-24" x-cloak>
                         </td>
                         <td class="py-2"><span x-text="e.active ? 'Yes' : 'No'" :class="e.active ? 'text-emerald-400' : 'text-gray-500'"></span></td>
+                        <td class="py-2">
+                            <button @click="toggleCustomerVisible(e)" type="button"
+                                    class="text-xs px-2 py-0.5 rounded-full border transition-colors"
+                                    :class="e.customer_visible ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' : 'border-charcoal-600 text-gray-500 hover:bg-charcoal-700'"
+                                    :title="e.customer_visible ? 'Shown on the public quote form — click to hide' : 'Hidden from the public quote form — click to show'"
+                                    x-text="e.customer_visible ? 'Visible' : 'Hidden'"></button>
+                        </td>
                         <td class="py-2 text-right whitespace-nowrap">
                             <template x-if="editingId === e.id">
                                 <span>
@@ -55,6 +62,7 @@
                                 <span>
                                     <button @click="startEdit(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700">Edit</button>
                                     <button @click="toggleActive(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700" x-text="e.active ? 'Hide' : 'Show'"></button>
+                                    <button @click="remove(e)" class="text-xs px-2 py-1 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10">Delete</button>
                                 </span>
                             </template>
                         </td>

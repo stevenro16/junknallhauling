@@ -36,7 +36,7 @@
     <div class="card-dark p-5">
         <table class="w-full text-sm text-gray-200">
             <thead class="text-xs uppercase tracking-wider text-gray-400 border-b border-charcoal-600">
-                <tr><th class="text-left py-2">Key</th><th class="text-left py-2">Label</th><th class="text-left py-2">Price</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Active</th><th class="text-right py-2">Actions</th></tr>
+                <tr><th class="text-left py-2">Key</th><th class="text-left py-2">Label</th><th class="text-left py-2">Price</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-right py-2">Actions</th></tr>
             </thead>
             <tbody>
                 <template x-for="s in services" :key="s.id">
@@ -55,6 +55,13 @@
                             <input x-show="editingId === s.id" type="number" x-model="ed.duration" class="input-dark py-1 text-sm w-20" x-cloak>
                         </td>
                         <td class="py-2"><span x-text="s.active ? 'Yes' : 'No'" :class="s.active ? 'text-emerald-400' : 'text-gray-500'"></span></td>
+                        <td class="py-2">
+                            <button @click="toggleCustomerVisible(s)" type="button"
+                                    class="text-xs px-2 py-0.5 rounded-full border transition-colors"
+                                    :class="s.customer_visible ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' : 'border-charcoal-600 text-gray-500 hover:bg-charcoal-700'"
+                                    :title="s.customer_visible ? 'Shown on the public quote form — click to hide' : 'Hidden from the public quote form — click to show'"
+                                    x-text="s.customer_visible ? 'Visible' : 'Hidden'"></button>
+                        </td>
                         <td class="py-2 text-right whitespace-nowrap">
                             <template x-if="editingId === s.id">
                                 <span>

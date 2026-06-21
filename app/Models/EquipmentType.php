@@ -16,8 +16,9 @@ class EquipmentType extends Model
     {
         return [
             'avg_cost_per_hour' => 'float',
-            'daily_rate'        => 'float',
-            'active'            => 'boolean',
+            'daily_rate' => 'float',
+            'active' => 'boolean',
+            'customer_visible' => 'boolean',
         ];
     }
 
