@@ -34,16 +34,18 @@
                     </div>
                 @endif
                 <div x-show="dayLayout.length === 0" class="absolute inset-0 flex items-center justify-center"><p class="text-gray-500 text-sm">No pickups on this day</p></div>
-                <template x-for="ev in dayLayout" :key="ev.inquiry.id">
-                    <a :href="detailUrl(ev.inquiry.id)" target="{{ $linkTarget ?? '_self' }}" :style="{!! $evStyleExpr !!}" class="rounded-lg border transition-all overflow-hidden px-2 py-1 flex flex-col" :class="eventClasses(ev.inquiry.status)">
+                <template x-for="ev in dayLayout" :key="ev.inquiry.event_id">
+                    <a :href="detailUrl(ev.inquiry.id)" target="{{ $linkTarget ?? '_self' }}" :style="{!! $evStyleExpr !!}" class="rounded-lg border transition-all overflow-hidden px-2 py-1 flex flex-col" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
                         <div class="flex items-center gap-1 mt-0.5">
                             <div class="w-1.5 h-1.5 rounded-full shrink-0" :class="dotClass(ev.inquiry.status)"></div>
                             <div class="font-mono text-amber-600 text-[10px] leading-none truncate" x-text="ev.inquiry.ref"></div>
+                            <span x-show="ev.inquiry.type === 'pickup'" x-cloak class="text-[9px] font-bold uppercase tracking-wide text-cyan-700 shrink-0">Pickup</span>
                         </div>
                         <div class="font-semibold text-sm text-gray-900 leading-tight truncate" x-text="ev.inquiry.name"></div>
                         <div class="text-gray-500 text-[10px] leading-tight"><span x-text="fmtClock(ev.start)"></span> &ndash; <span x-text="fmtClock(ev.end)"></span></div>
                         <div x-show="ev.inquiry.assigned_employee" x-cloak class="flex items-center gap-0.5 text-amber-700 text-[10px] leading-tight truncate"><x-icon name="user" class="w-2.5 h-2.5 shrink-0"/><span class="truncate" x-text="ev.inquiry.assigned_employee"></span></div>
-                        <div x-show="ev.big" class="text-gray-400 text-[10px] leading-tight truncate capitalize"><span x-text="statusLabel(ev.inquiry.status)"></span> &middot; <span x-text="serviceLabel(ev.inquiry.service_type)"></span></div>
+                        <div x-show="ev.big" class="text-gray-500 text-[10px] leading-tight truncate capitalize"><span x-text="jobKind(ev.inquiry)"></span> &middot; <span x-text="jobLabel(ev.inquiry)"></span></div>
+                        <div x-show="ev.big && ev.inquiry.address" x-cloak class="flex items-start gap-0.5 text-gray-400 text-[10px] leading-tight truncate"><x-icon name="map-pin" class="w-2.5 h-2.5 shrink-0 mt-px"/><span class="truncate" x-text="ev.inquiry.address"></span></div>
                     </a>
                 </template>
             </div>

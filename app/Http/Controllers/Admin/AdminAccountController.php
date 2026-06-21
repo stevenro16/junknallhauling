@@ -18,6 +18,7 @@ class AdminAccountController extends Controller
                 'username' => $a->username,
                 'role' => $a->role,
                 'email' => $a->email,
+                'active' => $a->active,
                 'must_change_password' => $a->must_change_password,
                 'created_at' => $a->created_at,
                 'updated_at' => $a->updated_at,
@@ -55,6 +56,7 @@ class AdminAccountController extends Controller
                 'username' => $admin->username,
                 'role' => $admin->role,
                 'email' => $admin->email,
+                'active' => $admin->active,
                 'must_change_password' => $admin->must_change_password,
                 'created_at' => $admin->created_at,
             ],
@@ -84,23 +86,45 @@ class AdminAccountController extends Controller
             return response()->json(['success' => true]);
         }
 
+        if ($request->input('action') === 'set_active') {
+            $active = $request->boolean('active');
+
+            if (! $active && $this->isLastActiveAdmin($admin)) {
+                return response()->json(['error' => 'At least one admin account must remain active.'], 400);
+            }
+
+            $admin->update(['active' => $active]);
+
+            return response()->json(['success' => true, 'active' => $admin->active]);
+        }
+
         return response()->json(['error' => 'Invalid action'], 400);
     }
 
     public function destroy(string $id): JsonResponse
     {
-        if (Admin::count() <= 1) {
-            return response()->json(['error' => 'Cannot delete the last admin account'], 400);
-        }
-
         $admin = Admin::find($id);
 
         if (! $admin) {
             return response()->json(['error' => 'Admin not found'], 404);
         }
 
+        if ($this->isLastActiveAdmin($admin)) {
+            return response()->json(['error' => 'At least one admin account must remain active.'], 400);
+        }
+
         $admin->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /** True when this is an active admin and the only one left — it can't be deactivated or deleted. */
+    private function isLastActiveAdmin(Admin $admin): bool
+    {
+        if (($admin->role ?? 'admin') !== 'admin' || ! $admin->active) {
+            return false;
+        }
+
+        return Admin::where('role', 'admin')->where('active', true)->count() <= 1;
     }
 }

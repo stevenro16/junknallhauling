@@ -32,7 +32,31 @@
 
     {{-- Mobile: floating status bar pinned to the bottom (tap to change status) +
          a Save button that appears when there are unsaved edits --}}
-    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false">
+    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false; showQuickNav = false">
+        {{-- quick jump-to-section menu (opens upward) --}}
+        <div x-show="showQuickNav" x-cloak x-transition.opacity.duration.150ms
+             class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <span class="text-xs uppercase tracking-widest text-gray-400">Jump to section</span>
+                <button type="button" @click="showQuickNav = false" class="text-gray-400 p-1 -mr-1"><x-icon name="x" class="w-5 h-5"/></button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 p-3">
+                <button type="button" @click="scrollToSection('sec-customer')" class="flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors" :class="sectionDone.customer ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'">
+                    <x-icon name="user" class="w-4 h-4 shrink-0"/><span class="text-sm font-medium flex-1 text-left">Customer</span><x-icon name="check-circle" class="w-4 h-4 shrink-0" x-show="sectionDone.customer" x-cloak/>
+                </button>
+                <button type="button" @click="scrollToSection('sec-job')" class="flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors" :class="sectionDone.job ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'">
+                    <x-icon name="package" class="w-4 h-4 shrink-0"/><span class="text-sm font-medium flex-1 text-left">Job</span><x-icon name="check-circle" class="w-4 h-4 shrink-0" x-show="sectionDone.job" x-cloak/>
+                </button>
+                <button type="button" @click="scrollToSection('sec-visit')" class="flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors" :class="sectionDone.visit ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'">
+                    <x-icon name="calendar" class="w-4 h-4 shrink-0"/><span class="text-sm font-medium flex-1 text-left">Visit</span><x-icon name="check-circle" class="w-4 h-4 shrink-0" x-show="sectionDone.visit" x-cloak/>
+                </button>
+                <button type="button" @click="scrollToSection('sec-payment')" class="flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors" :class="sectionDone.payment ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'">
+                    <x-icon name="dollar-sign" class="w-4 h-4 shrink-0"/><span class="text-sm font-medium flex-1 text-left">Payment</span><x-icon name="check-circle" class="w-4 h-4 shrink-0" x-show="sectionDone.payment" x-cloak/>
+                </button>
+            </div>
+            <p class="px-3 pb-3 -mt-1 text-[10px] text-gray-400">Green when a section is complete.</p>
+        </div>
+
         {{-- status picker sheet (opens upward) --}}
         <div x-show="showStatusSheet" x-cloak x-transition.opacity.duration.150ms
              class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
@@ -55,7 +79,7 @@
 
         {{-- bottom bar --}}
         <div class="bg-white border-t border-gray-200 p-2.5 shadow-[0_-2px_12px_rgba(0,0,0,0.12)] flex items-center gap-2">
-            <button type="button" @click="showStatusSheet = !showStatusSheet"
+            <button type="button" @click="showStatusSheet = !showStatusSheet; showQuickNav = false"
                     class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-300 bg-gray-50 active:bg-gray-100 transition-colors">
                 <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="dotClass(status)"></span>
                 <span class="text-[10px] uppercase tracking-widest text-gray-400 shrink-0">Status</span>
@@ -63,6 +87,12 @@
                 <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="!showStatusSheet && 'rotate-180'"/>
             </button>
             <button x-show="dirty" x-cloak type="button" @click="save()" :disabled="saving" class="btn-primary py-2.5 px-5 text-sm shrink-0"><span x-text="saving ? '…' : 'Save'"></span></button>
+            <button type="button" @click="showQuickNav = !showQuickNav; showStatusSheet = false"
+                    class="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-colors"
+                    :class="showQuickNav ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-300 bg-gray-50 text-gray-600 active:bg-gray-100'"
+                    aria-label="Jump to section">
+                <x-icon name="file-text" class="w-5 h-5"/>
+            </button>
         </div>
     </div>
 
@@ -72,16 +102,12 @@
         <div class="space-y-5">
 
             {{-- Card 1: Customer --}}
-            <div class="card-light border-l-2 border-[#F8C820] p-5">
+            <div id="sec-customer" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
                 <div class="flex flex-col gap-3">
                     <div class="flex items-start justify-between gap-4">
                         <div class="min-w-0 flex-1">
                             <span class="font-mono text-amber-700 text-sm tracking-widest bg-amber-50 border border-amber-200 px-2 py-0.5 rounded" x-text="inquiry.ref"></span>
                             <h1 x-show="!isEditingCustomer" class="text-gray-900 text-3xl tracking-widest font-bold" x-text="inquiry.name || '(no name)'"></h1>
-                            <div x-show="isEditingCustomer" x-cloak class="grid grid-cols-2 gap-2 mt-1.5">
-                                <div><label class="block text-xs font-medium text-gray-500 mb-0.5">First Name</label><input type="text" x-model="firstName" class="input-light text-sm py-1.5 w-full" placeholder="First"></div>
-                                <div><label class="block text-xs font-medium text-gray-500 mb-0.5">Last Name</label><input type="text" x-model="lastName" class="input-light text-sm py-1.5 w-full" placeholder="Last"></div>
-                            </div>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(status)" x-text="statusLabel(status)"></span>
@@ -93,6 +119,11 @@
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    <div x-show="isEditingCustomer" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">First Name</label><input type="text" x-model="firstName" class="input-light text-sm py-1.5 w-full" placeholder="First"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label><input type="text" x-model="lastName" class="input-light text-sm py-1.5 w-full" placeholder="Last"></div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -151,7 +182,7 @@
             </div>
 
             {{-- Card 2: Job Details --}}
-            <div class="card-light border-l-2 border-[#F8C820] p-5">
+            <div id="sec-job" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
                 <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Job Details</div><div class="h-px flex-1 bg-gray-200"></div></div>
                 <div class="space-y-3">
                     {{-- Job type pill (Service is the default) --}}
@@ -335,7 +366,7 @@
             {{-- Column 2: scheduling + payment --}}
             <div class="space-y-5">
             {{-- Card: Visit Date & Time --}}
-            <div class="card-light border-l-2 border-[#F8C820] p-5">
+            <div id="sec-visit" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
                 <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Visit Date &amp; Time</div><div class="h-px flex-1 bg-gray-200"></div></div>
                 <div class="space-y-3">
                     {{-- Assigned employee --}}
@@ -348,7 +379,7 @@
                             @endforeach
                         </select>
                         @if($employees->isEmpty())
-                            <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Admin Accounts.</p>
+                            <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Account Management.</p>
                         @endif
                     </div>
 
@@ -376,6 +407,28 @@
                                 <button type="button" @click="stepDuration(1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">+</button>
                             </div>
                         </div>
+
+                        {{-- Equipment pickup date/time (equipment rentals only) — shows on the calendar as a 1-hour pickup task --}}
+                        <template x-if="isEquipment">
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <div class="text-sm font-semibold text-cyan-700 mb-1.5 inline-flex items-center gap-1.5"><x-icon name="truck" class="w-4 h-4"/> Equipment Pickup</div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <div class="text-xs font-medium text-gray-600 mb-1">Pickup Date</div>
+                                        <input type="date" :value="datePart(pickupDateTime)" @change="setPickupDate($event.target.value)" class="input-light text-sm py-2 w-full">
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-medium text-gray-600 mb-1">Pickup Time</div>
+                                        <select :value="timePart(pickupDateTime)" @change="setPickupTime($event.target.value)" class="input-light text-sm py-2 w-full">
+                                            <option value="">Select time...</option>
+                                            <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
+                                        </select>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Pickup tasks appear on the calendar as 1-hour blocks.</p>
+                            </div>
+                        </template>
+
                         <template x-if="inquiry.preferred_day || inquiry.preferred_time">
                             <div class="mt-1.5">
                                 <div class="text-[10px] text-gray-500 mb-1">Customer prefers: <span x-text="inquiry.preferred_day"></span><span x-show="inquiry.preferred_time"> (<span x-text="inquiry.preferred_time"></span>)</span></div>
@@ -483,7 +536,7 @@
             </div>
 
             {{-- Card 3: Payment --}}
-            <div class="card-light border-l-2 border-[#F8C820] p-5">
+            <div id="sec-payment" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
                 <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-emerald-600">Payment</div><div class="h-px flex-1 bg-gray-200"></div></div>
                 <div class="space-y-3">
                     <div class="grid grid-cols-2 gap-4">

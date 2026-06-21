@@ -30,6 +30,9 @@
     <div class="mt-4 pt-4 border-t border-gray-200">
         <div class="text-[10px] uppercase tracking-widest text-gray-400 mb-2 px-1">Other Actions</div>
         <div class="flex flex-wrap gap-2">
+            <button type="button" x-show="isEquipment" @click="quickUpdateStatus('equipment_delivered')" :disabled="saving || status === 'equipment_delivered'"
+                    class="px-3 py-1 text-xs rounded-lg border transition-all active:scale-[0.985] disabled:opacity-50"
+                    :class="status === 'equipment_delivered' ? 'bg-cyan-50 text-cyan-700 border-cyan-300' : 'border-gray-300 text-gray-600 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50'">Equipment Delivered</button>
             <button type="button" @click="quickUpdateStatus('left_voicemail')" :disabled="saving || status === 'left_voicemail'"
                     class="px-3 py-1 text-xs rounded-lg border transition-all active:scale-[0.985] disabled:opacity-50"
                     :class="status === 'left_voicemail' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' : 'border-gray-300 text-gray-600 hover:border-yellow-400 hover:text-yellow-700 hover:bg-yellow-50'">Left Voicemail</button>

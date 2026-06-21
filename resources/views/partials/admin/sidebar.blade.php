@@ -6,6 +6,7 @@
     $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
     $onCalendar = $path === 'admin/calendar';
     $onCustomers = $path === 'admin/customers';
+    $onEod = $path === 'admin/eod-report';
     $isEmployee = session('admin_role') === 'employee';
 
     if ($isEmployee) {
@@ -19,11 +20,12 @@
             ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
             ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
             ['key' => 'customers', 'label' => 'Customers', 'icon' => 'user', 'href' => route('admin.customers'), 'active' => $onCustomers],
+            ['key' => 'eod', 'label' => 'EOD Report', 'icon' => 'clock', 'href' => route('admin.eod-report'), 'active' => $onEod],
             ['key' => 'stats', 'label' => 'Analytics', 'icon' => 'bar-chart', 'href' => route('admin.dashboard', ['section' => 'stats']), 'active' => $current === 'stats'],
         ];
         $settingsItems = [
             ['key' => 'content', 'label' => 'Site Content', 'icon' => 'pencil', 'href' => route('admin.dashboard', ['section' => 'content']), 'active' => $current === 'content'],
-            ['key' => 'admins', 'label' => 'Admin Accounts', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
+            ['key' => 'admins', 'label' => 'Account Management', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
             ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
             ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
         ];

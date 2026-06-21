@@ -17,6 +17,7 @@ class Admin extends Model
     {
         return [
             'must_change_password' => 'boolean',
+            'active' => 'boolean',
         ];
     }
 }

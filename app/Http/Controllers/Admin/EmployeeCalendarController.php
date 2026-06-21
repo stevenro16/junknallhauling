@@ -18,19 +18,14 @@ class EmployeeCalendarController extends Controller
     {
         $me = $request->session()->get('admin_id');
 
-        $events = Inquiry::where('assigned_employee_id', $me)
-            ->whereNotNull('confirmed_date_time')
+        $rows = Inquiry::where('assigned_employee_id', $me)
             ->where('status', '!=', 'cancelled')
+            ->where(fn ($q) => $q->whereNotNull('confirmed_date_time')->orWhereNotNull('pickup_date_time'))
+            ->with('assignedEmployee:id,username')
             ->orderBy('confirmed_date_time')
-            ->get()
-            ->map(fn (Inquiry $i) => [
-                'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
-                'service_type' => $i->service_type, 'address' => $i->address,
-                'confirmed_date_time' => $i->confirmed_date_time,
-                'expected_duration_minutes' => $i->expected_duration_minutes ?? 120,
-            ])->values();
+            ->get();
 
-        return view('admin.my-schedule', ['events' => $events]);
+        return view('admin.my-schedule', ['events' => CalendarController::calendarEntries($rows)]);
     }
 
     /** Job sheet for an assigned visit (full detail + comments). */

@@ -43,10 +43,12 @@
                     <div class="text-xs font-medium mb-2" :class="isToday(day) ? 'text-amber-600' : 'text-gray-700'" x-text="day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })"></div>
                     <div class="space-y-1.5">
                         <div x-show="eventsForKey(dayKey(day)).length === 0" class="text-[11px] text-gray-400 italic">—</div>
-                        <template x-for="ev in eventsForKey(dayKey(day))" :key="ev.inquiry.id">
-                            <a :href="detailUrl(ev.inquiry.id)" @click.stop class="block p-1.5 text-[11px] rounded-lg border transition-all" :class="eventClasses(ev.inquiry.status)">
-                                <div class="text-gray-500" x-text="fmtClock(ev.start)"></div>
+                        <template x-for="ev in eventsForKey(dayKey(day))" :key="ev.inquiry.event_id">
+                            <a :href="detailUrl(ev.inquiry.id)" @click.stop class="block p-1.5 text-[11px] rounded-lg border transition-all" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
+                                <div class="flex items-center gap-1"><span class="text-gray-500" x-text="fmtClock(ev.start)"></span><span x-show="ev.inquiry.type === 'pickup'" x-cloak class="text-[9px] font-bold uppercase text-cyan-700">Pickup</span></div>
                                 <div class="text-gray-800 truncate font-medium" x-text="ev.inquiry.name"></div>
+                                <div class="text-[10px] text-gray-600 truncate capitalize"><span x-text="jobKind(ev.inquiry)"></span> &middot; <span x-text="jobLabel(ev.inquiry)"></span></div>
+                                <div x-show="ev.inquiry.address" x-cloak class="text-[10px] text-gray-400 truncate" x-text="ev.inquiry.address"></div>
                             </a>
                         </template>
                     </div>

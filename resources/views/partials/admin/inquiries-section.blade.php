@@ -22,7 +22,7 @@
     })">
 
     {{-- Workqueue cards — click to filter the list below --}}
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
         <button @click="setFilter('new')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'new' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
             <div class="text-xs uppercase tracking-widest text-gray-500">New</div>
             <div class="text-3xl font-black text-blue-600 mt-1" x-text="countNew"></div>
@@ -38,6 +38,14 @@
         <button @click="setFilter('service_performed')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'service_performed' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
             <div class="text-xs uppercase tracking-widest text-gray-500">Service Performed</div>
             <div class="text-3xl font-black text-teal-600 mt-1" x-text="countServicePerformed"></div>
+        </button>
+        <button @click="setFilter('equipment_delivered')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'equipment_delivered' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
+            <div class="text-xs uppercase tracking-widest text-gray-500 inline-flex items-center gap-1"><x-icon name="truck" class="w-3.5 h-3.5"/> Equipment Tracker</div>
+            <div class="text-3xl font-black text-cyan-600 mt-1" x-text="countEquipmentOut"></div>
+        </button>
+        <button @click="setFilter('left_voicemail')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'left_voicemail' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
+            <div class="text-xs uppercase tracking-widest text-gray-500">Follow Up</div>
+            <div class="text-3xl font-black text-rose-600 mt-1" x-text="countFollowUp"></div>
         </button>
         <button @click="setFilter('completed30')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'completed30' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
             <div class="text-xs uppercase tracking-widest text-gray-500">Completed (30 days)</div>

@@ -34,6 +34,10 @@ class AuthController extends Controller
             return response()->json(['error' => 'Invalid username or password'], 401);
         }
 
+        if (! $admin->active) {
+            return response()->json(['error' => 'This account has been deactivated. Contact an administrator.'], 403);
+        }
+
         $this->setSession($request, $admin);
         $request->session()->regenerate();
 

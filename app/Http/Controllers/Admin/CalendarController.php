@@ -26,20 +26,49 @@ class CalendarController extends Controller
         ]);
     }
 
-    /** Confirmed, non-cancelled visits shaped for the calendar component. */
+    /** Non-cancelled visits + equipment pickups shaped for the calendar component. */
     private function events()
     {
-        return Inquiry::whereNotNull('confirmed_date_time')
-            ->where('status', '!=', 'cancelled')
+        $rows = Inquiry::where('status', '!=', 'cancelled')
+            ->where(fn ($q) => $q->whereNotNull('confirmed_date_time')->orWhereNotNull('pickup_date_time'))
             ->with('assignedEmployee:id,username')
             ->orderBy('confirmed_date_time')
-            ->get()
-            ->map(fn (Inquiry $i) => [
-                'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
-                'service_type' => $i->service_type, 'address' => $i->address,
-                'confirmed_date_time' => $i->confirmed_date_time,
-                'expected_duration_minutes' => $i->expected_duration_minutes ?? 120,
-                'assigned_employee' => $i->assignedEmployee?->username,
-            ])->values();
+            ->get();
+
+        return self::calendarEntries($rows);
+    }
+
+    /**
+     * Flatten inquiries into calendar entries: one for the delivery/visit
+     * (confirmed_date_time) and, for equipment rentals, one for the pickup
+     * (pickup_date_time, 1-hour block). Shared with the employee schedule.
+     */
+    public static function calendarEntries($rows)
+    {
+        $events = [];
+        foreach ($rows as $i) {
+            if ($i->confirmed_date_time) {
+                $events[] = self::entry($i, 'visit', $i->confirmed_date_time, $i->expected_duration_minutes ?? 120);
+            }
+            if ($i->pickup_date_time) {
+                $events[] = self::entry($i, 'pickup', $i->pickup_date_time, 60);
+            }
+        }
+
+        return collect($events)->values();
+    }
+
+    private static function entry(Inquiry $i, string $type, string $dt, int $duration): array
+    {
+        return [
+            'event_id' => $type === 'pickup' ? $i->id.':pickup' : $i->id,
+            'id' => $i->id,
+            'type' => $type,
+            'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
+            'service_type' => $i->service_type, 'equipment_type' => $i->equipment_type, 'address' => $i->address,
+            'confirmed_date_time' => $dt,   // the datetime for this entry (visit or pickup)
+            'expected_duration_minutes' => $duration,
+            'assigned_employee' => $i->assignedEmployee?->username,
+        ];
     }
 }

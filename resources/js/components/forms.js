@@ -279,13 +279,13 @@ Alpine.data('statusLookup', () => ({
     statusLabel(s) {
         return ({
             new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted',
-            scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
+            scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
         })[s] || 'New';
     },
     statusClass(s) {
         const map = {
             new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted',
-            scheduled: 'status-scheduled', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
+            scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
         };
         return map[s] || 'status-new';
     },

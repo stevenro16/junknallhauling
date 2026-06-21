@@ -4,11 +4,11 @@
 // business identity, public service options, and inquiry status vocabulary.
 
 return [
-    'name'      => 'Junk N All Hauling',
+    'name' => 'Junk N All Hauling',
     'shortName' => 'Haul',
-    'phone'     => '(909) 459-9503',
-    'phoneRaw'  => '+19094599503',
-    'email'     => 'junknallhauling@gmail.com',
+    'phone' => '(909) 459-9503',
+    'phoneRaw' => '+19094599503',
+    'email' => 'junknallhauling@gmail.com',
 
     'areas' => [
         'Yucaipa', 'Redlands', 'Beaumont', 'Highland', 'Loma Linda',
@@ -24,20 +24,21 @@ return [
         ['value' => 'other',         'label' => 'Other / Not Sure'],
     ],
 
-    // Canonical admin status flow (left_voicemail is an off-path action).
+    // Canonical admin status flow (left_voicemail + equipment_delivered are off-path actions).
     'status_options' => [
         'new', 'reviewing', 'quoted', 'scheduled',
         'service_performed', 'completed', 'cancelled',
     ],
 
     'status_labels' => [
-        'new'               => 'New',
-        'left_voicemail'    => 'Left Voicemail',
-        'reviewing'         => 'Reviewing',
-        'quoted'            => 'Quoted',
-        'scheduled'         => 'Scheduled',
+        'new' => 'New',
+        'left_voicemail' => 'Left Voicemail',
+        'reviewing' => 'Reviewing',
+        'quoted' => 'Quoted',
+        'scheduled' => 'Scheduled',
+        'equipment_delivered' => 'Equipment Delivered',
         'service_performed' => 'Service Performed',
-        'completed'         => 'Completed',
-        'cancelled'         => 'Cancelled',
+        'completed' => 'Completed',
+        'cancelled' => 'Cancelled',
     ],
 ];

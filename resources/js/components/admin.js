@@ -69,11 +69,11 @@ Alpine.data('adminShell', (cfg = {}) => ({
 // ---------------------------------------------------------------------------
 const STATUS_LABELS = {
     new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted',
-    scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
+    scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
 };
 const STATUS_CLASSES = {
     new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted',
-    scheduled: 'status-scheduled', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
+    scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
 };
 const SERVICE_LABELS = {
     'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental',
@@ -126,6 +126,8 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
     get countReviewingQuoted() { return this.inquiries.filter((i) => i.status === 'reviewing' || i.status === 'quoted').length; },
     get countScheduled() { return this.inquiries.filter((i) => i.status === 'scheduled').length; },
     get countServicePerformed() { return this.inquiries.filter((i) => i.status === 'service_performed').length; },
+    get countFollowUp() { return this.inquiries.filter((i) => i.status === 'left_voicemail').length; },
+    get countEquipmentOut() { return this.inquiries.filter((i) => i.status === 'equipment_delivered').length; },
     get countCompleted30() { const c = this._cutoff30(); return this.inquiries.filter((i) => i.status === 'completed' && i.created_at && new Date(i.created_at) >= c).length; },
 
     setFilter(f) { this.filter = f; },
@@ -228,7 +230,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     adminNotes: '', status: 'new',
     assignedEmployeeId: '',
-    address: '', confirmedDateTime: '',
+    address: '', confirmedDateTime: '', pickupDateTime: '',
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     isEditingCustomer: false,
@@ -252,6 +254,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     showVoicemailModal: false, voicemailNote: '', showCancelConfirm: false,
     showCalendarModal: false,
     showStatusSheet: false, // mobile status picker
+    showQuickNav: false,    // mobile jump-to-section menu
     statusChoices: ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed', 'left_voicemail', 'cancelled'],
 
     init() {
@@ -287,6 +290,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.assignedEmployeeId = inq.assigned_employee_id || '';
         this.address = inq.address || '';
         this.confirmedDateTime = inq.confirmed_date_time || '';
+        // No scheduled visit yet → pre-fill the date with the customer's next preferred
+        // day (or tomorrow if none). Date only — no time, so it isn't treated/saved as a
+        // confirmed slot until the admin actually picks a time (see buildBody).
+        if (!this.confirmedDateTime) {
+            const day = this.getNextTwoOccurrences(inq.preferred_day || '')[0] || this._tomorrowKey();
+            this.confirmedDateTime = `${day}T`;
+        }
+        this.pickupDateTime = inq.pickup_date_time || '';
         // Single stored name → first word is the first name, the rest is the last name.
         const nameParts = (inq.name || '').trim().split(/\s+/).filter(Boolean);
         this.firstName = nameParts.shift() || '';
@@ -458,6 +469,23 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.adminNotes = cur ? `${cur}\n\n${desc}` : desc;
     },
 
+    // --- Mobile quick-nav: section completeness + smooth scroll -------------
+    get sectionDone() {
+        return {
+            customer: !!(this.fullName && this.phone && this.email && this.address && this.customerZip),
+            job: this.isEquipment
+                ? !!(this.equipmentType && this.equipmentType !== '__other__' && this.equipmentRentalDuration)
+                : !!this.serviceType,
+            visit: this.hasConfirmedSlot,
+            payment: !!(this.quotedPrice !== '' && this.quotedPrice != null && (this.paymentMethod && (this.paymentMethod !== 'Other' || this.paymentMethodOther.trim()))),
+        };
+    },
+    scrollToSection(id) {
+        this.showQuickNav = false;
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
     // --- Schedule the visit + optionally notify the customer ----------------
     get hasConfirmedSlot() { return !!(this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)); },
     get canSchedule() { return this.hasConfirmedSlot && ['new', 'reviewing', 'quoted', 'left_voicemail'].includes(this.status); },
@@ -554,7 +582,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     clock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
 
     getServiceLabel(key) { return this.serviceLabel(key) || 'Not specified'; },
@@ -572,6 +600,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     dayLabel(dateStr) {
         return new Date(dateStr + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' });
     },
+    _tomorrowKey() { const d = new Date(); d.setDate(d.getDate() + 1); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
 
     buildBody(overrides = {}) {
         const isEq = this.jobType === 'equipment';
@@ -582,7 +611,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
             address: this.address || null,
-            confirmed_date_time: this.confirmedDateTime || null,
+            // Only a date+time counts as a scheduled visit — a pre-filled date alone is not saved.
+            confirmed_date_time: (this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)) ? this.confirmedDateTime : null,
+            // Equipment pickup (date+time) — only for equipment rentals.
+            pickup_date_time: (isEq && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) ? this.pickupDateTime : null,
             phone: this.phone || null,
             email: this.email || null,
             preferred_contact_method: this.preferredContactMethod,
@@ -699,6 +731,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // confirmed date/time split-field setters
     setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime) || '00:00'; this.confirmedDateTime = v ? `${v}T${t}` : ''; },
     setConfirmedTime(v) { const d = this.datePart(this.confirmedDateTime); if (!v) { this.confirmedDateTime = d ? `${d}T` : ''; return; } this.confirmedDateTime = d ? `${d}T${v}` : v; },
+
+    // equipment pickup date/time split-field setters
+    setPickupDate(v) { const t = this.timePart(this.pickupDateTime) || '00:00'; this.pickupDateTime = v ? `${v}T${t}` : ''; },
+    setPickupTime(v) { const d = this.datePart(this.pickupDateTime); if (!v) { this.pickupDateTime = d ? `${d}T` : ''; return; } this.pickupDateTime = d ? `${d}T${v}` : v; },
     setPaymentDate(v) { const t = this.timePart(this.paymentDate) || '00:00'; this.paymentDate = v ? `${v}T${t}` : ''; },
     setPaymentTime(v) { const d = this.datePart(this.paymentDate); if (!v) { this.paymentDate = d ? `${d}T` : ''; return; } this.paymentDate = d ? `${d}T${v}` : v; },
     pickPreferredDate(dateStr) { const t = this.timePart(this.confirmedDateTime) || '00:00'; this.confirmedDateTime = `${dateStr}T${t}`; },
@@ -1034,11 +1070,23 @@ Alpine.data('adminsManager', (cfg = {}) => ({
         else { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed to reset password'); }
     },
     async remove(a) {
-        if (!confirm(`Delete admin ${a.username}?`)) return;
+        if (!confirm(`Delete ${a.role === 'employee' ? 'employee' : 'admin'} ${a.username}?`)) return;
         const r = await fetch(this.urls.destroy.replace('__ID__', a.id), { method: 'DELETE', headers: window.jsonHeaders(true) });
         if (r.ok) await this.reload();
-        else { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed to delete admin'); }
+        else { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed to delete account'); }
     },
+    async toggleActive(a) {
+        const next = !a.active;
+        if (!next && !confirm(`Deactivate ${a.username}? They won't be able to log in.`)) return;
+        const r = await fetch(this.urls.update.replace('__ID__', a.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ action: 'set_active', active: next }) });
+        if (r.ok) await this.reload();
+        else { const d = await r.json().catch(() => ({})); alert(d.error || 'Failed to update account'); }
+    },
+
+    // At least one active admin-role account must always remain.
+    get activeAdminCount() { return this.admins.filter((a) => (a.role || 'admin') === 'admin' && a.active).length; },
+    isLastActiveAdmin(a) { return (a.role || 'admin') === 'admin' && a.active && this.activeAdminCount <= 1; },
+
     date(d) { return d ? new Date(d).toLocaleDateString() : ''; },
 }));
 
@@ -1182,10 +1230,14 @@ Alpine.data('calendar', (cfg = {}) => ({
         })[s] || 'bg-gray-100 hover:bg-gray-200 border-gray-300 hover:border-gray-400';
     },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
     statusLabel(s) { return ({ new: 'New', left_voicemail: 'Voicemail', reviewing: 'Reviewing', quoted: 'Quoted', scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed' })[s] || s; },
     serviceLabel(s) { return (s || '').replace(/-/g, ' '); },
+    // Service vs equipment item on a calendar event.
+    jobIsEquipment(inq) { return inq.service_type === 'equipment' || !!(inq.equipment_type && String(inq.equipment_type).trim()); },
+    jobKind(inq) { return this.jobIsEquipment(inq) ? 'Equipment' : 'Service'; },
+    jobLabel(inq) { return (inq.equipment_type && String(inq.equipment_type).trim()) || this.serviceLabel(inq.service_type); },
     fmtClock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
 
     get calendarEvents() {

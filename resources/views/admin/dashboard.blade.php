@@ -11,7 +11,7 @@
                 @case('services') Service Catalog @break
                 @case('equipment') Equipment Catalog @break
                 @case('content') Site Content @break
-                @case('admins') Admin Accounts @break
+                @case('admins') Account Management @break
                 @default Quotes
             @endswitch
         </h2>

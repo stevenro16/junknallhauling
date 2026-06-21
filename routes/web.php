@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmployeeCalendarController;
+use App\Http\Controllers\Admin\EodReportController;
 use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
@@ -77,6 +78,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
             Route::get('/calendar/embed', [CalendarController::class, 'embed'])->name('calendar.embed');
             Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
+            Route::get('/eod-report', [EodReportController::class, 'index'])->name('eod-report');
             // Placeholder replaced in Phase 9.
             Route::get('/print/rental-agreement/{id}', fn (string $id) => 'Print — built in Phase 9')->name('print.rental-agreement');
 
