@@ -186,8 +186,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     equipmentOptions: cfg.equipment || [],
     serviceCatalog: cfg.services || [],
     allInquiries: cfg.allInquiries || [],
+    scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
     history: cfg.history || [],
     saving: false,
+    baseline: '', // JSON snapshot of the saved form, for dirty detection
     error: '',
     TIME_SLOTS: buildTimeSlots(),
     fmtTime12, datePart, timePart,
@@ -199,6 +201,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     adminNotes: '', status: 'new',
     address: '', confirmedDateTime: '',
+    firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     isEditingCustomer: false,
     customerZip: '', customerPreferredDay: '', customerPreferredTime: '',
@@ -207,6 +210,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     expectedDurationValue: '', expectedDurationUnit: 'hours', adminHoursPerDay: '8',
     expectedDurationMinutes: 120,
     quotedPrice: '',
+    quoteCopied: false, _quoteCopiedTimer: null, // transient "copied to Quoted Price" flash
     paymentMethod: '', paymentMethodOther: '', paymentDate: '', paymentNotes: '',
 
     // status flow
@@ -216,12 +220,20 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // modals
     showPhotoModal: false,
     showVoicemailModal: false, voicemailNote: '', showCancelConfirm: false,
+    showCalendarModal: false,
 
     init() {
         this.hydrate(this.inquiry);
         // Keep expected_duration_minutes in sync with the hrs/days editor.
         this.$watch('expectedDurationValue', () => this.syncDuration());
         this.$watch('expectedDurationUnit', () => this.syncDuration());
+        // Receive a time picked in the day-calendar popup (iframe, same origin).
+        window.addEventListener('message', (e) => {
+            if (e.origin !== window.location.origin) return;
+            if (e.data?.type === 'calendar-pick' && e.data.datetime) {
+                this.confirmedDateTime = e.data.datetime;
+            }
+        });
     },
 
     syncDuration() {
@@ -237,6 +249,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.status = inq.status;
         this.address = inq.address || '';
         this.confirmedDateTime = inq.confirmed_date_time || '';
+        // Single stored name → first word is the first name, the rest is the last name.
+        const nameParts = (inq.name || '').trim().split(/\s+/).filter(Boolean);
+        this.firstName = nameParts.shift() || '';
+        this.lastName = nameParts.join(' ');
         this.phone = inq.phone || '';
         this.email = inq.email || '';
         this.preferredContactMethod = inq.preferred_contact_method || 'phone';
@@ -272,9 +288,17 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             this.expectedDurationValue = (inq.expected_duration_minutes ?? 120) / 60;
             this.expectedDurationUnit = 'hours';
         }
+
+        // Snapshot the saved state so we can detect unsaved edits (dirty).
+        this.baseline = JSON.stringify(this.buildBody());
     },
 
+    // True when the form differs from the last saved/loaded state.
+    get dirty() { return this.baseline !== '' && JSON.stringify(this.buildBody()) !== this.baseline; },
+
     get isEquipment() { return this.jobType === 'equipment'; },
+
+    get fullName() { return [this.firstName.trim(), this.lastName.trim()].filter(Boolean).join(' '); },
 
     // Pill toggle. Switching to Service ensures a valid catalog selection and
     // seeds the visit duration from that service's default.
@@ -333,6 +357,66 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return equip.avg_cost_per_hour != null ? Math.round(equip.avg_cost_per_hour * qty) : null;
     },
 
+    // Catalog price of the selected service (service mode only) — shown as the
+    // quote for that item, copyable into the Payment "Quoted Price" field.
+    get selectedServicePrice() {
+        if (this.isEquipment) return null;
+        const svc = this.serviceCatalog.find((s) => s.key === this.serviceType);
+        return svc && svc.default_price != null ? svc.default_price : null;
+    },
+
+    // Copy a displayed quote into the Payment "Quoted Price" field (+ brief flash),
+    // then auto-save so the quote is persisted and a payment link can be sent
+    // straight away without a manual save.
+    copyToQuotedPrice(value) {
+        const n = Number(value);
+        if (isNaN(n) || n < 0) return;
+        this.quotedPrice = n;
+        this.quoteCopied = true;
+        clearTimeout(this._quoteCopiedTimer);
+        this._quoteCopiedTimer = setTimeout(() => { this.quoteCopied = false; }, 2500);
+        this.save();
+    },
+
+    // --- Day-schedule panel: other confirmed visits on the selected visit date ---
+    detailUrl(id) { return (this.urls?.detailBase || '').replace('__ID__', id); },
+    get calendarEmbedUrl() { return `${this.urls.calendarEmbed}?date=${encodeURIComponent(this.datePart(this.confirmedDateTime) || '')}`; },
+
+    get currentVisitWindow() {
+        if (!this.confirmedDateTime) return null;
+        const start = new Date(this.confirmedDateTime);
+        if (isNaN(start.getTime())) return null;
+        const mins = Number(this.expectedDurationMinutes) || 120;
+        return { start, end: new Date(start.getTime() + mins * 60000) };
+    },
+
+    get daySchedule() {
+        const key = this.datePart(this.confirmedDateTime);
+        if (!key) return [];
+        const cur = this.currentVisitWindow;
+        const rows = this.scheduleEvents
+            .filter((e) => e.id !== this.inquiry.id && e.confirmed_date_time && this.datePart(e.confirmed_date_time) === key)
+            .map((e) => {
+                const start = new Date(e.confirmed_date_time);
+                const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
+                const conflict = !!(cur && start < cur.end && end > cur.start);
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, start, end, isSelf: false, conflict };
+            });
+        // Add this inquiry's own (live, possibly-unsaved) visit, highlighted.
+        if (cur) {
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, start: cur.start, end: cur.end, isSelf: true, conflict: false });
+        }
+        return rows.sort((a, b) => a.start - b.start);
+    },
+
+    get dayOtherCount() { return this.daySchedule.filter((e) => !e.isSelf).length; },
+    get dayConflictCount() { return this.daySchedule.filter((e) => e.conflict).length; },
+
+    clock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
+    dotClass(s) {
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+    },
+
     getServiceLabel(key) { return this.serviceLabel(key) || 'Not specified'; },
 
     getNextTwoOccurrences(dayName) {
@@ -353,6 +437,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const isEq = this.jobType === 'equipment';
         return {
             status: this.status,
+            name: this.fullName,
             service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
             address: this.address || null,
@@ -528,23 +613,23 @@ Alpine.data('analytics', (cfg = {}) => ({
 Alpine.data('servicesCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     services: cfg.services || [],
-    nw: { key: 'junk-removal', label: '', price: '', duration: '120' },
+    nw: { label: '', price: '', duration: '120', customerVisible: true, instructions: '' },
     error: '',
     editingId: null,
-    ed: { label: '', price: '', duration: '' },
+    ed: { label: '', price: '', duration: '', instructions: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.services = d.services || []; } } catch {} },
 
     async add() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ key: this.nw.key, label: this.nw.label, default_price: this.nw.price === '' ? null : this.nw.price, default_duration_minutes: this.nw.duration || 120 }) });
-        if (r.ok) { this.nw = { key: 'junk-removal', label: '', price: '', duration: '120' }; await this.reload(); }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.nw.label, default_price: this.nw.price === '' ? null : this.nw.price, default_duration_minutes: this.nw.duration || 120, customer_visible: this.nw.customerVisible, customer_instructions: this.nw.instructions }) });
+        if (r.ok) { this.nw = { label: '', price: '', duration: '120', customerVisible: true, instructions: '' }; await this.reload(); }
         else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add service'; }
     },
-    startEdit(s) { this.editingId = s.id; this.ed = { label: s.label, price: s.default_price ?? '', duration: s.default_duration_minutes ?? 120 }; },
+    startEdit(s) { this.editingId = s.id; this.ed = { label: s.label, price: s.default_price ?? '', duration: s.default_duration_minutes ?? 120, instructions: s.customer_instructions ?? '' }; },
     cancelEdit() { this.editingId = null; },
     async saveEdit(s) {
-        const r = await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.ed.label, default_price: this.ed.price === '' ? null : this.ed.price, default_duration_minutes: this.ed.duration }) });
+        const r = await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.ed.label, default_price: this.ed.price === '' ? null : this.ed.price, default_duration_minutes: this.ed.duration, customer_instructions: this.ed.instructions }) });
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(s) { await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !s.active }) }); await this.reload(); },
@@ -559,23 +644,23 @@ Alpine.data('servicesCatalog', (cfg = {}) => ({
 Alpine.data('equipmentCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     equipment: cfg.equipment || [],
-    nw: { name: '', cost: '', daily: '' },
+    nw: { name: '', cost: '', daily: '', instructions: '' },
     error: '',
     editingId: null,
-    ed: { name: '', cost: '', daily: '' },
+    ed: { name: '', cost: '', daily: '', instructions: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.equipment = d.equipment || []; } } catch {} },
 
     async add() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.nw.name, avg_cost_per_hour: this.nw.cost === '' ? null : this.nw.cost, daily_rate: this.nw.daily === '' ? null : this.nw.daily }) });
-        if (r.ok) { this.nw = { name: '', cost: '', daily: '' }; await this.reload(); }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.nw.name, avg_cost_per_hour: this.nw.cost === '' ? null : this.nw.cost, daily_rate: this.nw.daily === '' ? null : this.nw.daily, customer_instructions: this.nw.instructions }) });
+        if (r.ok) { this.nw = { name: '', cost: '', daily: '', instructions: '' }; await this.reload(); }
         else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add equipment'; }
     },
-    startEdit(e) { this.editingId = e.id; this.ed = { name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '' }; },
+    startEdit(e) { this.editingId = e.id; this.ed = { name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '', instructions: e.customer_instructions ?? '' }; },
     cancelEdit() { this.editingId = null; },
     async saveEdit(e) {
-        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.ed.name, avg_cost_per_hour: this.ed.cost === '' ? null : this.ed.cost, daily_rate: this.ed.daily === '' ? null : this.ed.daily }) });
+        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.ed.name, avg_cost_per_hour: this.ed.cost === '' ? null : this.ed.cost, daily_rate: this.ed.daily === '' ? null : this.ed.daily, customer_instructions: this.ed.instructions }) });
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },
@@ -628,6 +713,53 @@ Alpine.data('calendar', (cfg = {}) => ({
     // store currentDate as a timestamp for clean reactivity
     cur: Date.now(),
     HOURS: Array.from({ length: DAY_END_HOUR - DAY_START_HOUR }, (_, i) => i + DAY_START_HOUR),
+
+    // Time-picker state (only used in the embedded popup).
+    pickedDateKey: '',
+    pickedMinutes: null,
+
+    init() {
+        if (cfg.initialView && ['month', 'week', 'day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
+        if (cfg.initialDate) {
+            const d = new Date(cfg.initialDate + 'T00:00');
+            if (!isNaN(d.getTime())) this.cur = d.getTime();
+        }
+    },
+
+    // Local YYYY-MM-DD (matches the quote's confirmed_date_time, avoids UTC drift).
+    localKey(d) { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
+
+    // Click anywhere on the day timeline → snap to the nearest 30-min slot and
+    // post the chosen date/time to the parent quote page.
+    pickTimeAt(event) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const y = event.clientY - rect.top;
+        let total = DAY_START_HOUR * 60 + (y / HOUR_PX) * 60;
+        total = Math.round(total / 30) * 30;
+        total = Math.max(DAY_START_HOUR * 60, Math.min(DAY_END_HOUR * 60, total));
+        const pad = (n) => String(n).padStart(2, '0');
+        const time = `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+        const dateKey = this.localKey(this.currentDate);
+        this.pickedDateKey = dateKey;
+        this.pickedMinutes = total;
+        try { window.parent.postMessage({ type: 'calendar-pick', datetime: `${dateKey}T${time}` }, window.location.origin); } catch (e) { /* not embedded */ }
+    },
+
+    get pickIndicatorStyle() {
+        if (this.pickedMinutes == null || this.localKey(this.currentDate) !== this.pickedDateKey) return '';
+        const top = (this.pickedMinutes - DAY_START_HOUR * 60) * HOUR_PX / 60;
+        return `position:absolute;top:${top}px;left:0;right:0`;
+    },
+    get pickedTimeLabel() {
+        if (this.pickedMinutes == null) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        return fmtTime12(`${pad(Math.floor(this.pickedMinutes / 60))}:${pad(this.pickedMinutes % 60)}`);
+    },
+    get pickedLabelFull() {
+        if (this.pickedMinutes == null) return '';
+        const d = new Date(this.pickedDateKey + 'T00:00');
+        return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${this.pickedTimeLabel}`;
+    },
 
     get currentDate() { return new Date(this.cur); },
 
@@ -954,6 +1086,112 @@ Alpine.data('agreementSender', (cfg = {}) => ({
     fmt(d) {
         return d ? new Date(d).toLocaleDateString() : '';
     },
+}));
+
+// ---------------------------------------------------------------------------
+// Payment-link sender — generates (or reuses) a payment link for the current
+// quoted price and lets the admin send it to the customer (mailto/sms).
+// ---------------------------------------------------------------------------
+Alpine.data('paymentSender', (cfg = {}) => ({
+    cfg,
+    links: cfg.links || [],
+    preferred: cfg.preferred === 'email' ? 'email' : 'phone',
+    phone: cfg.phone || '',
+    email: cfg.email || '',
+    name: cfg.name || '',
+    sendToContact: false,
+    link: '',
+    amount: null,
+    sending: false,
+    copied: false,
+    copiedId: '',
+    error: '',
+
+    get contactLabel() {
+        return (this.preferred === 'email' ? 'Email' : 'Text') + ' payment link';
+    },
+
+    init() {
+        const active = this.links.find((l) => l.usable);
+        if (active) { this.link = active.url; this.amount = active.amount; }
+    },
+
+    async send() {
+        this.sending = true;
+        this.error = '';
+        this.copied = false;
+        try {
+            const res = await fetch(this.cfg.createUrl, { method: 'POST', headers: window.jsonHeaders(true) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Could not generate the payment link.');
+            const l = data.payment_link;
+            this.link = l.url;
+            this.amount = l.amount;
+            const i = this.links.findIndex((x) => x.id === l.id);
+            if (i === -1) this.links.unshift(l);
+            else this.links[i] = l;
+            if (this.sendToContact) this.deliver();
+        } catch (e) {
+            this.error = e.message || 'Error generating the payment link.';
+        } finally {
+            this.sending = false;
+        }
+    },
+
+    // Open the admin's email/SMS app prefilled with the payment link, using the
+    // customer's preferred contact method.
+    deliver() {
+        if (!this.link) return;
+        const amt = this.amount != null ? `$${this.money(this.amount)}` : 'your balance';
+        const msg = `Hi ${this.name || 'there'}, you can securely pay ${amt} for your quote here: ${this.link}`;
+        if (this.preferred === 'email') {
+            if (!this.email) { this.error = 'No email address on file for this customer.'; return; }
+            window.location.href = `mailto:${encodeURIComponent(this.email)}`
+                + `?subject=${encodeURIComponent('Your Payment Link')}&body=${encodeURIComponent(msg)}`;
+        } else {
+            if (!this.phone) { this.error = 'No phone number on file for this customer.'; return; }
+            window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
+        }
+    },
+
+    async copy() {
+        try {
+            await navigator.clipboard.writeText(this.link);
+            this.copied = true;
+            setTimeout(() => { this.copied = false; }, 2000);
+        } catch {
+            this.error = 'Copy failed — select the link and copy manually.';
+        }
+    },
+
+    async copyLink(l) {
+        try {
+            await navigator.clipboard.writeText(l.url);
+            this.copiedId = l.id;
+            setTimeout(() => { if (this.copiedId === l.id) this.copiedId = ''; }, 2000);
+        } catch {
+            this.error = 'Copy failed — open the link and copy manually.';
+        }
+    },
+
+    async remove(l) {
+        const msg = l.paid_at
+            ? 'Delete this completed payment record? This cannot be undone.'
+            : 'Delete this pending payment link?';
+        if (!confirm(msg)) return;
+        this.error = '';
+        try {
+            const res = await fetch(this.cfg.deleteUrl.replace('__ID__', l.id), { method: 'DELETE', headers: window.jsonHeaders(true) });
+            if (!res.ok) throw new Error('Could not delete the payment link.');
+            this.links = this.links.filter((x) => x.id !== l.id);
+            if (this.link && this.link === l.url) this.link = '';
+        } catch (e) {
+            this.error = e.message || 'Delete failed.';
+        }
+    },
+
+    money(n) { return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+    fmt(d) { return d ? new Date(d).toLocaleDateString() : ''; },
 }));
 
 export {};

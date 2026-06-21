@@ -16,16 +16,16 @@ class Inquiry extends Model
     protected function casts(): array
     {
         return [
-            'latitude'                  => 'float',
-            'longitude'                 => 'float',
-            'initial_estimated_quote'   => 'float',
-            'quoted_price'              => 'float',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'initial_estimated_quote' => 'float',
+            'quoted_price' => 'float',
             'equipment_rental_duration' => 'integer',
             'expected_duration_minutes' => 'integer',
-            'quote_verified'            => 'boolean',
-            'address_verified'          => 'boolean',
-            'date_time_verified'        => 'boolean',
-            'contact_verified'          => 'boolean',
+            'quote_verified' => 'boolean',
+            'address_verified' => 'boolean',
+            'date_time_verified' => 'boolean',
+            'contact_verified' => 'boolean',
         ];
     }
 
@@ -56,6 +56,11 @@ class Inquiry extends Model
     public function rentalAgreements(): HasMany
     {
         return $this->hasMany(RentalAgreement::class, 'inquiry_id');
+    }
+
+    public function paymentLinks(): HasMany
+    {
+        return $this->hasMany(PaymentLink::class, 'inquiry_id');
     }
 
     /** Status-history rows that represent verification events (public-visible subset). */

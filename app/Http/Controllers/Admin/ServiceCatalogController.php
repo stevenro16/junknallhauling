@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ServiceCatalogController extends Controller
 {
@@ -16,25 +17,35 @@ class ServiceCatalogController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $key = (string) $request->input('key');
         $label = trim((string) $request->input('label'));
-        if ($key === '' || $label === '') {
-            return response()->json(['error' => 'Key and label are required'], 400);
-        }
-        if (ServiceCatalog::where('key', $key)->exists()) {
-            return response()->json(['error' => 'A service with that key already exists'], 409);
+        if ($label === '') {
+            return response()->json(['error' => 'Service name is required'], 400);
         }
 
         $service = ServiceCatalog::create([
-            'key' => $key,
+            'key' => $this->uniqueKey($label),
             'label' => $label,
             'default_price' => $request->input('default_price') !== null ? (float) $request->input('default_price') : null,
             'default_duration_minutes' => $request->input('default_duration_minutes') !== null ? (int) $request->input('default_duration_minutes') : 120,
             'active' => true,
             'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
+            'customer_instructions' => trim((string) $request->input('customer_instructions')) ?: null,
         ]);
 
         return response()->json(['service' => $service], 201);
+    }
+
+    /** Derive a unique catalog key from the service name (admin no longer sets it). */
+    private function uniqueKey(string $label): string
+    {
+        $base = Str::slug($label) ?: 'service';
+        $key = $base;
+        $n = 2;
+        while (ServiceCatalog::where('key', $key)->exists()) {
+            $key = $base.'-'.$n++;
+        }
+
+        return $key;
     }
 
     public function update(Request $request, string $id): JsonResponse
@@ -59,6 +70,9 @@ class ServiceCatalogController extends Controller
         }
         if ($request->has('customer_visible')) {
             $updates['customer_visible'] = (bool) $request->input('customer_visible');
+        }
+        if ($request->has('customer_instructions')) {
+            $updates['customer_instructions'] = trim((string) $request->input('customer_instructions')) ?: null;
         }
 
         $service->update($updates);

@@ -8,10 +8,12 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
+use App\Http\Controllers\Admin\PaymentLinkController;
 use App\Http\Controllers\Admin\RentalAgreementController as AdminRentalAgreementController;
 use App\Http\Controllers\Admin\ServiceCatalogController;
 use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Public\ContactController;
+use App\Http\Controllers\Public\PaymentController;
 use App\Http\Controllers\Public\RentalAgreementController;
 use App\Http\Controllers\Public\StatusController;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +32,7 @@ Route::get('/contact', [ContactController::class, 'index'])->name('contact');
 Route::get('/status', [StatusController::class, 'index'])->name('status');
 
 Route::get('/rental-agreement/{token}', [RentalAgreementController::class, 'show'])->name('rental-agreement.show');
+Route::get('/pay/{token}', [PaymentController::class, 'show'])->name('payment.show');
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +62,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 
         Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
+        Route::get('/calendar/embed', [CalendarController::class, 'embed'])->name('calendar.embed');
         // Placeholder replaced in Phase 9.
         Route::get('/print/rental-agreement/{id}', fn (string $id) => 'Print — built in Phase 9')->name('print.rental-agreement');
 
@@ -79,6 +83,8 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::post('/inquiries/{id}/audit', [InquiryApiController::class, 'audit'])->name('inquiries.audit');
             Route::post('/inquiries/{id}/rental-agreement', [InquiryApiController::class, 'agreement'])->name('inquiries.agreement');
             Route::delete('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'destroy'])->name('rental-agreement.destroy');
+            Route::post('/inquiries/{id}/payment-link', [InquiryApiController::class, 'paymentLink'])->name('inquiries.payment-link');
+            Route::delete('/payment-link/{id}', [PaymentLinkController::class, 'destroy'])->name('payment-link.destroy');
 
             // Service catalog
             Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');

@@ -4,12 +4,28 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
+use Illuminate\Http\Request;
 
 class CalendarController extends Controller
 {
     public function index()
     {
-        $events = Inquiry::whereNotNull('confirmed_date_time')
+        return view('admin.calendar', ['events' => $this->events()]);
+    }
+
+    /** Compact, bare day view for embedding in the quote page's calendar popup. */
+    public function embed(Request $request)
+    {
+        return view('admin.calendar-embed', [
+            'events' => $this->events(),
+            'date' => (string) $request->query('date', ''),
+        ]);
+    }
+
+    /** Confirmed, non-cancelled visits shaped for the calendar component. */
+    private function events()
+    {
+        return Inquiry::whereNotNull('confirmed_date_time')
             ->where('status', '!=', 'cancelled')
             ->orderBy('confirmed_date_time')
             ->get()
@@ -19,7 +35,5 @@ class CalendarController extends Controller
                 'confirmed_date_time' => $i->confirmed_date_time,
                 'expected_duration_minutes' => $i->expected_duration_minutes ?? 120,
             ])->values();
-
-        return view('admin.calendar', ['events' => $events]);
     }
 }

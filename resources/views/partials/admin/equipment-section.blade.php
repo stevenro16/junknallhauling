@@ -16,6 +16,10 @@
             <div><label class="block text-xs text-gray-400 mb-1">Avg $/hr</label><input type="number" x-model="nw.cost" class="input-dark" placeholder="(optional)"></div>
             <div><label class="block text-xs text-gray-400 mb-1">Daily Rate</label><input type="number" x-model="nw.daily" class="input-dark" placeholder="(optional)"></div>
         </div>
+        <div class="mt-3">
+            <label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label>
+            <textarea x-model="nw.instructions" rows="2" class="input-dark" placeholder="Instructions for the customer (used in later workflows)"></textarea>
+        </div>
         <div class="mt-3 flex items-center gap-3">
             <button @click="add()" class="btn-primary text-sm py-2 px-4"><x-icon name="plus" class="w-4 h-4"/> Add Equipment</button>
             <span x-show="error" x-text="error" class="text-red-400 text-sm" x-cloak></span>
@@ -24,9 +28,10 @@
 
     {{-- Table --}}
     <div class="card-dark p-5">
-        <table class="w-full text-sm text-gray-200">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-sm text-gray-200">
             <thead class="text-xs uppercase tracking-wider text-gray-400 border-b border-charcoal-600">
-                <tr><th class="text-left py-2">Name</th><th class="text-left py-2">$/hr</th><th class="text-left py-2">Daily</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-right py-2">Actions</th></tr>
+                <tr><th class="text-left py-2">Name</th><th class="text-left py-2">$/hr</th><th class="text-left py-2">Daily</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-left py-2">Instructions</th><th class="text-right py-2">Actions</th></tr>
             </thead>
             <tbody>
                 <template x-for="e in equipment" :key="e.id">
@@ -51,6 +56,10 @@
                                     :title="e.customer_visible ? 'Shown on the public quote form — click to hide' : 'Hidden from the public quote form — click to show'"
                                     x-text="e.customer_visible ? 'Visible' : 'Hidden'"></button>
                         </td>
+                        <td class="py-2">
+                            <span x-show="editingId !== e.id" x-text="e.customer_instructions || '—'" class="text-xs text-gray-400 block max-w-[220px] truncate" :title="e.customer_instructions || ''"></span>
+                            <textarea x-show="editingId === e.id" x-model="ed.instructions" rows="2" class="input-dark py-1 text-sm w-56" x-cloak placeholder="Customer instructions"></textarea>
+                        </td>
                         <td class="py-2 text-right whitespace-nowrap">
                             <template x-if="editingId === e.id">
                                 <span>
@@ -70,5 +79,6 @@
                 </template>
             </tbody>
         </table>
+      </div>
     </div>
 </div>

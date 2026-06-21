@@ -427,4 +427,73 @@ Alpine.data('agreementForm', (token) => ({
     },
 }));
 
+// ---------------------------------------------------------------------------
+// Public payment page — loads the quote amount for a tokenized link and lets
+// the customer complete payment. Placeholder gateway: pay() records payment.
+// ---------------------------------------------------------------------------
+Alpine.data('paymentForm', (token) => ({
+    token,
+    data: null,
+    loading: true,
+    error: '',
+    submitting: false,
+    paid: false,
+
+    init() {
+        fetch(window.apiUrl(`/api/payment/${this.token}`))
+            .then(async (res) => {
+                const json = await res.json();
+                if (!res.ok) {
+                    if (json.alreadyPaid) { this.data = json; this.paid = true; return; }
+                    throw new Error(json.error || 'Failed to load payment');
+                }
+                this.data = json;
+            })
+            .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
+            .finally(() => { this.loading = false; });
+    },
+
+    get inquiry() { return this.data?.inquiry ?? null; },
+    get business() { return this.data?.business ?? null; },
+    get amount() { return this.data?.payment?.amount ?? 0; },
+
+    money(n) { return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+
+    summaryLine() {
+        const i = this.inquiry;
+        if (!i) return '—';
+        if (i.equipment_type) {
+            const dur = (i.equipment_rental_duration && i.equipment_rental_unit)
+                ? ` (${i.equipment_rental_duration} ${i.equipment_rental_unit})` : '';
+            return `${i.equipment_type}${dur}`;
+        }
+        return (i.service_type || '—').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    },
+
+    scheduledLabel() {
+        const d = this.inquiry?.confirmed_date_time;
+        if (!d) return '—';
+        return new Date(d).toLocaleString([], {
+            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        });
+    },
+
+    async pay() {
+        this.submitting = true;
+        this.error = '';
+        try {
+            const res = await fetch(window.apiUrl(`/api/payment/${this.token}`), {
+                method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify({}),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Payment could not be completed.');
+            this.paid = true;
+        } catch (e) {
+            this.error = e.message || 'Something went wrong. Please try again or call us.';
+        } finally {
+            this.submitting = false;
+        }
+    },
+}));
+
 export {};

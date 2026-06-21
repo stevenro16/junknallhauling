@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
+use App\Models\PaymentLink;
 use App\Models\RentalAgreement;
 use App\Services\DemoSeeder;
 use App\Services\GeocodeService;
@@ -32,11 +33,11 @@ class InquiryApiController extends Controller
         }
 
         $inquiry = Inquiry::create([
-            'name'         => trim((string) $request->input('name')) ?: '',
-            'phone'        => $phone,
-            'email'        => trim((string) $request->input('email')) ?: '',
+            'name' => trim((string) $request->input('name')) ?: '',
+            'phone' => $phone,
+            'email' => trim((string) $request->input('email')) ?: '',
             'service_type' => 'other',
-            'zip_code'     => trim((string) $request->input('zip_code')) ?: '',
+            'zip_code' => trim((string) $request->input('zip_code')) ?: '',
         ]);
 
         return response()->json(['inquiry' => $inquiry], 201);
@@ -66,7 +67,7 @@ class InquiryApiController extends Controller
         $updates = [];
 
         $strings = [
-            'status', 'admin_notes', 'address', 'confirmed_date_time', 'equipment_type',
+            'status', 'name', 'admin_notes', 'address', 'confirmed_date_time', 'equipment_type',
             'equipment_rental_unit', 'phone', 'email', 'preferred_contact_method',
             'payment_method', 'payment_date', 'payment_notes', 'service_type',
             'zip_code', 'preferred_day', 'preferred_time',
@@ -123,8 +124,8 @@ class InquiryApiController extends Controller
         $pending = $map['service_performed'] ?? 0;
 
         return response()->json([
-            'new'            => (int) $new,
-            'scheduled'      => (int) $scheduled,
+            'new' => (int) $new,
+            'scheduled' => (int) $scheduled,
             'pendingPayment' => (int) $pending,
             'workqueueTotal' => (int) ($new + $scheduled + $pending),
         ]);
@@ -182,7 +183,7 @@ class InquiryApiController extends Controller
 
         if (! $agreement) {
             $agreement = $inquiry->rentalAgreements()->create([
-                'token'     => (string) Str::uuid(),
+                'token' => (string) Str::uuid(),
                 'form_data' => [],
             ]);
             $inquiry->logAudit('rental_agreement_sent');
@@ -194,16 +195,69 @@ class InquiryApiController extends Controller
     public static function agreementPayload(RentalAgreement $a): array
     {
         return [
-            'id'           => $a->id,
-            'token'        => $a->token,
-            'url'          => route('rental-agreement.show', $a->token),
-            'admin_url'    => route('admin.rental-agreement.show', $a->id),
-            'signed_at'    => $a->signed_at,
+            'id' => $a->id,
+            'token' => $a->token,
+            'url' => route('rental-agreement.show', $a->token),
+            'admin_url' => route('admin.rental-agreement.show', $a->id),
+            'signed_at' => $a->signed_at,
             'cancelled_at' => $a->cancelled_at,
-            'created_at'   => $a->created_at,
-            'usable'       => $a->isUsable(),
+            'created_at' => $a->created_at,
+            'usable' => $a->isUsable(),
             // Signature thumbnail (signed agreements only) for the admin panel.
             'signature_base64' => $a->signed_at ? $a->signature_base64 : null,
+        ];
+    }
+
+    /**
+     * POST /admin/api/inquiries/{id}/payment-link
+     * Generate (or reuse) a payment link for the current quoted price. A still-
+     * usable (unpaid, not cancelled, not expired) link is reused — its amount is
+     * refreshed to the current quote in case it changed.
+     */
+    public function paymentLink(string $id): JsonResponse
+    {
+        $inquiry = Inquiry::find($id);
+        if (! $inquiry) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        $amount = $inquiry->quoted_price;
+        if ($amount === null || (float) $amount <= 0) {
+            return response()->json(['error' => 'Set a quoted price before sending a payment link.'], 422);
+        }
+
+        $link = $inquiry->paymentLinks()
+            ->whereNull('paid_at')
+            ->whereNull('cancelled_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(fn (PaymentLink $p) => $p->isUsable());
+
+        if ($link) {
+            $link->update(['amount' => $amount]); // keep the pending link in sync with the quote
+        } else {
+            $link = $inquiry->paymentLinks()->create([
+                'token' => (string) Str::uuid(),
+                'amount' => $amount,
+            ]);
+            $inquiry->logAudit('payment_link_sent');
+        }
+
+        return response()->json(['payment_link' => self::paymentLinkPayload($link)]);
+    }
+
+    public static function paymentLinkPayload(PaymentLink $p): array
+    {
+        return [
+            'id' => $p->id,
+            'token' => $p->token,
+            'url' => route('payment.show', $p->token),
+            'amount' => $p->amount,
+            'paid_at' => $p->paid_at,
+            'cancelled_at' => $p->cancelled_at,
+            'payment_method' => $p->payment_method,
+            'created_at' => $p->created_at,
+            'usable' => $p->isUsable(),
         ];
     }
 }

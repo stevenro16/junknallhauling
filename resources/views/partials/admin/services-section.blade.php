@@ -11,21 +11,19 @@
     {{-- Add form --}}
     <div class="card-dark p-5">
         <div class="text-sm font-semibold text-gray-200 mb-3">Add a Service</div>
-        <div id="service-catalog-form" class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-            <div>
-                <label class="block text-xs text-gray-400 mb-1">Key</label>
-                <select x-model="nw.key" class="input-dark">
-                    <option value="junk-removal">junk-removal</option>
-                    <option value="10yd-dumpster">10yd-dumpster</option>
-                    <option value="20yd-dumpster">20yd-dumpster</option>
-                    <option value="equipment">equipment</option>
-                    <option value="other">other</option>
-                </select>
-            </div>
-            <div class="sm:col-span-2"><label class="block text-xs text-gray-400 mb-1">Label</label><input type="text" x-model="nw.label" class="input-dark" placeholder="Display label"></div>
+        <div id="service-catalog-form" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div class="sm:col-span-2"><label class="block text-xs text-gray-400 mb-1">Service Name</label><input type="text" x-model="nw.label" class="input-dark" placeholder="e.g. Junk Removal"></div>
             <div><label class="block text-xs text-gray-400 mb-1">Default Price</label><input type="number" x-model="nw.price" class="input-dark" placeholder="(optional)"></div>
             <div><label class="block text-xs text-gray-400 mb-1">Duration (min)</label><input type="number" x-model="nw.duration" class="input-dark" placeholder="120"></div>
         </div>
+        <div class="mt-3">
+            <label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label>
+            <textarea x-model="nw.instructions" rows="2" class="input-dark" placeholder="Instructions for the customer (used in later workflows)"></textarea>
+        </div>
+        <label class="mt-3 flex items-center gap-2 w-fit text-sm text-gray-300 cursor-pointer select-none">
+            <input type="checkbox" x-model="nw.customerVisible" class="w-4 h-4 accent-emerald-500">
+            <span>Visible on the customer quote form</span>
+        </label>
         <div class="mt-3 flex items-center gap-3">
             <button @click="add()" class="btn-primary text-sm py-2 px-4"><x-icon name="plus" class="w-4 h-4"/> Add Service</button>
             <span x-show="error" x-text="error" class="text-red-400 text-sm" x-cloak></span>
@@ -34,14 +32,14 @@
 
     {{-- Table --}}
     <div class="card-dark p-5">
-        <table class="w-full text-sm text-gray-200">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-sm text-gray-200">
             <thead class="text-xs uppercase tracking-wider text-gray-400 border-b border-charcoal-600">
-                <tr><th class="text-left py-2">Key</th><th class="text-left py-2">Label</th><th class="text-left py-2">Price</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-right py-2">Actions</th></tr>
+                <tr><th class="text-left py-2">Service Name</th><th class="text-left py-2">Price</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-left py-2">Instructions</th><th class="text-right py-2">Actions</th></tr>
             </thead>
             <tbody>
                 <template x-for="s in services" :key="s.id">
                     <tr class="border-b border-charcoal-700/60" :class="!s.active && 'opacity-50'">
-                        <td class="py-2 font-mono text-xs" x-text="s.key"></td>
                         <td class="py-2">
                             <span x-show="editingId !== s.id" x-text="s.label"></span>
                             <input x-show="editingId === s.id" x-model="ed.label" class="input-dark py-1 text-sm" x-cloak>
@@ -62,6 +60,10 @@
                                     :title="s.customer_visible ? 'Shown on the public quote form — click to hide' : 'Hidden from the public quote form — click to show'"
                                     x-text="s.customer_visible ? 'Visible' : 'Hidden'"></button>
                         </td>
+                        <td class="py-2">
+                            <span x-show="editingId !== s.id" x-text="s.customer_instructions || '—'" class="text-xs text-gray-400 block max-w-[220px] truncate" :title="s.customer_instructions || ''"></span>
+                            <textarea x-show="editingId === s.id" x-model="ed.instructions" rows="2" class="input-dark py-1 text-sm w-56" x-cloak placeholder="Customer instructions"></textarea>
+                        </td>
                         <td class="py-2 text-right whitespace-nowrap">
                             <template x-if="editingId === s.id">
                                 <span>
@@ -81,5 +83,6 @@
                 </template>
             </tbody>
         </table>
+      </div>
     </div>
 </div>

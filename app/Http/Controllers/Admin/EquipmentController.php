@@ -30,6 +30,7 @@ class EquipmentController extends Controller
             'daily_rate' => $request->input('daily_rate') !== null && $request->input('daily_rate') !== '' ? (float) $request->input('daily_rate') : null,
             'active' => true,
             'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
+            'customer_instructions' => trim((string) $request->input('customer_instructions')) ?: null,
         ]);
 
         return response()->json(['equipment' => $equipment], 201);
@@ -57,6 +58,9 @@ class EquipmentController extends Controller
         }
         if ($request->has('customer_visible')) {
             $updates['customer_visible'] = (bool) $request->input('customer_visible');
+        }
+        if ($request->has('customer_instructions')) {
+            $updates['customer_instructions'] = trim((string) $request->input('customer_instructions')) ?: null;
         }
 
         $equipment->update($updates);
