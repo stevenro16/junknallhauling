@@ -3,6 +3,12 @@
 @section('title', $inquiry->ref.' — '.config('business.name'))
 
 @php
+    // Defaults keep the employee usage unchanged; the admin Field View overrides these.
+    $routeBase = $routeBase ?? 'admin.my-schedule';
+    $backRoute = $backRoute ?? 'admin.my-schedule';
+    $backLabel = $backLabel ?? 'Back to my schedule';
+    $adminField = $adminField ?? false;
+
     $statusLabel = ucwords(str_replace('_', ' ', $inquiry->status));
     $jobLabel = $inquiry->equipment_type
         ?: ucwords(str_replace('-', ' ', (string) $inquiry->service_type));
@@ -20,7 +26,14 @@
 
 @section('admin-content')
 <div class="max-w-2xl mx-auto pb-24 sm:pb-8">
-    <a href="{{ route('admin.my-schedule') }}" class="text-sm text-amber-600 hover:text-amber-700">&larr; Back to my schedule</a>
+    <div class="flex items-center justify-between gap-3">
+        <a href="{{ route($backRoute) }}" class="text-sm text-amber-600 hover:text-amber-700">&larr; {{ $backLabel }}</a>
+        @if($adminField)
+            <a href="{{ route('admin.inquiries.show', $inquiry->id) }}" class="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1.5 shrink-0">
+                <x-icon name="file-text" class="w-3.5 h-3.5"/> Open full quote
+            </a>
+        @endif
+    </div>
 
     @if(session('jobSaved'))
         <div class="mt-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-2 text-sm">&check; Status updated.</div>
@@ -90,11 +103,11 @@
                     @if($info[1])
                         <div class="text-gray-900 text-lg font-semibold mt-0.5">{{ $info[1]->format('g:i A') }}</div>
                         <div class="text-[11px] text-gray-400">{{ $info[1]->format('D, M j') }}</div>
-                        <form method="POST" action="{{ route('admin.my-schedule.time', [$inquiry->id, $which]) }}" class="mt-2">
+                        <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}" class="mt-2">
                             @csrf<button type="submit" class="text-xs text-amber-600 hover:text-amber-700">Update to now</button>
                         </form>
                     @else
-                        <form method="POST" action="{{ route('admin.my-schedule.time', [$inquiry->id, $which]) }}" class="mt-2">
+                        <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}" class="mt-2">
                             @csrf<button type="submit" class="w-full btn-outline py-2 text-sm">Record {{ strtolower($info[0]) }}</button>
                         </form>
                     @endif
@@ -103,11 +116,63 @@
         </div>
     </div>
 
-    {{-- Status action — employees mark service performed; completion stays with the office --}}
+    {{-- Customer signature — capturing it marks the job Service Performed (ready to bill).
+         Signing happens on a full-screen pad; a saved signature can be re-done. --}}
+    @if($inquiry->service_signature || in_array($inquiry->status, ['scheduled', 'service_performed', 'completed'], true))
+        <div class="mt-4 card-light p-5" x-data="serviceSignature({ signUrl: '{{ route($routeBase.'.sign', $inquiry->id) }}' })">
+            <div class="text-sm font-semibold text-gray-800 mb-1">Customer Signature</div>
+            @if($inquiry->service_signature)
+                <p class="text-xs text-emerald-600 mb-2">&check; Signed{{ $inquiry->service_signed_at ? ' '.$inquiry->service_signed_at->format('D, M j · g:i A') : '' }}</p>
+                <img src="{{ $inquiry->service_signature }}" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-40">
+                <div class="mt-3">
+                    <button type="button" @click="openPad()" class="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2">
+                        <x-icon name="pencil" class="w-4 h-4"/> Re-sign
+                    </button>
+                </div>
+            @else
+                <p class="text-xs text-gray-500 mb-3">Have the customer sign to confirm the service was performed.</p>
+                <button type="button" @click="openPad()" class="btn-primary py-2.5 px-5 text-sm inline-flex items-center gap-2">
+                    <x-icon name="pencil" class="w-4 h-4"/> Open signature pad
+                </button>
+            @endif
+
+            {{-- Full-screen signing pad (lots of room for the customer; can clear & redo) --}}
+            <div x-show="open" x-cloak class="fixed inset-0 z-[120] bg-white flex flex-col" @keydown.escape.window="close()">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
+                    <div>
+                        <div class="text-sm font-semibold text-gray-800">{{ $inquiry->name ?: 'Customer' }} — sign below</div>
+                        <div class="text-xs text-gray-500">{{ $inquiry->ref }}</div>
+                    </div>
+                    <button type="button" @click="close()" class="text-gray-400 hover:text-gray-700" aria-label="Cancel"><x-icon name="x" class="w-6 h-6"/></button>
+                </div>
+                <div class="flex-1 p-3 min-h-0">
+                    <canvas x-ref="canvas" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white touch-none cursor-crosshair"
+                            @mousedown="start($event)" @mousemove="move($event)" @mouseup="end()" @mouseleave="end()"
+                            @touchstart.prevent="start($event)" @touchmove.prevent="move($event)" @touchend.prevent="end()"></canvas>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 shrink-0">
+                    <button type="button" @click="clear()" class="btn-outline text-sm py-2 px-4">Clear</button>
+                    <p x-show="error" x-cloak class="text-xs text-red-600 flex-1 text-center" x-text="error"></p>
+                    <button type="button" @click="submit()" :disabled="submitting" class="btn-primary py-2.5 px-6 text-sm">
+                        <span x-text="submitting ? 'Saving…' : 'Save signature'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Payment — admin Field View only: generate / send the payment link --}}
+    @if($adminField)
+        <div class="mt-4">
+            @include('partials.admin.payment-link-panel', ['syncContact' => false])
+        </div>
+    @endif
+
+    {{-- Status action — sits under the payment link; mark the service performed --}}
     @if($inquiry->status === 'scheduled')
         <div class="mt-4 card-light p-5">
             <div class="text-sm font-semibold text-gray-800 mb-3">Update status</div>
-            <form method="POST" action="{{ route('admin.my-schedule.status', $inquiry->id) }}">
+            <form method="POST" action="{{ route($routeBase.'.status', $inquiry->id) }}">
                 @csrf
                 <input type="hidden" name="status" value="service_performed">
                 <button type="submit" class="w-full btn-primary py-3 text-sm">Mark Service Performed</button>
@@ -115,34 +180,9 @@
         </div>
     @endif
 
-    {{-- Customer signature — capturing it marks the job Service Performed (ready to bill) --}}
-    @if($inquiry->service_signature || in_array($inquiry->status, ['scheduled', 'service_performed', 'completed'], true))
-        <div class="mt-4 card-light p-5">
-            <div class="text-sm font-semibold text-gray-800 mb-1">Customer Signature</div>
-            @if($inquiry->service_signature)
-                <p class="text-xs text-emerald-600 mb-2">&check; Signed{{ $inquiry->service_signed_at ? ' '.$inquiry->service_signed_at->format('D, M j · g:i A') : '' }}</p>
-                <img src="{{ $inquiry->service_signature }}" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-40">
-            @else
-                <p class="text-xs text-gray-500 mb-2">Have the customer sign below to confirm the service was performed.</p>
-                <div x-data="serviceSignature({ signUrl: '{{ route('admin.my-schedule.sign', $inquiry->id) }}' })" x-init="initPad()">
-                    <canvas x-ref="canvas" class="w-full h-44 border-2 border-dashed border-gray-300 rounded-lg bg-white touch-none cursor-crosshair"
-                            @mousedown="start($event)" @mousemove="move($event)" @mouseup="end()" @mouseleave="end()"
-                            @touchstart.prevent="start($event)" @touchmove.prevent="move($event)" @touchend.prevent="end()"></canvas>
-                    <div class="flex items-center justify-between mt-2">
-                        <button type="button" @click="clear()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
-                        <button type="button" @click="submit()" :disabled="submitting" class="btn-primary py-2 px-5 text-sm">
-                            <span x-text="submitting ? 'Saving…' : 'Save signature'"></span>
-                        </button>
-                    </div>
-                    <p x-show="error" x-cloak class="text-xs text-red-600 mt-1" x-text="error"></p>
-                </div>
-            @endif
-        </div>
-    @endif
-
     {{-- Notes & comments --}}
     <div class="mt-4 card-light p-5">
-        @include('partials.admin.comment-thread', ['postUrl' => route('admin.my-schedule.comment', $inquiry->id), 'comments' => $comments])
+        @include('partials.admin.comment-thread', ['postUrl' => route($routeBase.'.comment', $inquiry->id), 'comments' => $comments])
     </div>
 </div>
 @endsection

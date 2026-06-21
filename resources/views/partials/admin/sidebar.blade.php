@@ -18,6 +18,7 @@
         $settingsItems = [];
     } else {
         $main = [
+            ['key' => 'field', 'label' => 'Field View', 'icon' => 'map-pin', 'href' => route('admin.field'), 'active' => str_starts_with($path, 'admin/field')],
             ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
             ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
             ['key' => 'customers', 'label' => 'Customers', 'icon' => 'user', 'href' => route('admin.customers'), 'active' => $onCustomers],

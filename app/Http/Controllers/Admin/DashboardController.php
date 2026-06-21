@@ -21,7 +21,7 @@ class DashboardController extends Controller
             $section = 'inquiries';
         }
 
-        $inquiries = Inquiry::with('rentalAgreements')->orderByDesc('created_at')->get();
+        $inquiries = Inquiry::with(['rentalAgreements', 'assignedEmployee:id,username'])->orderByDesc('created_at')->get();
 
         $byStatus = $inquiries->countBy('status');
         $newCount = ($byStatus['new'] ?? 0) + ($byStatus['reviewing'] ?? 0) + ($byStatus['quoted'] ?? 0);

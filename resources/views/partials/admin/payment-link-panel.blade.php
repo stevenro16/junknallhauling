@@ -9,7 +9,7 @@
         email: @js($inquiry->email),
         name: @js($inquiry->name),
     })"
-    x-effect="preferred = preferredContactMethod"
+    @if($syncContact ?? true) x-effect="preferred = preferredContactMethod" @endif
     class="bg-white border border-gray-200 rounded-xl shadow-sm border-l-4 border-l-emerald-500 p-5">
 
     <div class="flex items-center justify-between gap-3 mb-2">

@@ -7,6 +7,7 @@
         'equipment_rental_duration' => $i->equipment_rental_duration,
         'equipment_rental_unit' => $i->equipment_rental_unit,
         'confirmed_date_time' => $i->confirmed_date_time, 'quoted_price' => $i->quoted_price,
+        'assigned_employee' => $i->assignedEmployee?->username,
         'payment_method' => $i->payment_method,
         'created_at' => $i->created_at, 'updated_at' => $i->updated_at,
         'agreement' => $i->rentalAgreements->isEmpty()
@@ -71,6 +72,7 @@
                         <th class="text-left px-4 py-3">Status</th>
                         <th class="text-left px-4 py-3">Ref</th>
                         <th class="text-left px-4 py-3">Confirmed</th>
+                        <th class="text-left px-4 py-3">Assigned</th>
                         <th class="text-left px-4 py-3">Customer</th>
                         <th class="text-left px-4 py-3">Service</th>
                         <th class="text-left px-4 py-3">Payment</th>
@@ -89,6 +91,10 @@
                                 <div class="text-[10px] text-gray-400 mt-0.5" x-show="i.updated_at" x-text="'Updated ' + dateTime(i.updated_at)"></div>
                             </td>
                             <td class="px-4 py-3 text-gray-600" x-text="i.confirmed_date_time ? dateTime(i.confirmed_date_time) : '—'"></td>
+                            <td class="px-4 py-3">
+                                <span x-show="i.assigned_employee" class="inline-flex items-center gap-1 text-gray-700"><x-icon name="user" class="w-3.5 h-3.5 text-amber-600"/><span x-text="i.assigned_employee"></span></span>
+                                <span x-show="!i.assigned_employee" class="text-gray-300">Unassigned</span>
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="font-medium text-gray-900" x-text="i.name || '(no name)'"></div>
                                 <div class="text-xs text-gray-500" x-text="i.phone"></div>
@@ -139,6 +145,7 @@
                     </div>
                     <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
                         <span x-show="i.confirmed_date_time"><span class="text-gray-400">Visit:</span> <span x-text="dateTime(i.confirmed_date_time)"></span></span>
+                        <span x-show="i.assigned_employee" class="inline-flex items-center gap-0.5 text-amber-700"><x-icon name="user" class="w-3 h-3"/> <span x-text="i.assigned_employee"></span></span>
                         <span x-show="i.payment_method" class="text-emerald-600 font-medium" x-text="i.payment_method"></span>
                         <span x-show="i.agreement !== 'none'" x-cloak class="inline-flex items-center gap-0.5" :class="i.agreement === 'signed' ? 'text-green-600' : 'text-gray-400'">
                             <x-icon name="file-text" class="w-3 h-3"/> <span x-text="i.agreement === 'signed' ? 'Signed' : 'Sent'"></span>

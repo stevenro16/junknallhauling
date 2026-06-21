@@ -1,14 +1,24 @@
 @extends('layouts.admin')
 
-@section('title', 'My Schedule — '.config('business.name'))
+@php
+    // Defaults keep the employee "My Schedule" usage unchanged; the admin Field View
+    // overrides these (see FieldViewController).
+    $title = $title ?? 'My Schedule';
+    $subtitle = $subtitle ?? 'Your assigned visits';
+    $detailRoute = $detailRoute ?? 'admin.my-schedule.job';
+    $unitNoun = $unitNoun ?? 'assigned visit';
+    $emptyText = $emptyText ?? 'No visits assigned to you yet.';
+@endphp
+
+@section('title', $title.' — '.config('business.name'))
 
 @section('admin-content')
-<div class="w-full" x-data="calendar({ events: @js($events), detailBase: '{{ route('admin.my-schedule.job', '__ID__') }}', initialView: 'day' })">
+<div class="w-full" x-data="calendar({ events: @js($events), detailBase: '{{ route($detailRoute, '__ID__') }}', initialView: 'day' })">
     {{-- Header --}}
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h2 class="text-2xl font-semibold">My Schedule</h2>
-            <p class="text-sm text-gray-500">Your assigned visits</p>
+            <h2 class="text-2xl font-semibold">{{ $title }}</h2>
+            <p class="text-sm text-gray-500">{{ $subtitle }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
@@ -24,7 +34,7 @@
 
     <div class="text-center mb-5">
         <h2 class="text-2xl font-black" x-text="headerLabel"></h2>
-        <p class="text-sm text-gray-500 mt-1"><span x-text="totalOnCalendar"></span> assigned visit<span x-show="totalOnCalendar !== 1">s</span></p>
+        <p class="text-sm text-gray-500 mt-1"><span x-text="totalOnCalendar"></span> {{ $unitNoun }}<span x-show="totalOnCalendar !== 1">s</span></p>
     </div>
 
     {{-- Day view --}}
@@ -48,6 +58,6 @@
         </div>
     </div>
 
-    <div x-show="totalOnCalendar === 0 && viewMode === 'day'" class="text-center text-gray-500 text-sm mt-4">No visits assigned to you yet.</div>
+    <div x-show="totalOnCalendar === 0 && viewMode === 'day'" class="text-center text-gray-500 text-sm mt-4">{{ $emptyText }}</div>
 </div>
 @endsection

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmployeeCalendarController;
 use App\Http\Controllers\Admin\EodReportController;
 use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
+use App\Http\Controllers\Admin\FieldViewController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
 use App\Http\Controllers\Admin\PaymentLinkController;
@@ -72,6 +73,16 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         // Everything below is full-admin only.
         Route::middleware('role.admin')->group(function () {
             Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+            // Admin Field View — the employee field experience across all scheduled jobs.
+            Route::get('/field', [FieldViewController::class, 'index'])->name('field');
+            Route::get('/field/job/{id}', [FieldViewController::class, 'job'])->name('field.job');
+            Route::post('/field/job/{id}/status', [FieldViewController::class, 'updateStatus'])->name('field.status');
+            Route::post('/field/job/{id}/time/{which}', [FieldViewController::class, 'recordTime'])
+                ->whereIn('which', ['arrival', 'departure'])->name('field.time');
+            Route::post('/field/job/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
+            Route::post('/field/job/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
+
             Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
             Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 

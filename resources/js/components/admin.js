@@ -1853,11 +1853,22 @@ Alpine.data('paymentSender', (cfg = {}) => ({
 // ---------------------------------------------------------------------------
 Alpine.data('serviceSignature', (cfg = {}) => ({
     signUrl: cfg.signUrl,
+    open: false,
     isDrawing: false,
     hasSignature: false,
     submitting: false,
     error: '',
     _canvas: null,
+
+    // Open the full-screen signing pad (used for both first signature and re-sign).
+    openPad() {
+        this.open = true;
+        this.error = '';
+        this.hasSignature = false;
+        // Wait for the overlay to render so the canvas has its real size.
+        this.$nextTick(() => this.initPad());
+    },
+    close() { this.open = false; },
 
     initPad() {
         const c = this.$refs.canvas;
