@@ -24,22 +24,26 @@
         @include('partials.admin.sidebar', ['collapsible' => true])
     </div>
 
-    {{-- Mobile drawer --}}
-    <div x-show="mobileOpen" x-cloak class="lg:hidden fixed inset-0 bg-black/60 z-40" @click="mobileOpen = false"></div>
-    <div x-show="mobileOpen" x-cloak class="lg:hidden fixed inset-y-0 left-0 w-72 z-50 bg-charcoal-800">
-        <div class="flex items-center justify-between p-4 border-b border-charcoal-700">
-            <div class="text-sm font-semibold text-[#F8C820]">Admin Menu</div>
-            <button @click="mobileOpen = false" class="text-gray-400 hover:text-white"><x-icon name="x" class="w-5 h-5"/></button>
-        </div>
-        @include('partials.admin.sidebar', ['collapsible' => false])
-    </div>
-
     {{-- Main --}}
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
-        <div class="lg:hidden h-10 border-b border-gray-200 bg-white flex items-center px-3 flex-shrink-0 print:hidden">
-            <button @click="mobileOpen = true" class="p-1.5 text-gray-500 hover:text-gray-800" aria-label="Open menu">
-                <x-icon name="menu" class="w-5 h-5"/>
-            </button>
+        {{-- Mobile top nav (mirrors the public site: logo left, hamburger top-right, dropdown panel) --}}
+        <div class="lg:hidden shrink-0 print:hidden" @keydown.escape.window="mobileOpen = false">
+            <div class="bg-charcoal-800 border-b border-white/10 flex h-14 items-center justify-between px-4">
+                <a href="{{ route('home') }}" class="flex items-center" title="Back to main website">
+                    <img src="{{ asset('images/logo.jpg') }}" alt="{{ config('business.name') }}" width="160" height="42"
+                         class="h-8 w-auto drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
+                </a>
+                <button type="button" @click="mobileOpen = !mobileOpen"
+                        class="inline-flex items-center justify-center w-10 h-10 -mr-2 text-slate-200 hover:text-[#F8C820] transition-colors"
+                        aria-label="Toggle navigation menu" :aria-expanded="mobileOpen">
+                    <x-icon name="menu" class="w-6 h-6" x-show="!mobileOpen"/>
+                    <x-icon name="x" class="w-6 h-6" x-show="mobileOpen" x-cloak/>
+                </button>
+            </div>
+            <div x-show="mobileOpen" x-cloak x-transition
+                 class="border-t border-white/10 bg-charcoal-800 max-h-[70vh] overflow-y-auto">
+                @include('partials.admin.sidebar', ['collapsible' => false, 'mobile' => true])
+            </div>
         </div>
         <div class="flex-1 overflow-auto p-4 lg:p-6 print:overflow-visible print:p-0">
             @yield('admin-content')

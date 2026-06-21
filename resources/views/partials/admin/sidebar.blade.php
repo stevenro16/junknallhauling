@@ -1,5 +1,6 @@
 @php
     $collapsible = $collapsible ?? false;
+    $mobile = $mobile ?? false;
     $path = request()->path();
     $onDashboard = $path === 'admin';
     $qsection = request()->query('section', 'inquiries');
@@ -34,8 +35,9 @@
     $idleCls = 'text-gray-300 hover:bg-charcoal-700 hover:text-white';
 @endphp
 
-<div class="bg-charcoal-800 border-r border-charcoal-700 flex flex-col h-full transition-[width] duration-200 {{ $collapsible ? '' : 'w-64' }}"
+<div class="bg-charcoal-800 flex flex-col transition-[width] duration-200 {{ $mobile ? '' : 'h-full border-r border-charcoal-700' }} {{ (! $collapsible && ! $mobile) ? 'w-64' : '' }}"
      @if($collapsible) :class="navExpanded ? 'w-64' : 'w-16'" @endif>
+    @unless($mobile)
     <div class="p-4 border-b border-charcoal-700">
         @if($collapsible)
             <div class="flex items-center gap-2" :class="navExpanded ? 'justify-between' : 'justify-center'">
@@ -61,6 +63,7 @@
             <div class="text-[11px] uppercase tracking-widest text-gray-400 mt-2">Admin Panel</div>
         @endif
     </div>
+    @endunless
 
     <nav class="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
         @foreach($main as $item)

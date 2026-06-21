@@ -3,7 +3,7 @@
 @section('content')
 <div class="overflow-hidden">
     {{-- Hero --}}
-    <section class="relative min-h-[620px] flex items-center pt-16"
+    <section class="relative min-h-[620px] flex items-center pt-16 pb-12 sm:pb-0"
              style="background-image: linear-gradient(to left, rgba(15,23,42,0.18), rgba(0,0,0,1)), url('{{ asset('images/hero-truck.jpg') }}'); background-size: cover; background-position: center 30%;">
         <div class="container-wide relative z-10">
             <div class="max-w-3xl text-white">
