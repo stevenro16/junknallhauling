@@ -9,6 +9,14 @@
 
 return [
 
+    // ---- Get a Quote page -----------------------------------------------
+    'show_quote_form' => [
+        'group'   => 'Get a Quote Page',
+        'label'   => 'Show the customer quote form',
+        'type'    => 'boolean',
+        'default' => true,
+    ],
+
     // ---- About Us -------------------------------------------------------
     'home_about' => [
         'group'   => 'About Us',

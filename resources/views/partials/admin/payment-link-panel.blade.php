@@ -15,10 +15,10 @@
     <div class="flex items-center justify-between gap-3 mb-2">
         <div class="text-base font-semibold text-gray-800">Payment Link</div>
         <button type="button" @click="send()" :disabled="sending" class="btn-primary text-xs py-1.5 px-3 shrink-0">
-            <span x-text="sending ? 'Generating…' : 'Send Payment Link'"></span>
+            <span x-text="sending ? 'Generating…' : 'Generate Payment Link'"></span>
         </button>
     </div>
-    <p class="text-xs text-gray-500 mb-3">Sends a link to the quoted price for the customer to pay online. Uses the <span class="font-medium">saved</span> Quoted Price — save the quote first if you just changed it.</p>
+    <p class="text-xs text-gray-500 mb-3">Generates a link to the quoted price for the customer to pay online. Uses the <span class="font-medium">saved</span> Quoted Price — save the quote first if you just changed it. Check the box below to also send it.</p>
 
     {{-- Optionally deliver the link to the customer's preferred contact method --}}
     <label class="flex items-center gap-2 mb-3 text-sm text-gray-700 cursor-pointer select-none">

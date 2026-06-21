@@ -104,6 +104,7 @@ Alpine.data('quoteForm', () => ({
     submittedRef: null,
     // fields
     name: '', phone: '', email: '', description: '',
+    jobType: 'service',        // 'service' | 'equipment' (pill toggle)
     serviceType: '', zipCode: '', preferredDay: '', preferredTime: '',
     website: '',               // honeypot
     preferredContactMethod: 'phone',
@@ -126,6 +127,37 @@ Alpine.data('quoteForm', () => ({
             .catch(() => {});
     },
 
+    get isEquipment() { return this.jobType === 'equipment'; },
+    // Service choices exclude the catalog's 'equipment' entry (that's the pill).
+    get serviceChoices() { return this.serviceOptions.filter((o) => o.key !== 'equipment'); },
+    // Catalog price for the chosen service (shown as the estimate).
+    get selectedServicePrice() {
+        if (this.isEquipment) return null;
+        const svc = this.serviceOptions.find((s) => s.key === this.serviceType);
+        return (svc && svc.default_price != null) ? svc.default_price : null;
+    },
+
+    setJobType(type) {
+        if (this.jobType === type) return;
+        this.jobType = type;
+        if (type === 'equipment') {
+            this.serviceType = 'equipment';
+            if (this.equipmentOptions.length === 0) {
+                this.loadingEquipment = true;
+                fetch(window.apiUrl('/api/equipment'))
+                    .then((r) => r.json())
+                    .then((d) => { this.equipmentOptions = d.equipment || []; })
+                    .catch(() => {})
+                    .finally(() => { this.loadingEquipment = false; });
+            }
+        } else {
+            if (this.serviceType === 'equipment') this.serviceType = '';
+            this.selectedEquipment = '';
+            this.equipmentRentalDuration = '';
+            this.equipmentRentalUnit = 'hours';
+        }
+    },
+
     get computedEstimate() {
         if (this.serviceType !== 'equipment' || !this.selectedEquipment || !this.equipmentRentalDuration) return null;
         const equip = this.equipmentOptions.find((e) => e.name === this.selectedEquipment);
@@ -139,23 +171,6 @@ Alpine.data('quoteForm', () => ({
         }
         if (!equip.avg_cost_per_hour) return null;
         return Math.round(equip.avg_cost_per_hour * qty);
-    },
-
-    onServiceChange() {
-        if (this.serviceType === 'equipment') {
-            if (this.equipmentOptions.length === 0) {
-                this.loadingEquipment = true;
-                fetch(window.apiUrl('/api/equipment'))
-                    .then((r) => r.json())
-                    .then((d) => { this.equipmentOptions = d.equipment || []; })
-                    .catch(() => {})
-                    .finally(() => { this.loadingEquipment = false; });
-            }
-        } else {
-            this.selectedEquipment = '';
-            this.equipmentRentalDuration = '';
-            this.equipmentRentalUnit = 'hours';
-        }
     },
 
     handlePhoto(e) {
@@ -182,6 +197,7 @@ Alpine.data('quoteForm', () => ({
         if (!this.phone || this.phone.length < 10) this.errors.phone = 'Please enter a valid phone number';
         if (!this.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.email)) this.errors.email = 'Please enter a valid email address';
         if (!this.serviceType) this.errors.serviceType = 'Please select a service';
+        if (this.isEquipment && !this.selectedEquipment) this.errors.equipment = 'Please select the equipment you need';
         if (!this.zipCode || this.zipCode.length < 5) this.errors.zipCode = 'Please enter a valid zip code';
         return Object.keys(this.errors).length === 0;
     },
@@ -294,6 +310,11 @@ Alpine.data('agreementForm', (token) => ({
     // signature canvas
     isDrawing: false,
     hasSignature: false,
+    showSignaturePad: false, // full-screen pad (mobile)
+    signatureDataUrl: null,  // captured from the full-screen pad
+    _canvas: null, _bigDrawn: false,
+    // validation
+    invalidField: '', _flashT: null,
     // form fields
     agreed: false,
     customerNotes: '',
@@ -345,26 +366,27 @@ Alpine.data('agreementForm', (token) => ({
 
     money(n) { return Number(n).toLocaleString(); },
 
-    // --- canvas signature ---
-    getCtx() {
-        const c = this.$refs.canvas;
-        return c ? c.getContext('2d', { willReadFrequently: true }) : null;
-    },
-    scaledCoords(e) {
-        const c = this.$refs.canvas;
-        const rect = c.getBoundingClientRect();
-        const scaleX = c.width / rect.width;
-        const scaleY = c.height / rect.height;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    // --- canvas signature (works on the inline pad or the full-screen pad) ---
+    coordsOn(canvas, e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
     },
     startDrawing(e) {
-        const ctx = this.getCtx();
+        const canvas = e.currentTarget;
+        this._canvas = canvas;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
         this.isDrawing = true;
-        this.hasSignature = true;
-        const { x, y } = this.scaledCoords(e);
+        if (canvas === this.$refs.bigCanvas) {
+            this._bigDrawn = true;
+        } else {
+            this.hasSignature = true;
+            this.signatureDataUrl = null; // drawing inline replaces any captured signature
+        }
+        const { x, y } = this.coordsOn(canvas, e);
         ctx.strokeStyle = '#1C1C1C';
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
@@ -372,32 +394,80 @@ Alpine.data('agreementForm', (token) => ({
         ctx.moveTo(x, y);
     },
     draw(e) {
-        if (!this.isDrawing) return;
-        const ctx = this.getCtx();
-        if (!ctx) return;
-        const { x, y } = this.scaledCoords(e);
+        if (!this.isDrawing || !this._canvas) return;
+        const ctx = this._canvas.getContext('2d', { willReadFrequently: true });
+        const { x, y } = this.coordsOn(this._canvas, e);
         ctx.lineTo(x, y);
         ctx.stroke();
     },
     endDrawing() { this.isDrawing = false; },
     clearSignature() {
-        const ctx = this.getCtx();
         const c = this.$refs.canvas;
-        if (!ctx || !c) return;
-        ctx.clearRect(0, 0, c.width, c.height);
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
         this.hasSignature = false;
+        this.signatureDataUrl = null;
     },
     getSignatureData() {
+        if (this.signatureDataUrl) return this.signatureDataUrl;
         const c = this.$refs.canvas;
-        if (!c || !this.hasSignature) return null;
-        return c.toDataURL('image/png');
+        return (c && this.hasSignature) ? c.toDataURL('image/png') : null;
+    },
+
+    // --- full-screen signature pad ---
+    openSignaturePad() {
+        this.showSignaturePad = true;
+        this._bigDrawn = false;
+        this.$nextTick(() => {
+            const c = this.$refs.bigCanvas;
+            if (c) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width); c.height = Math.round(r.height); c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+        });
+    },
+    clearBigPad() {
+        const c = this.$refs.bigCanvas;
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        this._bigDrawn = false;
+    },
+    useBigSignature() {
+        const c = this.$refs.bigCanvas;
+        if (c && this._bigDrawn) {
+            this.signatureDataUrl = c.toDataURL('image/png');
+            this.hasSignature = true;
+        }
+        this.showSignaturePad = false;
+    },
+
+    // --- validation: scroll to the first incomplete field ---
+    flag(ref, msg) {
+        this.error = msg;
+        this.invalidField = ref;
+        this.$nextTick(() => {
+            const el = this.$refs[ref];
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const f = el.matches?.('input,select,textarea') ? el : el.querySelector('input:not([type=hidden]),select,textarea');
+            if (f && f.focus) { try { f.focus({ preventScroll: true }); } catch (e) {} }
+        });
+        clearTimeout(this._flashT);
+        this._flashT = setTimeout(() => { this.invalidField = ''; }, 4000);
+        return false;
+    },
+    validate() {
+        const ack = this.$refs.ackSection;
+        if (ack && [...ack.querySelectorAll('input[type="checkbox"]')].some((c) => !c.checked)) {
+            return this.flag('ackSection', 'Please check all of the acknowledgment boxes.');
+        }
+        if (!this.pickupTime) return this.flag('pickupTimeField', 'Please choose a pickup time.');
+        if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
+        if (!this.pickupDate) return this.flag('dateField', 'Please select the date.');
+        if (!this.agreed) return this.flag('agreedField', 'Please confirm you agree to the terms.');
+        this.error = '';
+        return true;
     },
 
     async submit() {
-        if (!this.agreed) { alert('Please confirm you have read and agree to the terms.'); return; }
+        if (!this.validate()) return;
         const signatureData = this.getSignatureData();
-        if (!signatureData) { alert('Please provide your signature in the box above.'); return; }
-        if (!this.pickupDate || !this.pickupTime) { alert('Please select both the date and pickup time.'); return; }
+        if (!signatureData) return this.flag('signatureField', 'Please add your signature.');
 
         this.submitting = true;
         this.error = '';

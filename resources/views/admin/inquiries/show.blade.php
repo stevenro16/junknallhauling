@@ -29,9 +29,40 @@
         </div>
     </div>
 
-    {{-- Mobile: a fixed Save bar pinned to the bottom, visible while scrolling when there are unsaved edits --}}
-    <div x-show="dirty" x-cloak class="sm:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-200 p-3 shadow-[0_-2px_12px_rgba(0,0,0,0.12)]">
-        <button type="button" @click="save()" :disabled="saving" class="w-full btn-primary py-3 text-sm"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
+    {{-- Mobile: floating status bar pinned to the bottom (tap to change status) +
+         a Save button that appears when there are unsaved edits --}}
+    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false">
+        {{-- status picker sheet (opens upward) --}}
+        <div x-show="showStatusSheet" x-cloak x-transition.opacity.duration.150ms
+             class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <span class="text-xs uppercase tracking-widest text-gray-400">Set status</span>
+                <button type="button" @click="showStatusSheet = false" class="text-gray-400 p-1 -mr-1"><x-icon name="x" class="w-5 h-5"/></button>
+            </div>
+            <div class="max-h-[55vh] overflow-y-auto">
+                <template x-for="st in statusChoices" :key="st">
+                    <button type="button" @click="pickStatus(st)"
+                            class="w-full flex items-center gap-3 px-4 py-3.5 text-left border-b border-gray-50 last:border-0 active:bg-gray-100 transition-colors"
+                            :class="status === st ? 'bg-amber-50' : ''">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="dotClass(st)"></span>
+                        <span class="flex-1 font-medium text-gray-800" x-text="statusLabel(st)"></span>
+                        <x-icon name="check" class="w-5 h-5 text-amber-600" x-show="status === st" x-cloak/>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        {{-- bottom bar --}}
+        <div class="bg-white border-t border-gray-200 p-2.5 shadow-[0_-2px_12px_rgba(0,0,0,0.12)] flex items-center gap-2">
+            <button type="button" @click="showStatusSheet = !showStatusSheet"
+                    class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-300 bg-gray-50 active:bg-gray-100 transition-colors">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="dotClass(status)"></span>
+                <span class="text-[10px] uppercase tracking-widest text-gray-400 shrink-0">Status</span>
+                <span class="flex-1 text-left text-sm font-semibold text-gray-800 truncate" x-text="statusLabel(status)"></span>
+                <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="!showStatusSheet && 'rotate-180'"/>
+            </button>
+            <button x-show="dirty" x-cloak type="button" @click="save()" :disabled="saving" class="btn-primary py-2.5 px-5 text-sm shrink-0"><span x-text="saving ? '…' : 'Save'"></span></button>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
@@ -338,16 +369,24 @@
                         {{-- agenda for the day --}}
                         <div class="space-y-1">
                             <template x-for="ev in daySchedule" :key="ev.id + '-' + ev.start.getTime()">
-                                <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs transition-colors"
+                                <div class="flex items-start gap-2 px-2 py-1.5 rounded-lg border text-xs transition-colors"
                                      :class="ev.isSelf ? 'border-[#F8C820]/60 bg-[#F8C820]/10' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white')">
-                                    <span class="font-mono text-gray-600 shrink-0 whitespace-nowrap" x-text="clock(ev.start) + '–' + clock(ev.end)"></span>
-                                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="dotClass(ev.status)"></span>
-                                    <span class="flex-1 truncate">
-                                        <span class="font-medium text-gray-800" x-text="ev.isSelf ? 'This visit' : (ev.name || '(no name)')"></span>
-                                        <span x-show="!ev.isSelf" class="text-gray-400 capitalize" x-text="' · ' + serviceLabel(ev.service_type)"></span>
-                                    </span>
-                                    <span x-show="ev.conflict" x-cloak class="text-[10px] font-semibold text-red-600 shrink-0">conflict</span>
-                                    <a x-show="!ev.isSelf" :href="detailUrl(ev.id)" class="text-amber-600 hover:text-amber-700 shrink-0" title="Open quote"><x-icon name="external-link" class="w-3 h-3"/></a>
+                                    <span class="font-mono text-gray-600 shrink-0 whitespace-nowrap pt-0.5" x-text="clock(ev.start) + '–' + clock(ev.end)"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" :class="dotClass(ev.status)"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="truncate">
+                                            <span class="font-medium text-gray-800" x-text="ev.isSelf ? 'This visit' : (ev.name || '(no name)')"></span>
+                                            <span x-show="!ev.isSelf" class="text-gray-400 capitalize" x-text="' · ' + serviceLabel(ev.service_type)"></span>
+                                        </div>
+                                        <div x-show="ev.address" x-cloak class="mt-0.5 flex items-start gap-1 text-gray-500">
+                                            <x-icon name="map-pin" class="w-3 h-3 shrink-0 mt-px text-gray-400"/>
+                                            <span class="truncate" x-text="ev.address"></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1 shrink-0 pt-0.5">
+                                        <span x-show="ev.conflict" x-cloak class="text-[10px] font-semibold text-red-600">conflict</span>
+                                        <a x-show="!ev.isSelf" :href="detailUrl(ev.id)" class="text-amber-600 hover:text-amber-700" title="Open quote"><x-icon name="external-link" class="w-3 h-3"/></a>
+                                    </div>
                                 </div>
                             </template>
                             <div x-show="dayOtherCount === 0" x-cloak class="text-[11px] text-emerald-600 px-1 py-0.5">&check; No other visits scheduled this day.</div>
@@ -422,7 +461,10 @@
 
         {{-- Column 3: status timeline, rental agreement, history --}}
         <div class="space-y-4 xl:sticky xl:top-2">
-                @include('partials.admin.status-timeline')
+                {{-- Timeline hidden on mobile — the floating bottom bar shows/sets status there --}}
+                <div class="hidden sm:block">
+                    @include('partials.admin.status-timeline')
+                </div>
 
                 @include('partials.admin.rental-agreement-panel')
 

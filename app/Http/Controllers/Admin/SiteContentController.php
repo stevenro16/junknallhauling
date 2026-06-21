@@ -24,7 +24,9 @@ class SiteContentController extends Controller
 
             $type = $fields[$key]['type'] ?? 'html';
 
-            if ($type === 'list') {
+            if ($type === 'boolean') {
+                $stored = ($value === true || $value === '1' || $value === 1 || $value === 'true') ? '1' : '0';
+            } elseif ($type === 'list') {
                 $list = is_array($value) ? $value : preg_split('/\r\n|\r|\n/', (string) $value);
                 $list = array_values(array_filter(array_map('trim', $list), fn ($s) => $s !== ''));
                 $stored = json_encode($list);
@@ -69,12 +71,12 @@ class SiteContentController extends Controller
             }
 
             $entry = [
-                'icon'       => $icon !== '' ? $icon : 'truck',
-                'title'      => $title,
-                'subheader'  => trim(strip_tags((string) ($card['subheader'] ?? ''))),
-                'body'       => $this->sanitizeHtml((string) ($card['body'] ?? '')),
+                'icon' => $icon !== '' ? $icon : 'truck',
+                'title' => $title,
+                'subheader' => trim(strip_tags((string) ($card['subheader'] ?? ''))),
+                'body' => $this->sanitizeHtml((string) ($card['body'] ?? '')),
                 'link_label' => $linkLabel,
-                'link_url'   => $linkUrl,
+                'link_url' => $linkUrl,
             ];
 
             // Optional uploaded image (small base64 data URL). Falls back to the

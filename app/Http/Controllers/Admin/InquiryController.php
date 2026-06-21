@@ -17,6 +17,12 @@ class InquiryController extends Controller
             abort(404);
         }
 
+        // Opening a brand-new quote moves it into review automatically.
+        if ($inquiry->status === 'new') {
+            $inquiry->update(['status' => 'reviewing']);
+            $inquiry->logStatusChange('new', 'reviewing');
+        }
+
         return view('admin.inquiries.show', [
             'inquiry' => $inquiry,
             'history' => $inquiry->statusHistory()->orderByDesc('changed_at')->get(),
@@ -36,7 +42,7 @@ class InquiryController extends Controller
             'scheduleEvents' => Inquiry::whereNotNull('confirmed_date_time')
                 ->where('status', '!=', 'cancelled')
                 ->orderBy('confirmed_date_time')
-                ->get(['id', 'ref', 'name', 'status', 'service_type', 'confirmed_date_time', 'expected_duration_minutes'])
+                ->get(['id', 'ref', 'name', 'status', 'service_type', 'address', 'confirmed_date_time', 'expected_duration_minutes'])
                 ->values(),
         ]);
     }

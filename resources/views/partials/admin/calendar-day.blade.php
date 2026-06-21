@@ -13,15 +13,24 @@
                     </div>
                 </template>
             </div>
-            <div class="flex-1 relative {{ ($pickMode ?? false) ? 'cursor-crosshair' : '' }}" @if($pickMode ?? false) @click="pickTimeAt($event)" @endif>
+            <div class="flex-1 relative {{ ($pickMode ?? false) ? 'cursor-crosshair' : '' }}"
+                 @if($pickMode ?? false) x-ref="timeline" @click="pickTimeAt($event)" @pointermove.window="onDrag($event)" @pointerup.window="endDrag()" @pointercancel.window="endDrag()" @endif>
                 <div class="absolute inset-0 grid grid-rows-[repeat(17,4rem)]">
                     <template x-for="hour in HOURS" :key="hour"><div class="relative border-b border-gray-200/60"><div class="absolute inset-x-0 top-1/2 border-b border-gray-100"></div></div></template>
                 </div>
                 @if($pickMode ?? false)
-                    {{-- selected-time indicator --}}
-                    <div x-show="pickIndicatorStyle" x-cloak :style="pickIndicatorStyle" class="z-20 pointer-events-none">
-                        <div class="h-0.5 bg-amber-500"></div>
-                        <div class="absolute -top-2.5 left-1 text-[10px] font-bold text-white bg-amber-500 px-1.5 py-0.5 rounded shadow" x-text="pickedTimeLabel"></div>
+                    {{-- draggable preview card for the visit (sized to its duration) --}}
+                    <div x-show="pickOnThisDay" x-cloak :style="pickCardStyle"
+                         @pointerdown.stop.prevent="startMove($event)"
+                         class="z-30 rounded-lg border-2 border-amber-500 bg-amber-400/30 shadow px-2 py-1 overflow-hidden cursor-move touch-none select-none"
+                         :class="dragMode && 'ring-2 ring-amber-400'">
+                        <div class="text-[11px] font-bold text-amber-800 truncate" x-text="pickLabel"></div>
+                        <div class="text-[10px] text-amber-700/90 leading-tight" x-text="pickedTimeLabel + ' – ' + pickedEndLabel"></div>
+                        {{-- resize handle (extend duration) --}}
+                        <div @pointerdown.stop.prevent="startResize($event)"
+                             class="absolute inset-x-0 bottom-0 h-4 flex items-end justify-center cursor-ns-resize touch-none">
+                            <div class="w-8 h-1 mb-1 rounded-full bg-amber-600/80"></div>
+                        </div>
                     </div>
                 @endif
                 <div x-show="dayLayout.length === 0" class="absolute inset-0 flex items-center justify-center"><p class="text-gray-500 text-sm">No pickups on this day</p></div>

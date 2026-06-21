@@ -98,6 +98,9 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
     filter: 'active',
     search: '',
     dateFilter: '',
+    // Today panel
+    showToday: true,
+    todayView: 'schedule', // 'schedule' | 'equipment'
     // New Quote modal
     showNew: false,
     nq: { phone: '', name: '', email: '', zip: '', error: '', loading: false },
@@ -119,6 +122,28 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
     setFilter(f) { this.filter = f; },
 
     detailUrl(id) { return this.cfg.detailBase.replace('__ID__', id); },
+
+    // --- Today's schedule + equipment aggregation ---
+    get todayKey() { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
+    get todayVisits() {
+        return this.inquiries
+            .filter((i) => i.confirmed_date_time && i.status !== 'cancelled' && i.confirmed_date_time.slice(0, 10) === this.todayKey)
+            .sort((a, b) => a.confirmed_date_time.localeCompare(b.confirmed_date_time));
+    },
+    get todayEquipment() {
+        const map = {};
+        this.todayVisits.forEach((i) => {
+            const name = (i.equipment_type || '').trim();
+            if (!name) return;
+            if (!map[name]) map[name] = { name, count: 0, jobs: [] };
+            map[name].count++;
+            map[name].jobs.push(i);
+        });
+        return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    clockOf(dt) { return dt ? new Date(dt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''; },
+    rentalLabel(i) { return (i.equipment_rental_duration && i.equipment_rental_unit) ? `${i.equipment_rental_duration} ${i.equipment_rental_unit}` : ''; },
+    mapsUrl(addr) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr || '')}`; },
 
     // New Quote modal: live matches by phone (last 10 digits).
     get phoneMatches() {
@@ -221,18 +246,25 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     showPhotoModal: false,
     showVoicemailModal: false, voicemailNote: '', showCancelConfirm: false,
     showCalendarModal: false,
+    showStatusSheet: false, // mobile status picker
+    statusChoices: ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed', 'left_voicemail', 'cancelled'],
 
     init() {
         this.hydrate(this.inquiry);
         // Keep expected_duration_minutes in sync with the hrs/days editor.
         this.$watch('expectedDurationValue', () => this.syncDuration());
         this.$watch('expectedDurationUnit', () => this.syncDuration());
-        // Receive a time picked in the day-calendar popup (iframe, same origin).
+        // Apply a visit placed in the day-calendar popup (iframe). Validate the
+        // message shape (a YYYY-MM-DDTHH:MM datetime) rather than the exact origin
+        // so host aliases (127.0.0.1 vs localhost) can't silently drop it.
         window.addEventListener('message', (e) => {
-            if (e.origin !== window.location.origin) return;
-            if (e.data?.type === 'calendar-pick' && e.data.datetime) {
-                this.confirmedDateTime = e.data.datetime;
-            }
+            const d = e.data;
+            if (!d || d.type !== 'calendar-pick' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d.datetime || '')) return;
+            this.confirmedDateTime = d.datetime;
+            // If the card was resized in the calendar, apply the new duration too.
+            const mins = Number(d.duration);
+            if (mins > 0) { this.expectedDurationUnit = 'hours'; this.expectedDurationValue = Math.round((mins / 60) * 100) / 100; }
+            this.showCalendarModal = false; // saving in the calendar closes the popup
         });
     },
 
@@ -380,7 +412,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     // --- Day-schedule panel: other confirmed visits on the selected visit date ---
     detailUrl(id) { return (this.urls?.detailBase || '').replace('__ID__', id); },
-    get calendarEmbedUrl() { return `${this.urls.calendarEmbed}?date=${encodeURIComponent(this.datePart(this.confirmedDateTime) || '')}`; },
+    get calendarEmbedUrl() {
+        const date = encodeURIComponent(this.datePart(this.confirmedDateTime) || '');
+        const time = encodeURIComponent(this.timePart(this.confirmedDateTime) || '');
+        const dur = encodeURIComponent(this.expectedDurationMinutes || 120);
+        const label = encodeURIComponent(this.fullName || this.inquiry.name || 'This visit');
+        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}`;
+    },
 
     get currentVisitWindow() {
         if (!this.confirmedDateTime) return null;
@@ -400,11 +438,11 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
                 const start = new Date(e.confirmed_date_time);
                 const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
                 const conflict = !!(cur && start < cur.end && end > cur.start);
-                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, start, end, isSelf: false, conflict };
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, start, end, isSelf: false, conflict };
             });
         // Add this inquiry's own (live, possibly-unsaved) visit, highlighted.
         if (cur) {
-            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, start: cur.start, end: cur.end, isSelf: true, conflict: false });
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, start: cur.start, end: cur.end, isSelf: true, conflict: false });
         }
         return rows.sort((a, b) => a.start - b.start);
     },
@@ -478,6 +516,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         if (newStatus === 'cancelled') { this.showCancelConfirm = true; return; }
         this.status = newStatus;
         await this.save({ status: newStatus });
+    },
+
+    // Mobile status sheet: close it, then apply the chosen status (same flow as
+    // the desktop timeline — saves immediately, with voicemail/cancel prompts).
+    pickStatus(newStatus) {
+        this.showStatusSheet = false;
+        if (newStatus !== this.status) this.quickUpdateStatus(newStatus);
     },
 
     async handleSaveVoicemail() {
@@ -717,6 +762,10 @@ Alpine.data('calendar', (cfg = {}) => ({
     // Time-picker state (only used in the embedded popup).
     pickedDateKey: '',
     pickedMinutes: null,
+    pickDuration: cfg.pickDuration || 120, // visit length (min) — sizes the preview card
+    pickLabel: cfg.pickLabel || 'This visit',
+    // drag state
+    dragMode: null, _grabOffsetMin: 0, _justDragged: false, _durationChanged: false,
 
     init() {
         if (cfg.initialView && ['month', 'week', 'day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
@@ -724,41 +773,100 @@ Alpine.data('calendar', (cfg = {}) => ({
             const d = new Date(cfg.initialDate + 'T00:00');
             if (!isNaN(d.getTime())) this.cur = d.getTime();
         }
+        // Pre-place the card if the quote is already scheduled (so it can be dragged).
+        if (cfg.pickTime) {
+            const [hh, mm] = String(cfg.pickTime).split(':').map(Number);
+            if (!isNaN(hh)) {
+                this.pickedMinutes = hh * 60 + (mm || 0);
+                this.pickedDateKey = cfg.initialDate || this.localKey(this.currentDate);
+            }
+        }
     },
 
     // Local YYYY-MM-DD (matches the quote's confirmed_date_time, avoids UTC drift).
     localKey(d) { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
 
-    // Click anywhere on the day timeline → snap to the nearest 30-min slot and
-    // post the chosen date/time to the parent quote page.
+    // Click the day timeline → snap to the nearest 30-min slot and place the card.
     pickTimeAt(event) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        const y = event.clientY - rect.top;
-        let total = DAY_START_HOUR * 60 + (y / HOUR_PX) * 60;
-        total = Math.round(total / 30) * 30;
-        total = Math.max(DAY_START_HOUR * 60, Math.min(DAY_END_HOUR * 60, total));
-        const pad = (n) => String(n).padStart(2, '0');
-        const time = `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
-        const dateKey = this.localKey(this.currentDate);
-        this.pickedDateKey = dateKey;
+        if (this.dragMode || this._justDragged) return; // ignore clicks ending a drag
+        const m = this._yToMinutes(event.clientY);
+        if (m == null) return;
+        let total = Math.max(DAY_START_HOUR * 60, Math.min(DAY_END_HOUR * 60 - this.pickDuration, this._snap30(m)));
+        this.pickedDateKey = this.localKey(this.currentDate);
         this.pickedMinutes = total;
-        try { window.parent.postMessage({ type: 'calendar-pick', datetime: `${dateKey}T${time}` }, window.location.origin); } catch (e) { /* not embedded */ }
     },
 
-    get pickIndicatorStyle() {
-        if (this.pickedMinutes == null || this.localKey(this.currentDate) !== this.pickedDateKey) return '';
-        const top = (this.pickedMinutes - DAY_START_HOUR * 60) * HOUR_PX / 60;
-        return `position:absolute;top:${top}px;left:0;right:0`;
+    // --- Drag to reschedule (move) / extend (resize) ---
+    _yToMinutes(clientY) {
+        const el = this.$refs.timeline;
+        if (!el) return null;
+        return DAY_START_HOUR * 60 + ((clientY - el.getBoundingClientRect().top) / HOUR_PX) * 60;
     },
-    get pickedTimeLabel() {
-        if (this.pickedMinutes == null) return '';
+    _snap30(m) { return Math.round(m / 30) * 30; },
+
+    startMove(event) {
+        if (this.pickedMinutes == null) return;
+        const m = this._yToMinutes(event.clientY);
+        this._grabOffsetMin = m != null ? (m - this.pickedMinutes) : 0;
+        this.dragMode = 'move';
+        if (event.pointerId != null && event.target.setPointerCapture) { try { event.target.setPointerCapture(event.pointerId); } catch (e) {} }
+    },
+    startResize(event) {
+        if (this.pickedMinutes == null) return;
+        this.dragMode = 'resize';
+        if (event.pointerId != null && event.target.setPointerCapture) { try { event.target.setPointerCapture(event.pointerId); } catch (e) {} }
+    },
+    onDrag(event) {
+        if (!this.dragMode) return;
+        const m = this._yToMinutes(event.clientY);
+        if (m == null) return;
+        if (this.dragMode === 'move') {
+            let start = this._snap30(m - this._grabOffsetMin);
+            start = Math.max(DAY_START_HOUR * 60, Math.min(DAY_END_HOUR * 60 - this.pickDuration, start));
+            this.pickedMinutes = start;
+            this.pickedDateKey = this.localKey(this.currentDate);
+        } else {
+            let end = Math.max(this.pickedMinutes + 30, Math.min(DAY_END_HOUR * 60, this._snap30(m)));
+            this.pickDuration = end - this.pickedMinutes;
+            this._durationChanged = true;
+        }
+    },
+    endDrag() {
+        if (!this.dragMode) return;
+        this.dragMode = null;
+        this._justDragged = true;
+        setTimeout(() => { this._justDragged = false; }, 60);
+    },
+
+    // Commit the placed visit to the quote (parent page applies it and closes
+    // the popup). targetOrigin '*' avoids host-alias mismatches; the parent
+    // validates the message shape.
+    applyToQuote() {
+        if (this.pickedMinutes == null) return;
         const pad = (n) => String(n).padStart(2, '0');
-        return fmtTime12(`${pad(Math.floor(this.pickedMinutes / 60))}:${pad(this.pickedMinutes % 60)}`);
+        const time = `${pad(Math.floor(this.pickedMinutes / 60))}:${pad(this.pickedMinutes % 60)}`;
+        const msg = { type: 'calendar-pick', datetime: `${this.pickedDateKey}T${time}` };
+        if (this._durationChanged) msg.duration = this.pickDuration; // only override duration if the card was resized
+        try { window.parent.postMessage(msg, '*'); } catch (e) { /* not embedded */ }
     },
+
+    // Whether the preview card belongs on the currently-viewed day.
+    get pickOnThisDay() { return this.pickedMinutes != null && this.localKey(this.currentDate) === this.pickedDateKey; },
+
+    // Preview card: positioned at the picked time, sized to the visit duration.
+    get pickCardStyle() {
+        if (this.pickedMinutes == null) return '';
+        const top = (this.pickedMinutes - DAY_START_HOUR * 60) * HOUR_PX / 60;
+        const height = Math.max(HOUR_PX * 0.5, (this.pickDuration / 60) * HOUR_PX);
+        return `position:absolute;top:${top}px;height:${height}px;left:4px;right:4px`;
+    },
+    minutesToLabel(m) { const pad = (n) => String(n).padStart(2, '0'); return fmtTime12(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`); },
+    get pickedTimeLabel() { return this.pickedMinutes == null ? '' : this.minutesToLabel(this.pickedMinutes); },
+    get pickedEndLabel() { return this.pickedMinutes == null ? '' : this.minutesToLabel(this.pickedMinutes + this.pickDuration); },
     get pickedLabelFull() {
         if (this.pickedMinutes == null) return '';
         const d = new Date(this.pickedDateKey + 'T00:00');
-        return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${this.pickedTimeLabel}`;
+        return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${this.pickedTimeLabel} – ${this.pickedEndLabel}`;
     },
 
     get currentDate() { return new Date(this.cur); },
@@ -952,8 +1060,11 @@ Alpine.data('siteContent', (cfg = {}) => ({
         const content = {};
         document.querySelectorAll('[data-cms-key]').forEach((el) => {
             const key = el.getAttribute('data-cms-key');
-            if (el.getAttribute('data-cms-type') === 'list') {
+            const type = el.getAttribute('data-cms-type');
+            if (type === 'list') {
                 content[key] = el.value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            } else if (type === 'boolean') {
+                content[key] = el.checked;
             } else {
                 content[key] = el.value; // Trix keeps this hidden input in sync
             }

@@ -19,6 +19,9 @@ class CalendarController extends Controller
         return view('admin.calendar-embed', [
             'events' => $this->events(),
             'date' => (string) $request->query('date', ''),
+            'time' => (string) $request->query('time', ''),
+            'duration' => max(15, (int) $request->query('duration', 120)),
+            'label' => (string) $request->query('label', 'This visit'),
         ]);
     }
 

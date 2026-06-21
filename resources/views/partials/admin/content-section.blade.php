@@ -154,6 +154,13 @@
                             <p class="text-xs text-gray-500 mt-1">One area per line.</p>
                         </div>
 
+                    @elseif($field['type'] === 'boolean')
+                        <label class="flex items-center gap-3 cursor-pointer select-none w-fit">
+                            <input type="checkbox" data-cms-key="{{ $key }}" data-cms-type="boolean"
+                                   @checked(\App\Models\SiteContent::bool($key)) class="w-5 h-5 accent-emerald-500">
+                            <span class="text-sm font-medium text-gray-700">{{ $field['label'] }}</span>
+                        </label>
+
                     @else
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ $field['label'] }}</label>

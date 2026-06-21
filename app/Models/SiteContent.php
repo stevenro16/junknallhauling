@@ -54,7 +54,21 @@ class SiteContent extends Model
             return is_array($decoded) ? $decoded : ($field['default'] ?? []);
         }
 
+        if (($field['type'] ?? 'html') === 'boolean') {
+            if ($stored === null) {
+                return (bool) ($field['default'] ?? false);
+            }
+
+            return $stored === '1' || $stored === 'true';
+        }
+
         return $stored ?? ($field['default'] ?? '');
+    }
+
+    /** Boolean toggle content (e.g. show the quote form) for a key. */
+    public static function bool(string $key): bool
+    {
+        return (bool) static::value($key);
     }
 
     /** HTML content (already sanitized on save) for a key. */

@@ -23,6 +23,7 @@
         <div class="grid lg:grid-cols-5 gap-12">
             {{-- Form --}}
             <div data-reveal="up" class="lg:col-span-3">
+                @if($showQuoteForm)
                 <div class="card p-8 md:p-10" x-data="quoteForm()">
                     <h2 class="font-black text-2xl mb-8">Request a Quote</h2>
 
@@ -80,20 +81,39 @@
                             <p class="text-xs text-slate-500 mt-1">We'll reach out using your preferred method.</p>
                         </div>
 
-                        {{-- Service type --}}
+                        {{-- Job type pill --}}
                         <div>
+                            <label class="block text-slate-700 text-sm font-medium mb-1.5">What do you need? <span class="text-orange-500">*</span></label>
+                            <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                                <button type="button" @click="setJobType('service')"
+                                        class="px-4 py-2 text-sm font-medium transition-colors"
+                                        :class="!isEquipment ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Service</button>
+                                <button type="button" @click="setJobType('equipment')"
+                                        class="px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+                                        :class="isEquipment ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Equipment Rental</button>
+                            </div>
+                        </div>
+
+                        {{-- Service picker (service mode) --}}
+                        <div x-show="!isEquipment">
                             <label class="block text-slate-700 text-sm font-medium mb-1.5">Service Needed <span class="text-orange-500">*</span></label>
-                            <select class="input" x-model="serviceType" @change="onServiceChange()">
+                            <select class="input" x-model="serviceType">
                                 <option value="" disabled>Select a service…</option>
-                                <template x-for="opt in serviceOptions" :key="opt.key">
+                                <template x-for="opt in serviceChoices" :key="opt.key">
                                     <option :value="opt.key" x-text="opt.label"></option>
                                 </template>
                             </select>
                             <p x-show="errors.serviceType" x-text="errors.serviceType" class="text-red-600 text-xs mt-1" x-cloak></p>
+
+                            <div x-show="selectedServicePrice !== null" x-cloak class="mt-4 p-5 bg-gradient-to-r from-emerald-50 to-white border-2 border-emerald-300 rounded-2xl shadow-sm">
+                                <div class="text-sm font-semibold text-emerald-700 tracking-wide">ESTIMATED PRICE</div>
+                                <div class="text-4xl font-black text-emerald-800 mt-1 tracking-tighter">$<span x-text="money(selectedServicePrice)"></span></div>
+                                <div class="text-[10px] text-emerald-600 leading-tight mt-1">Starting estimate — final price confirmed after we review your job.</div>
+                            </div>
                         </div>
 
-                        {{-- Equipment (conditional) --}}
-                        <div x-show="serviceType === 'equipment'" x-cloak>
+                        {{-- Equipment picker (equipment mode) --}}
+                        <div x-show="isEquipment" x-cloak>
                             <label class="block text-slate-700 text-sm font-medium mb-1.5">Equipment Type <span class="text-orange-500">*</span></label>
                             <select class="input" x-model="selectedEquipment" :disabled="loadingEquipment">
                                 <option value="" disabled x-text="loadingEquipment ? 'Loading equipment...' : 'Select equipment...'"></option>
@@ -101,6 +121,7 @@
                                     <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' — ~$' + opt.avg_cost_per_hour + '/hr' : '')"></option>
                                 </template>
                             </select>
+                            <p x-show="errors.equipment" x-text="errors.equipment" class="text-red-600 text-xs mt-1" x-cloak></p>
                             <p class="text-xs text-slate-500 mt-1">Prices shown are average hourly rates for reference.</p>
 
                             <div class="mt-4">
@@ -209,6 +230,18 @@
                         <p class="text-center text-xs text-slate-500">We respect your time. You'll hear back from us quickly.</p>
                     </form>
                 </div>
+                @else
+                {{-- Quote form hidden via Admin → Site Content --}}
+                <div class="card p-8 md:p-10 text-center">
+                    <x-icon name="phone" class="w-12 h-12 text-[#EAB308] mx-auto mb-4"/>
+                    <h2 class="font-black text-2xl mb-3">Contact Us for a Quote</h2>
+                    <p class="text-slate-600 mb-6 max-w-sm mx-auto">Please call or text us and we'll get you a quote right away.</p>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <a href="tel:{{ config('business.phoneRaw') }}" class="btn-primary px-8"><x-icon name="phone" class="w-4 h-4"/> Call {{ config('business.phone') }}</a>
+                        <a href="sms:{{ config('business.phoneRaw') }}" class="btn-outline px-8">Text Us</a>
+                    </div>
+                </div>
+                @endif
             </div>
 
             {{-- Contact info --}}

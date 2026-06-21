@@ -19,8 +19,8 @@
         </div>
     </div>
 
-    {{-- Signed --}}
-    <div x-show="signed" x-cloak class="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6">
+    {{-- Signed — collapses to just the banner's height --}}
+    <div x-show="signed" x-cloak class="bg-[#F8F7F4] flex justify-center px-4 py-12">
         <div class="max-w-lg w-full bg-white rounded-2xl shadow p-8 text-center">
             <x-icon name="check-circle" class="w-16 h-16 text-green-500 mx-auto mb-4"/>
             <h1 class="text-3xl font-black tracking-tight text-gray-900 mb-2">Thank You!</h1>
@@ -40,7 +40,7 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow p-6 md:p-8">
-                <form @submit.prevent="submit()" class="space-y-8">
+                <form @submit.prevent="submit()" novalidate class="space-y-8">
                     {{-- Customer Information --}}
                     <div>
                         <h2 class="font-semibold text-lg mb-4 text-gray-800">Customer Information</h2>
@@ -101,7 +101,7 @@
                     </div>
 
                     {{-- Acknowledgments --}}
-                    <div>
+                    <div x-ref="ackSection" class="rounded-xl transition-shadow" :class="invalidField === 'ackSection' && 'ring-2 ring-red-400'">
                         <h2 class="font-semibold text-lg mb-3 text-gray-800">Customer Acknowledgments</h2>
                         <div class="space-y-3 text-sm">
                             @foreach(config('agreement.acknowledgments') as $ack)
@@ -124,7 +124,7 @@
                     </div>
 
                     {{-- Pickup Time --}}
-                    <div>
+                    <div x-ref="pickupTimeField" class="rounded-xl transition-shadow" :class="invalidField === 'pickupTimeField' && 'ring-2 ring-red-400 p-3 -m-3'">
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Dumpster will be picked up on the day agreed upon and at the same time it was delivered. Please confirm time below.</label>
                         <div class="flex items-center gap-3">
                             <input type="time" x-model="pickupTime" class="input-dark w-40" required>
@@ -142,35 +142,45 @@
                     <p class="text-xs text-gray-500 -mt-2">If the time entered on the contract differs from a prior conversation, we must confirm we can guarantee.</p>
 
                     {{-- Signature --}}
-                    <div>
-                        <label class="block font-medium text-gray-700 mb-2">Your Signature <span class="text-red-500">*</span></label>
+                    <div x-ref="signatureField" class="rounded-xl transition-shadow" :class="invalidField === 'signatureField' && 'ring-2 ring-red-400 p-3 -m-3'">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block font-medium text-gray-700">Your Signature <span class="text-red-500">*</span></label>
+                            <button type="button" @click="openSignaturePad()" class="text-xs font-semibold text-[#CA8A04] hover:text-[#A66B00] inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#EAB308]/40 hover:bg-[#F8C820]/10">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg> Sign in full screen
+                            </button>
+                        </div>
                         <div class="border-2 border-dashed border-gray-300 rounded-2xl bg-white p-2">
-                            <canvas x-ref="canvas" width="520" height="160"
-                                    class="w-full touch-none rounded-xl bg-white border border-gray-200 cursor-crosshair"
-                                    @mousedown="startDrawing($event)" @mousemove="draw($event)" @mouseup="endDrawing()" @mouseleave="endDrawing()"
-                                    @touchstart.prevent="startDrawing($event)" @touchmove.prevent="draw($event)" @touchend="endDrawing()"></canvas>
+                            <template x-if="signatureDataUrl">
+                                <img :src="signatureDataUrl" alt="Your signature" class="w-full h-40 object-contain rounded-xl bg-white border border-gray-200">
+                            </template>
+                            <template x-if="!signatureDataUrl">
+                                <canvas x-ref="canvas" width="520" height="160"
+                                        class="w-full touch-none rounded-xl bg-white border border-gray-200 cursor-crosshair"
+                                        @mousedown="startDrawing($event)" @mousemove="draw($event)" @mouseup="endDrawing()" @mouseleave="endDrawing()"
+                                        @touchstart.prevent="startDrawing($event)" @touchmove.prevent="draw($event)" @touchend="endDrawing()"></canvas>
+                            </template>
                         </div>
                         <div class="flex justify-between items-center mt-2">
                             <button type="button" @click="clearSignature()" class="text-xs text-gray-500 hover:text-gray-700">Clear signature</button>
-                            <span class="text-[10px] text-gray-400">Sign with mouse, finger, or stylus</span>
+                            <span class="text-[10px] text-gray-400">Tip: tap &ldquo;Sign in full screen&rdquo; for a bigger pad</span>
                         </div>
                     </div>
 
                     {{-- Date --}}
-                    <div>
+                    <div x-ref="dateField" class="rounded-xl transition-shadow" :class="invalidField === 'dateField' && 'ring-2 ring-red-400 p-3 -m-3'">
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Date <span class="text-red-500">*</span></label>
                         <input type="date" x-model="pickupDate" class="input-dark w-full" required>
                     </div>
 
                     {{-- Final agreement --}}
-                    <label class="flex items-start gap-3 cursor-pointer">
+                    <label x-ref="agreedField" class="flex items-start gap-3 cursor-pointer rounded-lg transition-shadow" :class="invalidField === 'agreedField' && 'ring-2 ring-red-400 p-2 -m-2'">
                         <input type="checkbox" x-model="agreed" class="mt-1 w-4 h-4 accent-[#EAB308]" required>
                         <span class="text-sm text-gray-700">I have read, understand, and agree to all terms and conditions listed above for quote <span class="font-mono" x-text="inquiry?.ref"></span>.</span>
                     </label>
 
                     <p x-show="error" x-text="error" class="text-red-600 text-sm" x-cloak></p>
 
-                    <button type="submit" :disabled="submitting || !agreed || !hasSignature || !pickupDate || !pickupTime"
+                    <button type="submit" :disabled="submitting"
                             class="w-full btn-primary py-3.5 text-base disabled:opacity-60">
                         <span x-text="submitting ? 'Submitting Agreement...' : 'Sign & Submit Dumpster Rental Contract Agreement'"></span>
                     </button>
@@ -180,6 +190,24 @@
             </div>
 
             <p class="text-center text-xs text-gray-500 mt-8">{{ config('business.name') }} &bull; Serving the Inland Empire since 2019</p>
+        </div>
+    </div>
+
+    {{-- Full-screen signature pad (larger, easier to sign on mobile) --}}
+    <div x-show="showSignaturePad" x-cloak class="fixed inset-0 z-[100] bg-charcoal-900/95 flex flex-col p-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-white font-semibold">Sign below</span>
+            <button type="button" @click="showSignaturePad = false" class="text-white/80 hover:text-white p-2"><x-icon name="x" class="w-6 h-6"/></button>
+        </div>
+        <div class="flex-1 bg-white rounded-2xl overflow-hidden">
+            <canvas x-ref="bigCanvas" class="w-full h-full touch-none cursor-crosshair"
+                    @mousedown="startDrawing($event)" @mousemove="draw($event)" @mouseup="endDrawing()" @mouseleave="endDrawing()"
+                    @touchstart.prevent="startDrawing($event)" @touchmove.prevent="draw($event)" @touchend="endDrawing()"></canvas>
+        </div>
+        <p class="text-center text-white/60 text-xs mt-2">Rotate your phone for more room. Sign with your finger or stylus.</p>
+        <div class="flex gap-3 mt-2">
+            <button type="button" @click="clearBigPad()" class="flex-1 py-3 rounded-xl border border-white/30 text-white font-medium active:bg-white/10">Clear</button>
+            <button type="button" @click="useBigSignature()" class="flex-1 py-3 rounded-xl btn-primary">Use Signature</button>
         </div>
     </div>
 </div>
