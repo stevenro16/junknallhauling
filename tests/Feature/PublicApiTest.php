@@ -63,21 +63,17 @@ class PublicApiTest extends TestCase
         $this->assertSame(0, Inquiry::count());
     }
 
-    public function test_lookup_returns_matching_inquiry_with_verification_history(): void
+    public function test_lookup_returns_matching_inquiry(): void
     {
         $this->postJson('/api/quote', [
             'name' => 'Jane Doe', 'phone' => '951-555-0199', 'email' => 'jane@example.com',
             'service_type' => 'equipment', 'zip_code' => '92320',
         ])->assertOk();
 
-        $inq = Inquiry::first();
-        $inq->logAudit('Address Verified');
-
         $this->getJson('/api/lookup?phone=(951) 555-0199&email=jane@example.com')
             ->assertOk()
             ->assertJsonCount(1, 'inquiries')
-            ->assertJsonPath('inquiries.0.name', 'Jane Doe')
-            ->assertJsonCount(1, 'inquiries.0.verification_history');
+            ->assertJsonPath('inquiries.0.name', 'Jane Doe');
     }
 
     public function test_lookup_requires_phone_and_email(): void

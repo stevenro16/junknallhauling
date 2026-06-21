@@ -33,8 +33,13 @@ class AdminCatalogTest extends TestCase
         $a->patchJson("/admin/api/services/{$svc->id}", ['default_price' => 400])->assertOk();
         $this->assertEquals(400.0, $svc->fresh()->default_price);
 
+        // Customer visibility toggle (separate from active; visible by default).
+        $this->assertTrue($svc->fresh()->customer_visible);
+        $a->patchJson("/admin/api/services/{$svc->id}", ['customer_visible' => false])->assertOk();
+        $this->assertFalse($svc->fresh()->customer_visible);
+
         $a->deleteJson("/admin/api/services/{$svc->id}")->assertOk();
-        $this->assertFalse($svc->fresh()->active);
+        $this->assertNull($svc->fresh()); // permanent delete
     }
 
     public function test_equipment_crud(): void
@@ -48,8 +53,13 @@ class AdminCatalogTest extends TestCase
         $a->patchJson("/admin/api/equipment/{$eq->id}", ['daily_rate' => 600])->assertOk();
         $this->assertEquals(600.0, $eq->fresh()->daily_rate);
 
+        // Customer visibility toggle (separate from active; visible by default).
+        $this->assertTrue($eq->fresh()->customer_visible);
+        $a->patchJson("/admin/api/equipment/{$eq->id}", ['customer_visible' => false])->assertOk();
+        $this->assertFalse($eq->fresh()->customer_visible);
+
         $a->deleteJson("/admin/api/equipment/{$eq->id}")->assertOk();
-        $this->assertFalse($eq->fresh()->active);
+        $this->assertNull($eq->fresh()); // permanent delete
     }
 
     public function test_calendar_page_renders(): void
