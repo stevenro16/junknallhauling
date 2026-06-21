@@ -16,7 +16,7 @@ class PaymentLinkTest extends TestCase
     {
         $admin = Admin::create(['username' => 'boss', 'password_hash' => Hash::make('secret123'), 'must_change_password' => false]);
 
-        return $this->withSession(['admin_id' => $admin->id, 'admin_username' => 'boss', 'admin_must_change' => false]);
+        return $this->withSession(['admin_id' => $admin->id, 'admin_username' => 'boss', 'admin_role' => 'admin', 'admin_must_change' => false]);
     }
 
     private function makeInquiry(array $overrides = []): Inquiry

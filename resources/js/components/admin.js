@@ -96,54 +96,42 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
     cfg,
     inquiries: cfg.inquiries || [],
     filter: 'active',
-    search: '',
-    dateFilter: '',
-    // Today panel
-    showToday: true,
-    todayView: 'schedule', // 'schedule' | 'equipment'
     // New Quote modal
     showNew: false,
     nq: { phone: '', name: '', email: '', zip: '', error: '', loading: false },
 
+    init() {
+        // Land on the first workqueue bucket that has quotes: New → Reviewing/Quoted
+        // → Service Performed, falling back to Scheduled when the others are empty.
+        this.filter = this.countNew ? 'new'
+            : this.countReviewingQuoted ? 'reviewing_quoted'
+                : this.countServicePerformed ? 'service_performed'
+                    : 'scheduled';
+    },
+
     get filtered() {
-        const q = this.search.trim().toLowerCase();
+        const cutoff30 = this.filter === 'completed30' ? this._cutoff30() : null;
         return this.inquiries.filter((i) => {
             if (this.filter === 'active') { if (['completed', 'cancelled'].includes(i.status)) return false; }
+            else if (this.filter === 'reviewing_quoted') { if (!['reviewing', 'quoted'].includes(i.status)) return false; }
+            else if (this.filter === 'completed30') { if (i.status !== 'completed' || !i.created_at || new Date(i.created_at) < cutoff30) return false; }
             else if (this.filter !== 'all') { if (i.status !== this.filter) return false; }
-            if (this.dateFilter) { if (!i.created_at || i.created_at.slice(0, 10) !== this.dateFilter) return false; }
-            if (q) {
-                const hay = `${i.name} ${i.phone} ${i.email} ${i.ref} ${this.serviceLabel(i.service_type)}`.toLowerCase();
-                if (!hay.includes(q)) return false;
-            }
             return true;
         });
     },
 
+    // Workqueue card counts (reactive over the loaded list).
+    _cutoff30() { const d = new Date(); d.setDate(d.getDate() - 30); return d; },
+    get countNew() { return this.inquiries.filter((i) => i.status === 'new').length; },
+    get countReviewingQuoted() { return this.inquiries.filter((i) => i.status === 'reviewing' || i.status === 'quoted').length; },
+    get countScheduled() { return this.inquiries.filter((i) => i.status === 'scheduled').length; },
+    get countServicePerformed() { return this.inquiries.filter((i) => i.status === 'service_performed').length; },
+    get countCompleted30() { const c = this._cutoff30(); return this.inquiries.filter((i) => i.status === 'completed' && i.created_at && new Date(i.created_at) >= c).length; },
+
     setFilter(f) { this.filter = f; },
 
     detailUrl(id) { return this.cfg.detailBase.replace('__ID__', id); },
-
-    // --- Today's schedule + equipment aggregation ---
-    get todayKey() { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
-    get todayVisits() {
-        return this.inquiries
-            .filter((i) => i.confirmed_date_time && i.status !== 'cancelled' && i.confirmed_date_time.slice(0, 10) === this.todayKey)
-            .sort((a, b) => a.confirmed_date_time.localeCompare(b.confirmed_date_time));
-    },
-    get todayEquipment() {
-        const map = {};
-        this.todayVisits.forEach((i) => {
-            const name = (i.equipment_type || '').trim();
-            if (!name) return;
-            if (!map[name]) map[name] = { name, count: 0, jobs: [] };
-            map[name].count++;
-            map[name].jobs.push(i);
-        });
-        return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
-    },
-    clockOf(dt) { return dt ? new Date(dt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''; },
     rentalLabel(i) { return (i.equipment_rental_duration && i.equipment_rental_unit) ? `${i.equipment_rental_duration} ${i.equipment_rental_unit}` : ''; },
-    mapsUrl(addr) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr || '')}`; },
 
     // New Quote modal: live matches by phone (last 10 digits).
     get phoneMatches() {
@@ -151,7 +139,20 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
         if (digits.length < 4) return [];
         return this.inquiries.filter((i) => (i.phone || '').replace(/\D/g, '').slice(-10) === digits).slice(0, 6);
     },
-    cloneFrom(m) { this.nq.name = m.name || ''; this.nq.email = m.email || ''; this.nq.zip = m.zip_code || ''; },
+    // Clone a previous quote into a brand-new one (all details copied server-side), then open it.
+    async cloneQuote(m) {
+        this.nq.error = '';
+        this.nq.loading = true;
+        try {
+            const res = await fetch(this.cfg.cloneUrl.replace('__ID__', m.id), { method: 'POST', headers: window.jsonHeaders(true) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to clone quote');
+            window.location.href = this.detailUrl(data.inquiry.id);
+        } catch (e) {
+            this.nq.error = e.message || 'Failed to clone quote';
+            this.nq.loading = false;
+        }
+    },
 
     async createQuote() {
         this.nq.error = '';
@@ -211,6 +212,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     equipmentOptions: cfg.equipment || [],
     serviceCatalog: cfg.services || [],
     allInquiries: cfg.allInquiries || [],
+    employees: cfg.employees || [], // {id, username} — for resolving the assigned-employee name
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
     history: cfg.history || [],
     saving: false,
@@ -225,10 +227,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // editable fields
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     adminNotes: '', status: 'new',
+    assignedEmployeeId: '',
     address: '', confirmedDateTime: '',
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     isEditingCustomer: false,
+    customerPulled: false, // brief confirmation after pulling a prior customer's info
+    notifyCustomer: false, // tick to text/email the customer when scheduling the visit
     customerZip: '', customerPreferredDay: '', customerPreferredTime: '',
     serviceType: '', equipmentType: '',
     equipmentRentalDuration: '', equipmentRentalUnit: '',
@@ -279,6 +284,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.inquiry = inq;
         this.adminNotes = inq.admin_notes || '';
         this.status = inq.status;
+        this.assignedEmployeeId = inq.assigned_employee_id || '';
         this.address = inq.address || '';
         this.confirmedDateTime = inq.confirmed_date_time || '';
         // Single stored name → first word is the first name, the rest is the last name.
@@ -374,6 +380,45 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return out;
     },
 
+    // Most recent *other* order sharing this quote's phone or email — the source
+    // for the "pull customer info" banner. Returns null when there's nothing useful
+    // to pull (no name/email/address/zip on the matched record).
+    get customerMatch() {
+        const np = (this.phone || '').replace(/\D/g, '').slice(-10);
+        const ne = (this.email || '').toLowerCase().trim();
+        if (!np && !ne) return null;
+        return this.allInquiries
+            .filter((i) => i.id !== this.inquiry.id)
+            .filter((i) => {
+                const p = (i.phone || '').replace(/\D/g, '').slice(-10);
+                const e = (i.email || '').toLowerCase().trim();
+                return (np && p === np) || (ne && e === ne);
+            })
+            .filter((i) => (i.name && i.name.trim()) || (i.email && i.email.trim()) || (i.address && i.address.trim()) || (i.zip_code && String(i.zip_code).trim()))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+    },
+
+    // Copy the matched customer's profile into this quote (only fields the source
+    // actually has, so we never blank out existing data), then persist.
+    pullCustomerInfo() {
+        const m = this.customerMatch;
+        if (!m) return;
+        if (m.name && m.name.trim()) {
+            const parts = m.name.trim().split(/\s+/).filter(Boolean);
+            this.firstName = parts.shift() || '';
+            this.lastName = parts.join(' ');
+        }
+        if (m.phone && m.phone.trim()) this.phone = m.phone.trim();
+        if (m.email && m.email.trim()) this.email = m.email.trim();
+        if (m.address && m.address.trim()) this.address = m.address.trim();
+        if (m.zip_code && String(m.zip_code).trim()) this.customerZip = String(m.zip_code).trim();
+        if (m.preferred_contact_method) this.preferredContactMethod = m.preferred_contact_method;
+        if (m.preferred_day && m.preferred_day.trim()) this.customerPreferredDay = m.preferred_day.trim();
+        if (m.preferred_time && m.preferred_time.trim()) this.customerPreferredTime = m.preferred_time.trim();
+        this.customerPulled = true;
+        this.save();
+    },
+
     get currentCatalogInitialQuote() {
         if (!this.equipmentType || !this.equipmentRentalDuration) return null;
         const equip = this.equipmentOptions.find((e) => e.name === this.equipmentType);
@@ -397,6 +442,59 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return svc && svc.default_price != null ? svc.default_price : null;
     },
 
+    // Description (customer_instructions) of the selected service/equipment — the
+    // admin can pull it into the customer-visible Service Notes.
+    get currentCatalogDescription() {
+        const item = this.isEquipment
+            ? this.equipmentOptions.find((e) => e.name === this.equipmentType)
+            : this.serviceCatalog.find((s) => s.key === this.serviceType);
+        return (item && item.customer_instructions) ? String(item.customer_instructions).trim() : '';
+    },
+    pullCatalogDescription() {
+        const desc = this.currentCatalogDescription;
+        if (!desc) return;
+        const cur = (this.adminNotes || '').trim();
+        if (cur.includes(desc)) return;                 // already pulled — don't duplicate
+        this.adminNotes = cur ? `${cur}\n\n${desc}` : desc;
+    },
+
+    // --- Schedule the visit + optionally notify the customer ----------------
+    get hasConfirmedSlot() { return !!(this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)); },
+    get canSchedule() { return this.hasConfirmedSlot && ['new', 'reviewing', 'quoted', 'left_voicemail'].includes(this.status); },
+    get preferredMethodLabel() { return this.preferredContactMethod === 'email' ? 'email' : 'text message'; },
+    get visitJobLabel() { return this.isEquipment ? (this.equipmentType || 'equipment rental') : (this.serviceLabel(this.serviceType) || 'service'); },
+    get visitWhenLabel() {
+        const d = new Date(this.confirmedDateTime);
+        return isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    },
+    get scheduledSummary() {
+        const dur = this.expectedDurationValue ? ` · ${this.expectedDurationValue} ${this.expectedDurationUnit}` : '';
+        return this.visitWhenLabel + dur;
+    },
+
+    // Move the quote to Scheduled, persist, then notify if requested.
+    async markScheduled() {
+        this.status = 'scheduled';
+        await this.save();
+        if (this.notifyCustomer) this.notifyCustomerOfVisit();
+        this.notifyCustomer = false;
+    },
+
+    // Open the admin's SMS/email client pre-filled, using the customer's preferred method.
+    notifyCustomerOfVisit() {
+        const when = this.visitWhenLabel;
+        if (!when) { this.error = 'Set a date and time first.'; return; }
+        const msg = `Hi ${this.firstName || 'there'}, this confirms your ${this.visitJobLabel} with Junk N All Hauling is scheduled for ${when}. Reply with any questions — thank you!`;
+        if (this.preferredContactMethod === 'email') {
+            if (!this.email) { this.error = 'No email address on file for this customer.'; return; }
+            window.location.href = `mailto:${encodeURIComponent(this.email)}`
+                + `?subject=${encodeURIComponent('Your Scheduled Visit — Junk N All Hauling')}&body=${encodeURIComponent(msg)}`;
+        } else {
+            if (!this.phone) { this.error = 'No phone number on file for this customer.'; return; }
+            window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
+        }
+    },
+
     // Copy a displayed quote into the Payment "Quoted Price" field (+ brief flash),
     // then auto-save so the quote is persisted and a payment link can be sent
     // straight away without a manual save.
@@ -417,7 +515,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const time = encodeURIComponent(this.timePart(this.confirmedDateTime) || '');
         const dur = encodeURIComponent(this.expectedDurationMinutes || 120);
         const label = encodeURIComponent(this.fullName || this.inquiry.name || 'This visit');
-        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}`;
+        // Exclude this quote's own saved visit — it's represented by the draggable pick card.
+        const exclude = encodeURIComponent(this.inquiry.id || '');
+        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}`;
     },
 
     get currentVisitWindow() {
@@ -438,14 +538,16 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
                 const start = new Date(e.confirmed_date_time);
                 const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
                 const conflict = !!(cur && start < cur.end && end > cur.start);
-                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, start, end, isSelf: false, conflict };
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, start, end, isSelf: false, conflict };
             });
         // Add this inquiry's own (live, possibly-unsaved) visit, highlighted.
         if (cur) {
-            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, start: cur.start, end: cur.end, isSelf: true, conflict: false });
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeName(this.assignedEmployeeId), start: cur.start, end: cur.end, isSelf: true, conflict: false });
         }
         return rows.sort((a, b) => a.start - b.start);
     },
+
+    employeeName(id) { return id ? (this.employees.find((e) => e.id === id)?.username || '') : ''; },
 
     get dayOtherCount() { return this.daySchedule.filter((e) => !e.isSelf).length; },
     get dayConflictCount() { return this.daySchedule.filter((e) => e.conflict).length; },
@@ -476,6 +578,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return {
             status: this.status,
             name: this.fullName,
+            assigned_employee_id: this.assignedEmployeeId || null,
             service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
             address: this.address || null,
@@ -607,6 +710,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 Alpine.data('analytics', (cfg = {}) => ({
     inquiries: cfg.inquiries || [],
     range: '30',
+    category: 'services',  // drill-down: 'services' | 'equipment'
+    timelineMode: 'week',  // revenue timeline grouping: 'week' | 'month'
     mapApi: null,
 
     init() {
@@ -633,23 +738,207 @@ Alpine.data('analytics', (cfg = {}) => ({
             .reduce((s, i) => s + (Number(i.quoted_price) || 0), 0);
     },
 
-    get serviceBreakdown() {
-        const labels = { 'junk-removal': 'Junk Removal', '10yd-dumpster': '10yd Dumpster', '20yd-dumpster': '20yd Dumpster', equipment: 'Equipment', other: 'Other' };
+    get conversionRate() {
+        const leads = this.rangeFiltered.filter((i) => i.status !== 'cancelled').length;
+        return leads ? Math.round((this.completedCount / leads) * 100) : 0;
+    },
+
+    // --- Services vs Equipment Rental --------------------------------------
+    // Equipment rental = legacy service_type 'equipment' OR any saved equipment_type.
+    isEquipment(i) { return i.service_type === 'equipment' || !!(i.equipment_type && String(i.equipment_type).trim()); },
+
+    _categoryTotal(pred) {
+        const list = this.rangeFiltered.filter(pred);
+        return {
+            jobs: list.length,
+            revenue: list.filter((i) => i.status === 'completed').reduce((s, i) => s + (Number(i.quoted_price) || 0), 0),
+        };
+    },
+    get servicesTotal() { return this._categoryTotal((i) => !this.isEquipment(i)); },
+    get equipmentTotal() { return this._categoryTotal((i) => this.isEquipment(i)); },
+    get categoryRevenueMax() { return Math.max(1, this.servicesTotal.revenue, this.equipmentTotal.revenue); },
+
+    // Per-item breakdown: jobs in range + revenue collected (completed only).
+    _breakdown(pred, keyFn, labelFn) {
         const groups = {};
-        this.rangeFiltered.forEach((i) => {
-            const k = i.service_type || 'other';
-            if (!groups[k]) groups[k] = { sum: 0, n: 0 };
-            if (i.quoted_price != null) { groups[k].sum += Number(i.quoted_price); groups[k].n++; }
+        this.rangeFiltered.filter(pred).forEach((i) => {
+            const k = keyFn(i) || 'other';
+            if (!groups[k]) groups[k] = { key: k, label: labelFn(k), jobs: 0, completed: 0, revenue: 0 };
+            groups[k].jobs++;
+            if (i.status === 'completed') { groups[k].completed++; groups[k].revenue += Number(i.quoted_price) || 0; }
         });
-        const rows = Object.entries(groups).map(([k, v]) => ({ key: k, label: labels[k] || k, avg: v.n ? Math.round(v.sum / v.n) : 0, count: this.rangeFiltered.filter((i) => (i.service_type || 'other') === k).length }));
-        const max = Math.max(1, ...rows.map((r) => r.avg));
-        rows.forEach((r) => { r.pct = Math.round((r.avg / max) * 100); });
-        return rows.sort((a, b) => b.avg - a.avg);
+        const rows = Object.values(groups);
+        const max = Math.max(1, ...rows.map((r) => r.revenue));
+        rows.forEach((r) => { r.pct = Math.round((r.revenue / max) * 100); r.avg = r.completed ? Math.round(r.revenue / r.completed) : 0; });
+        return rows.sort((a, b) => b.revenue - a.revenue || b.jobs - a.jobs);
+    },
+    get serviceRows() {
+        const labels = { 'junk-removal': 'Junk Removal', '10yd-dumpster': '10yd Dumpster', '20yd-dumpster': '20yd Dumpster', other: 'Other / Uncategorized' };
+        return this._breakdown((i) => !this.isEquipment(i), (i) => i.service_type || 'other', (k) => labels[k] || k.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+    },
+    get equipmentRows() {
+        return this._breakdown((i) => this.isEquipment(i), (i) => (String(i.equipment_type || '').trim() || 'Unspecified Equipment'), (k) => k);
+    },
+    get activeRows() { return this.category === 'equipment' ? this.equipmentRows : this.serviceRows; },
+
+    // --- Revenue collected timeline (trailing 12 weeks / months) -----------
+    get timeline() {
+        const now = new Date();
+        const periods = [];
+        if (this.timelineMode === 'week') {
+            for (let w = 11; w >= 0; w--) {
+                const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - start.getDay() - w * 7);
+                const end = new Date(start); end.setDate(end.getDate() + 7);
+                periods.push({ start, end, label: `${start.getMonth() + 1}/${start.getDate()}`, revenue: 0 });
+            }
+        } else {
+            for (let m = 11; m >= 0; m--) {
+                const start = new Date(now.getFullYear(), now.getMonth() - m, 1);
+                const end = new Date(now.getFullYear(), now.getMonth() - m + 1, 1);
+                periods.push({ start, end, label: start.toLocaleDateString(undefined, { month: 'short' }), revenue: 0 });
+            }
+        }
+        this.inquiries.filter((i) => i.status === 'completed' && i.quoted_price).forEach((i) => {
+            const d = new Date(i.confirmed_date_time || i.created_at);
+            if (isNaN(d.getTime())) return;
+            const p = periods.find((p) => d >= p.start && d < p.end);
+            if (p) p.revenue += Number(i.quoted_price) || 0;
+        });
+        const max = Math.max(1, ...periods.map((p) => p.revenue));
+        periods.forEach((p) => { p.pct = Math.round((p.revenue / max) * 100); });
+        return periods;
+    },
+    get timelineTotal() { return this.timeline.reduce((s, p) => s + p.revenue, 0); },
+
+    // --- Pipeline (status mix) + payment method ----------------------------
+    get statusBreakdown() {
+        const order = ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed'];
+        const labels = { new: 'New', reviewing: 'Reviewing', quoted: 'Quoted', scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed' };
+        const counts = {};
+        this.rangeFiltered.forEach((i) => { counts[i.status] = (counts[i.status] || 0) + 1; });
+        const max = Math.max(1, ...order.map((s) => counts[s] || 0));
+        return order.map((s) => ({ key: s, label: labels[s], count: counts[s] || 0, pct: Math.round(((counts[s] || 0) / max) * 100) }));
+    },
+    get paymentBreakdown() {
+        const groups = {};
+        this.rangeFiltered.filter((i) => i.status === 'completed' && i.quoted_price).forEach((i) => {
+            const k = i.payment_method || 'Unrecorded';
+            if (!groups[k]) groups[k] = { label: k, revenue: 0, count: 0 };
+            groups[k].revenue += Number(i.quoted_price) || 0; groups[k].count++;
+        });
+        const rows = Object.values(groups);
+        const max = Math.max(1, ...rows.map((r) => r.revenue));
+        rows.forEach((r) => { r.pct = Math.round((r.revenue / max) * 100); });
+        return rows.sort((a, b) => b.revenue - a.revenue);
     },
 
     setRange(r) { this.range = r; this.refreshMap(); },
     refreshMap() { if (this.mapApi) this.mapApi.setInquiries(this.rangeFiltered); },
     money(n) { return Number(n).toLocaleString(); },
+    moneyShort(n) { n = Number(n) || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(Math.round(n)); },
+}));
+
+// ---------------------------------------------------------------------------
+// Customer directory — search by phone/email, then per-customer analytics +
+// quotes (grouped client-side; one row per phone-last-10, else email).
+// ---------------------------------------------------------------------------
+Alpine.data('customerLookup', (cfg = {}) => ({
+    ...window.adminHelpers,
+    inquiries: cfg.inquiries || [],
+    detailBase: cfg.detailBase || '',
+    query: '',
+    selectedKey: '',
+
+    _key(i) {
+        const p = (i.phone || '').replace(/\D/g, '').slice(-10);
+        if (p) return 'p:' + p;
+        const e = (i.email || '').toLowerCase().trim();
+        return e ? 'e:' + e : '';
+    },
+
+    get customers() {
+        const map = {};
+        for (const i of this.inquiries) {           // inquiries arrive newest-first
+            const key = this._key(i);
+            if (!key) continue;
+            if (!map[key]) map[key] = { key, name: '', phone: '', email: '', address: '', zip: '', preferred: '', items: [] };
+            const c = map[key];
+            c.items.push(i);
+            if (!c.name && i.name) c.name = i.name;
+            if (!c.phone && i.phone) c.phone = i.phone;
+            if (!c.email && i.email) c.email = i.email;
+            if (!c.address && i.address) c.address = i.address;
+            if (!c.zip && i.zip_code) c.zip = i.zip_code;
+            if (!c.preferred && i.preferred_contact_method) c.preferred = i.preferred_contact_method;
+        }
+        return Object.values(map).map((c) => this._enrich(c)).sort((a, b) => b.lastSeen - a.lastSeen);
+    },
+
+    _enrich(c) {
+        const completed = c.items.filter((i) => i.status === 'completed');
+        c.count = c.items.length;
+        c.completedCount = completed.length;
+        c.revenue = completed.reduce((s, i) => s + (Number(i.quoted_price) || 0), 0);
+        c.avg = c.completedCount ? Math.round(c.revenue / c.completedCount) : 0;
+        c.outstanding = c.items
+            .filter((i) => ['quoted', 'scheduled', 'service_performed'].includes(i.status) && !i.payment_method)
+            .reduce((s, i) => s + (Number(i.quoted_price) || 0), 0);
+        c.openCount = c.items.filter((i) => !['completed', 'cancelled'].includes(i.status)).length;
+        const times = c.items.map((i) => new Date(i.created_at).getTime()).filter((t) => !isNaN(t));
+        c.lastSeen = times.length ? Math.max(...times) : 0;
+        c.firstSeen = times.length ? Math.min(...times) : 0;
+        if (!c.preferred) c.preferred = 'phone';
+        return c;
+    },
+
+    get results() {
+        const q = this.query.trim().toLowerCase();
+        const qDigits = q.replace(/\D/g, '');
+        const all = this.customers;
+        if (q.length < 2) return all.slice(0, 8);   // recent customers when not searching
+        return all.filter((c) => {
+            const phone = (c.phone || '').replace(/\D/g, '');
+            return (qDigits.length >= 3 && phone.includes(qDigits)) || (c.email || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q);
+        }).slice(0, 30);
+    },
+
+    select(key) { this.selectedKey = key; },
+    get selected() { return this.customers.find((c) => c.key === this.selectedKey) || null; },
+    get selectedQuotes() {
+        return this.selected ? [...this.selected.items].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : [];
+    },
+    get selectedByService() {
+        if (!this.selected) return [];
+        const groups = {};
+        for (const i of this.selected.items) {
+            const eq = i.equipment_type && String(i.equipment_type).trim();
+            const label = eq || this.serviceLabel(i.service_type) || 'Other';
+            if (!groups[label]) groups[label] = { label, count: 0, revenue: 0 };
+            groups[label].count++;
+            if (i.status === 'completed') groups[label].revenue += Number(i.quoted_price) || 0;
+        }
+        const rows = Object.values(groups);
+        const max = Math.max(1, ...rows.map((r) => r.revenue));
+        rows.forEach((r) => { r.pct = Math.round((r.revenue / max) * 100); });
+        return rows.sort((a, b) => b.revenue - a.revenue || b.count - a.count);
+    },
+    get selectedByStatus() {
+        if (!this.selected) return [];
+        const order = ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed', 'cancelled', 'left_voicemail'];
+        const counts = {};
+        for (const i of this.selected.items) counts[i.status] = (counts[i.status] || 0) + 1;
+        return order.filter((s) => counts[s]).map((s) => ({ key: s, label: this.statusLabel(s), count: counts[s] }));
+    },
+
+    rentalLabel(i) { return (i.equipment_rental_duration && i.equipment_rental_unit) ? `${i.equipment_rental_duration} ${i.equipment_rental_unit}` : ''; },
+    detailUrl(id) { return (this.detailBase || '').replace('__ID__', id); },
+    contact(method) {
+        const c = this.selected; if (!c) return;
+        if (method === 'email' && c.email) window.location.href = `mailto:${encodeURIComponent(c.email)}`;
+        else if (method === 'sms' && c.phone) window.location.href = `sms:${c.phone.replace(/[^\d+]/g, '')}`;
+        else if (method === 'tel' && c.phone) window.location.href = `tel:${c.phone.replace(/[^\d+]/g, '')}`;
+    },
+    print() { window.print(); },
 }));
 
 // ---------------------------------------------------------------------------
@@ -720,16 +1009,22 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
 Alpine.data('adminsManager', (cfg = {}) => ({
     urls: cfg.urls,
     admins: cfg.admins || [],
-    nw: { username: '', password: '' },
+    nw: { username: '', password: '', role: 'admin' },
     error: '',
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.admins = d.admins || []; } } catch {} },
 
+    // Pick a role; prefill the default employee password for convenience.
+    setRole(role) {
+        this.nw.role = role;
+        if (role === 'employee' && !this.nw.password) this.nw.password = 'model123!';
+    },
+
     async create() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ username: this.nw.username, password: this.nw.password }) });
-        if (r.ok) { this.nw = { username: '', password: '' }; await this.reload(); }
-        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to create admin'; }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ username: this.nw.username, password: this.nw.password, role: this.nw.role }) });
+        if (r.ok) { this.nw = { username: '', password: '', role: 'admin' }; await this.reload(); }
+        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to create account'; }
     },
     async resetPassword(a) {
         const pw = prompt(`New temporary password for ${a.username} (min 6 chars):`);
@@ -764,11 +1059,12 @@ Alpine.data('calendar', (cfg = {}) => ({
     pickedMinutes: null,
     pickDuration: cfg.pickDuration || 120, // visit length (min) — sizes the preview card
     pickLabel: cfg.pickLabel || 'This visit',
+    pickInquiryId: cfg.pickInquiryId || '', // hide this quote's saved event (the pick card stands in for it)
     // drag state
     dragMode: null, _grabOffsetMin: 0, _justDragged: false, _durationChanged: false,
 
     init() {
-        if (cfg.initialView && ['month', 'week', 'day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
+        if (cfg.initialView && ['month', 'week', 'day', '3day', '5day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
         if (cfg.initialDate) {
             const d = new Date(cfg.initialDate + 'T00:00');
             if (!isNaN(d.getTime())) this.cur = d.getTime();
@@ -893,7 +1189,7 @@ Alpine.data('calendar', (cfg = {}) => ({
     fmtClock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
 
     get calendarEvents() {
-        return this.events.filter((e) => e.confirmed_date_time).map((e) => {
+        return this.events.filter((e) => e.confirmed_date_time).filter((e) => e.id !== this.pickInquiryId).map((e) => {
             const start = new Date(e.confirmed_date_time);
             const end = new Date(start.getTime() + (e.expected_duration_minutes || 120) * 60000);
             return { inquiry: e, start, end, key: start.toISOString().split('T')[0] };
@@ -905,24 +1201,25 @@ Alpine.data('calendar', (cfg = {}) => ({
     get headerLabel() {
         if (this.viewMode === 'month') return this.currentDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
         if (this.viewMode === 'day') return this.currentDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        if (this.viewMode === '3day' || this.viewMode === '5day') {
+            const days = this.rangeDays, a = days[0], b = days[days.length - 1];
+            return `${a.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${b.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        }
         const ws = this.weekStart;
         return `${ws.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${new Date(ws.getTime() + 6 * 86400000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     },
     get totalOnCalendar() { return this.calendarEvents.length; },
 
+    // multi-day range (3-day / 5-day) — starts at the current date, runs forward
+    get rangeSize() { return this.viewMode === '3day' ? 3 : this.viewMode === '5day' ? 5 : 1; },
+    get rangeDays() {
+        const start = new Date(this.cur); start.setHours(0, 0, 0, 0);
+        return Array.from({ length: this.rangeSize }, (_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return d; });
+    },
+
     // week
     get weekStart() { const d = new Date(this.cur); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d; },
     get weekDays() { const ws = this.weekStart; return Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(d.getDate() + i); return d; }); },
-
-    // month
-    get monthGrid() {
-        const y = this.currentDate.getFullYear(), m = this.currentDate.getMonth();
-        const firstDay = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
-        const out = [];
-        for (let i = 0; i < firstDay; i++) out.push(null);
-        for (let d = 1; d <= days; d++) out.push(new Date(y, m, d));
-        return out;
-    },
 
     // day layout
     get dayLayout() {
@@ -950,8 +1247,16 @@ Alpine.data('calendar', (cfg = {}) => ({
     isToday(d) { return d && d.toDateString() === new Date().toDateString(); },
     dayKey(d) { return d.toISOString().split('T')[0]; },
 
-    prev() { const d = new Date(this.cur); if (this.viewMode === 'month') d.setMonth(d.getMonth() - 1); else if (this.viewMode === 'week') d.setDate(d.getDate() - 7); else d.setDate(d.getDate() - 1); this.cur = d.getTime(); },
-    next() { const d = new Date(this.cur); if (this.viewMode === 'month') d.setMonth(d.getMonth() + 1); else if (this.viewMode === 'week') d.setDate(d.getDate() + 7); else d.setDate(d.getDate() + 1); this.cur = d.getTime(); },
+    _step(dir) {
+        const d = new Date(this.cur);
+        if (this.viewMode === 'month') d.setMonth(d.getMonth() + dir);
+        else if (this.viewMode === 'week') d.setDate(d.getDate() + 7 * dir);
+        else if (this.viewMode === '3day' || this.viewMode === '5day') d.setDate(d.getDate() + this.rangeSize * dir);
+        else d.setDate(d.getDate() + dir);
+        this.cur = d.getTime();
+    },
+    prev() { this._step(-1); },
+    next() { this._step(1); },
     today() { this.cur = Date.now(); },
     goToDay(d) { this.cur = d.getTime(); this.viewMode = 'day'; },
 }));
@@ -1303,6 +1608,118 @@ Alpine.data('paymentSender', (cfg = {}) => ({
 
     money(n) { return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
     fmt(d) { return d ? new Date(d).toLocaleDateString() : ''; },
+}));
+
+// ---------------------------------------------------------------------------
+// serviceSignature — touch/mouse signature pad on the employee job sheet.
+// Captures the customer's signature when a service is complete and POSTs it to
+// the sign endpoint, then reloads to show the signed/completed state.
+// ---------------------------------------------------------------------------
+Alpine.data('serviceSignature', (cfg = {}) => ({
+    signUrl: cfg.signUrl,
+    isDrawing: false,
+    hasSignature: false,
+    submitting: false,
+    error: '',
+    _canvas: null,
+
+    initPad() {
+        const c = this.$refs.canvas;
+        if (!c) return;
+        // Match the backing store to the displayed size for crisp strokes.
+        const r = c.getBoundingClientRect();
+        c.width = Math.round(r.width);
+        c.height = Math.round(r.height);
+        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    },
+
+    _coords(c, e) {
+        const rect = c.getBoundingClientRect();
+        const sx = c.width / rect.width, sy = c.height / rect.height;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+    },
+    start(e) {
+        const c = e.currentTarget;
+        this._canvas = c;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+        this.isDrawing = true;
+        this.hasSignature = true;
+        const { x, y } = this._coords(c, e);
+        ctx.strokeStyle = '#1C1C1C';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    },
+    move(e) {
+        if (!this.isDrawing || !this._canvas) return;
+        const ctx = this._canvas.getContext('2d', { willReadFrequently: true });
+        const { x, y } = this._coords(this._canvas, e);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    },
+    end() { this.isDrawing = false; },
+    clear() {
+        const c = this.$refs.canvas;
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        this.hasSignature = false;
+        this.error = '';
+    },
+    async submit() {
+        if (!this.hasSignature) { this.error = 'Please have the customer sign above.'; return; }
+        this.submitting = true;
+        this.error = '';
+        try {
+            const data = this.$refs.canvas.toDataURL('image/png');
+            const res = await fetch(this.signUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ signature: data }) });
+            if (!res.ok) throw new Error('Could not save the signature.');
+            window.location.reload();
+        } catch (e) {
+            this.error = e.message || 'Save failed.';
+            this.submitting = false;
+        }
+    },
+}));
+
+// ---------------------------------------------------------------------------
+// commentThread — internal/customer-visible notes on a quote. Shared by the
+// employee job sheet and the admin detail page (just a different postUrl).
+// ---------------------------------------------------------------------------
+Alpine.data('commentThread', (cfg = {}) => ({
+    postUrl: cfg.postUrl,
+    comments: cfg.comments || [],
+    body: '',
+    customerVisible: false,
+    submitting: false,
+    error: '',
+
+    async submit() {
+        const body = this.body.trim();
+        if (!body) { this.error = 'Write a note first.'; return; }
+        this.submitting = true;
+        this.error = '';
+        try {
+            const res = await fetch(this.postUrl, {
+                method: 'POST',
+                headers: window.jsonHeaders(true),
+                body: JSON.stringify({ body, customer_visible: this.customerVisible }),
+            });
+            if (!res.ok) throw new Error('Could not post the note.');
+            const d = await res.json();
+            if (d.comment) this.comments.push(d.comment);
+            this.body = '';
+            this.customerVisible = false;
+        } catch (e) {
+            this.error = e.message || 'Failed to post.';
+        } finally {
+            this.submitting = false;
+        }
+    },
+
+    fmt(d) { return d ? new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''; },
 }));
 
 export {};

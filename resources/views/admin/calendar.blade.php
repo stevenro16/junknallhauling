@@ -3,17 +3,17 @@
 @section('title', 'Calendar — '.config('business.name'))
 
 @section('admin-content')
-<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), detailBase: '{{ route('admin.inquiries.show', '__ID__') }}' })">
+<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), detailBase: '{{ route('admin.inquiries.show', '__ID__') }}', initialView: 'day' })">
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h2 class="text-2xl font-semibold">Pickup Calendar</h2>
             <p class="text-sm text-gray-500">Scheduled jobs by date</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
-                <template x-for="mode in ['month','week','day']" :key="mode">
-                    <button @click="viewMode = mode" class="px-4 py-1.5 transition-colors capitalize" :class="viewMode === mode ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'" x-text="mode"></button>
+                <template x-for="m in [{v:'day',l:'Day'},{v:'3day',l:'3 Day'},{v:'5day',l:'5 Day'}]" :key="m.v">
+                    <button @click="viewMode = m.v" class="px-3 sm:px-4 py-1.5 transition-colors whitespace-nowrap" :class="viewMode === m.v ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'" x-text="m.l"></button>
                 </template>
             </div>
             <button @click="today()" class="btn-outline text-sm px-4 py-2">Today</button>
@@ -23,61 +23,37 @@
     </div>
 
     <div class="text-center mb-6">
-        <h2 class="text-3xl font-black" x-text="headerLabel"></h2>
+        <h2 class="text-xl sm:text-3xl font-black" x-text="headerLabel"></h2>
         <p class="text-sm text-gray-500 mt-1"><span x-text="totalOnCalendar"></span> active pickups on calendar</p>
     </div>
 
     {{-- Day view --}}
     @include('partials.admin.calendar-day')
 
-    {{-- Week + Month --}}
-    <div x-show="viewMode !== 'day'" class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-        <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-            @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $d)
-                <div class="p-3 text-center text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">{{ $d }}</div>
-            @endforeach
-        </div>
-
-        {{-- Week --}}
-        <div x-show="viewMode === 'week'" class="grid grid-cols-7">
-            <template x-for="(day, index) in weekDays" :key="index">
-                <div @click="eventsForKey(dayKey(day)).length > 0 && goToDay(day)" class="min-h-[220px] p-3 border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors" :class="isToday(day) && 'bg-amber-50'">
-                    <div class="text-sm font-medium mb-2" :class="isToday(day) ? 'text-amber-600' : 'text-gray-700'" x-text="day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })"></div>
+    {{-- Multi-day (3-day / 5-day): columns on desktop, stacked agenda on mobile --}}
+    <div x-show="viewMode === '3day' || viewMode === '5day'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div class="grid gap-px bg-gray-200" :class="viewMode === '3day' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-5'">
+            <template x-for="(day, index) in rangeDays" :key="index">
+                <div class="bg-white p-3 sm:min-h-[280px]" :class="isToday(day) && 'bg-amber-50'">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <button @click="goToDay(day)" class="text-left text-sm font-semibold hover:text-amber-600 transition-colors" :class="isToday(day) ? 'text-amber-600' : 'text-gray-700'">
+                            <span x-text="day.toLocaleDateString(undefined, { weekday: 'short' })"></span>
+                            <span class="text-gray-400 font-normal" x-text="day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })"></span>
+                        </button>
+                        <span x-show="isToday(day)" class="text-[10px] uppercase font-bold tracking-wide text-amber-600 shrink-0">Today</span>
+                    </div>
                     <div class="space-y-2">
-                        <div x-show="eventsForKey(dayKey(day)).length === 0" class="text-xs text-gray-600 italic">No pickups</div>
+                        <div x-show="eventsForKey(dayKey(day)).length === 0" class="text-xs text-gray-400 italic">No pickups</div>
                         <template x-for="ev in eventsForKey(dayKey(day))" :key="ev.inquiry.id">
-                            <a :href="detailUrl(ev.inquiry.id)" @click.stop class="block p-2 text-xs rounded-lg border transition-all" :class="eventClasses(ev.inquiry.status)">
+                            <a :href="detailUrl(ev.inquiry.id)" class="block p-2 text-xs rounded-lg border transition-all" :class="eventClasses(ev.inquiry.status)">
                                 <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full shrink-0" :class="dotClass(ev.inquiry.status)"></div><div class="font-mono text-amber-600 text-[10px]" x-text="ev.inquiry.ref"></div></div>
                                 <div class="text-gray-800 truncate font-medium" x-text="ev.inquiry.name"></div>
                                 <div class="text-gray-500 text-[10px] mt-0.5"><span x-text="fmtClock(ev.start)"></span> &ndash; <span x-text="fmtClock(ev.end)"></span></div>
+                                <div x-show="ev.inquiry.assigned_employee" x-cloak class="flex items-center gap-0.5 text-[10px] text-amber-700 truncate"><x-icon name="user" class="w-2.5 h-2.5 shrink-0"/><span class="truncate" x-text="ev.inquiry.assigned_employee"></span></div>
                                 <div class="text-[10px] text-gray-500 capitalize" x-text="statusLabel(ev.inquiry.status)"></div>
                             </a>
                         </template>
                     </div>
-                </div>
-            </template>
-        </div>
-
-        {{-- Month --}}
-        <div x-show="viewMode === 'month'" x-cloak class="grid grid-cols-7 bg-white">
-            <template x-for="(day, index) in monthGrid" :key="index">
-                <div>
-                    <template x-if="!day"><div class="min-h-[110px] border-r border-b border-gray-200 bg-gray-50"></div></template>
-                    <template x-if="day">
-                        <div @click="goToDay(day)" class="min-h-[110px] p-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" :class="isToday(day) && 'bg-amber-50'">
-                            <div class="text-sm font-medium mb-1.5" :class="isToday(day) ? 'text-amber-600' : 'text-gray-700'" x-text="day.getDate()"></div>
-                            <div class="space-y-1">
-                                <div x-show="eventsForKey(dayKey(day)).length === 0" class="text-[10px] text-gray-600 italic">No pickups</div>
-                                <template x-for="ev in eventsForKey(dayKey(day)).slice(0, 2)" :key="ev.inquiry.id">
-                                    <div class="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 border truncate" :class="eventClasses(ev.inquiry.status)">
-                                        <div class="w-1.5 h-1.5 rounded-full shrink-0" :class="dotClass(ev.inquiry.status)"></div>
-                                        <span class="text-gray-800 truncate" x-text="ev.inquiry.name"></span>
-                                    </div>
-                                </template>
-                                <div x-show="eventsForKey(dayKey(day)).length > 2" class="text-[10px] text-gray-500 pl-1">+<span x-text="eventsForKey(dayKey(day)).length - 2"></span> more</div>
-                            </div>
-                        </div>
-                    </template>
                 </div>
             </template>
         </div>

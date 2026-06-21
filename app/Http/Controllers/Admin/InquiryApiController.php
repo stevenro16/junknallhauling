@@ -43,6 +43,36 @@ class InquiryApiController extends Controller
         return response()->json(['inquiry' => $inquiry], 201);
     }
 
+    /**
+     * POST /admin/api/inquiries/{id}/clone — duplicate a quote as a fresh one:
+     * carries over the customer + job details, but resets the lifecycle
+     * (status, scheduling, payment, signature) so it starts clean.
+     */
+    public function clone(string $id): JsonResponse
+    {
+        $source = Inquiry::find($id);
+        if (! $source) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        // Customer + job definition carried into the new quote.
+        $copy = $source->only([
+            'name', 'phone', 'email',
+            'service_type', 'equipment_type', 'equipment_rental_duration', 'equipment_rental_unit',
+            'description', 'address', 'zip_code', 'latitude', 'longitude',
+            'preferred_contact_method', 'preferred_day', 'preferred_time',
+            'initial_estimated_quote', 'quoted_price', 'expected_duration_minutes',
+            'admin_notes', 'photo_base64', 'photo_mime',
+        ]);
+
+        // Fresh lifecycle (ref + id auto-generated; scheduling/payment/signature reset).
+        $copy['status'] = 'new';
+
+        $inquiry = Inquiry::create($copy);
+
+        return response()->json(['inquiry' => $inquiry], 201);
+    }
+
     /** GET /admin/api/inquiries/{id} */
     public function show(string $id): JsonResponse
     {
@@ -70,7 +100,7 @@ class InquiryApiController extends Controller
             'status', 'name', 'admin_notes', 'address', 'confirmed_date_time', 'equipment_type',
             'equipment_rental_unit', 'phone', 'email', 'preferred_contact_method',
             'payment_method', 'payment_date', 'payment_notes', 'service_type',
-            'zip_code', 'preferred_day', 'preferred_time',
+            'zip_code', 'preferred_day', 'preferred_time', 'assigned_employee_id',
         ];
         foreach ($strings as $k) {
             if (array_key_exists($k, $b)) {
@@ -158,6 +188,29 @@ class InquiryApiController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /** POST /admin/api/inquiries/{id}/comments — add an internal/customer-visible comment. */
+    public function comment(string $id, Request $request): JsonResponse
+    {
+        $inquiry = Inquiry::find($id);
+        if (! $inquiry) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        $body = trim((string) $request->input('body'));
+        if ($body === '') {
+            return response()->json(['error' => 'A comment is required.'], 422);
+        }
+
+        $comment = $inquiry->comments()->create([
+            'author_id' => $request->session()->get('admin_id'),
+            'author_name' => $request->session()->get('admin_username', 'admin'),
+            'body' => $body,
+            'customer_visible' => $request->boolean('customer_visible'),
+        ]);
+
+        return response()->json(['comment' => EmployeeCalendarController::commentPayload($comment)]);
     }
 
     /**

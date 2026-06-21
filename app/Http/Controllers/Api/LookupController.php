@@ -27,6 +27,8 @@ class LookupController extends Controller
 
         $inquiries = Inquiry::where('email', $email)
             ->whereRaw("REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', '') LIKE ?", ['%'.$tail.'%'])
+            // Only customer-visible comments are exposed publicly — never internal ones.
+            ->with(['comments' => fn ($q) => $q->where('customer_visible', true)->orderBy('created_at')])
             ->orderByDesc('created_at')
             ->get();
 

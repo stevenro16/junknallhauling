@@ -42,6 +42,7 @@
                         </div>
                         <div class="font-semibold text-sm text-gray-900 leading-tight truncate" x-text="ev.inquiry.name"></div>
                         <div class="text-gray-500 text-[10px] leading-tight"><span x-text="fmtClock(ev.start)"></span> &ndash; <span x-text="fmtClock(ev.end)"></span></div>
+                        <div x-show="ev.inquiry.assigned_employee" x-cloak class="flex items-center gap-0.5 text-amber-700 text-[10px] leading-tight truncate"><x-icon name="user" class="w-2.5 h-2.5 shrink-0"/><span class="truncate" x-text="ev.inquiry.assigned_employee"></span></div>
                         <div x-show="ev.big" class="text-gray-400 text-[10px] leading-tight truncate capitalize"><span x-text="statusLabel(ev.inquiry.status)"></span> &middot; <span x-text="serviceLabel(ev.inquiry.service_type)"></span></div>
                     </a>
                 </template>

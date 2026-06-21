@@ -7,14 +7,15 @@ use App\Models\Admin;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     public function showLogin(Request $request)
     {
         if ($request->session()->has('admin_id')) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route(
+                $request->session()->get('admin_role') === 'employee' ? 'admin.my-schedule' : 'admin.dashboard'
+            );
         }
 
         return view('admin.login');
@@ -37,14 +38,15 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return response()->json([
-            'success'            => true,
+            'success' => true,
             'mustChangePassword' => $admin->must_change_password,
+            'role' => $admin->role,
         ]);
     }
 
     public function logout(Request $request): JsonResponse
     {
-        $request->session()->forget(['admin_id', 'admin_username', 'admin_must_change']);
+        $request->session()->forget(['admin_id', 'admin_username', 'admin_must_change', 'admin_role']);
         $request->session()->regenerate();
 
         return response()->json(['success' => true]);
@@ -59,10 +61,12 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'id'                   => $admin->id,
-            'username'             => $admin->username,
+            'id' => $admin->id,
+            'username' => $admin->username,
+            'role' => $admin->role,
+            'email' => $admin->email,
             'must_change_password' => $admin->must_change_password,
-            'created_at'           => $admin->created_at,
+            'created_at' => $admin->created_at,
         ]);
     }
 
@@ -103,8 +107,9 @@ class AuthController extends Controller
             return response()->json(['error' => 'Admin not found'], 404);
         }
 
-        $newPassword     = (string) $request->input('newPassword');
+        $newPassword = (string) $request->input('newPassword');
         $currentPassword = $request->input('currentPassword');
+        $email = trim((string) $request->input('email'));
 
         if (strlen($newPassword) < 6) {
             return response()->json(['error' => 'Password must be at least 6 characters'], 400);
@@ -115,10 +120,22 @@ class AuthController extends Controller
             return response()->json(['error' => 'Current password is incorrect'], 401);
         }
 
-        $admin->update([
-            'password_hash'        => Hash::make($newPassword),
+        // Employees must record an email on their forced first-login change
+        // (used for password resets).
+        $updates = [
+            'password_hash' => Hash::make($newPassword),
             'must_change_password' => false,
-        ]);
+        ];
+        if ($admin->role === 'employee' && $admin->must_change_password) {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return response()->json(['error' => 'Please enter a valid email address'], 400);
+            }
+            $updates['email'] = $email;
+        } elseif ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $updates['email'] = $email;
+        }
+
+        $admin->update($updates);
 
         $request->session()->put('admin_must_change', false);
 
@@ -129,6 +146,7 @@ class AuthController extends Controller
     {
         $request->session()->put('admin_id', $admin->id);
         $request->session()->put('admin_username', $admin->username);
+        $request->session()->put('admin_role', $admin->role);
         $request->session()->put('admin_must_change', $admin->must_change_password);
     }
 }

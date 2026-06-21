@@ -14,11 +14,13 @@ class AdminAccountController extends Controller
     {
         $admins = Admin::orderBy('created_at')->get()
             ->map(fn (Admin $a) => [
-                'id'                   => $a->id,
-                'username'             => $a->username,
+                'id' => $a->id,
+                'username' => $a->username,
+                'role' => $a->role,
+                'email' => $a->email,
                 'must_change_password' => $a->must_change_password,
-                'created_at'           => $a->created_at,
-                'updated_at'           => $a->updated_at,
+                'created_at' => $a->created_at,
+                'updated_at' => $a->updated_at,
             ]);
 
         return response()->json(['admins' => $admins]);
@@ -37,19 +39,24 @@ class AdminAccountController extends Controller
             return response()->json(['error' => 'Username already exists'], 409);
         }
 
-        // New admins must change their password on first login.
+        $role = $request->input('role') === 'employee' ? 'employee' : 'admin';
+
+        // New accounts must change their password on first login.
         $admin = Admin::create([
-            'username'             => $username,
-            'password_hash'        => Hash::make($password),
+            'username' => $username,
+            'role' => $role,
+            'password_hash' => Hash::make($password),
             'must_change_password' => true,
         ]);
 
         return response()->json([
             'admin' => [
-                'id'                   => $admin->id,
-                'username'             => $admin->username,
+                'id' => $admin->id,
+                'username' => $admin->username,
+                'role' => $admin->role,
+                'email' => $admin->email,
                 'must_change_password' => $admin->must_change_password,
-                'created_at'           => $admin->created_at,
+                'created_at' => $admin->created_at,
             ],
         ], 201);
     }
@@ -70,7 +77,7 @@ class AdminAccountController extends Controller
             }
 
             $admin->update([
-                'password_hash'        => Hash::make($newPassword),
+                'password_hash' => Hash::make($newPassword),
                 'must_change_password' => true,
             ]);
 

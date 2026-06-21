@@ -32,17 +32,18 @@ class DashboardController extends Controller
             ->filter(fn (Inquiry $i) => (string) $i->created_at >= $cutoff)->count();
 
         $counts = [
-            'new'            => $newCount,
-            'scheduled'      => $scheduled,
-            'pending'        => $pending,
-            'completed30'    => $completedRecent,
+            'new' => $newCount,
+            'scheduled' => $scheduled,
+            'pending' => $pending,
+            'completed30' => $completedRecent,
             'workqueueTotal' => $newCount + $scheduled + $pending,
         ];
 
         // Slim payload (no base64 photos) for client-side analytics + map.
         $statsInquiries = $inquiries->map(fn (Inquiry $i) => [
             'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
-            'service_type' => $i->service_type, 'quoted_price' => $i->quoted_price,
+            'service_type' => $i->service_type, 'equipment_type' => $i->equipment_type,
+            'quoted_price' => $i->quoted_price,
             'created_at' => $i->created_at, 'confirmed_date_time' => $i->confirmed_date_time,
             'address' => $i->address, 'zip_code' => $i->zip_code,
             'latitude' => $i->latitude, 'longitude' => $i->longitude,
@@ -50,13 +51,13 @@ class DashboardController extends Controller
         ])->values();
 
         return view('admin.dashboard', [
-            'section'        => $section,
-            'inquiries'      => $inquiries,
+            'section' => $section,
+            'inquiries' => $inquiries,
             'statsInquiries' => $statsInquiries,
-            'counts'         => $counts,
-            'services'       => ServiceCatalog::orderByDesc('active')->orderBy('key')->get(),
-            'equipment'      => EquipmentType::orderByDesc('active')->orderBy('name')->get(),
-            'admins'         => Admin::orderBy('created_at')->get(),
+            'counts' => $counts,
+            'services' => ServiceCatalog::orderByDesc('active')->orderBy('key')->get(),
+            'equipment' => EquipmentType::orderByDesc('active')->orderBy('name')->get(),
+            'admins' => Admin::orderBy('created_at')->get(),
         ]);
     }
 }

@@ -4,7 +4,9 @@ use App\Http\Controllers\Admin\AddressController;
 use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CalendarController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\EmployeeCalendarController;
 use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
@@ -57,52 +59,67 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
     // Everything else requires the password to be changed first.
     Route::middleware('admin.password')->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
-        Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
+        // Employee schedule — any logged-in user (their assigned visits only).
+        Route::get('/my-schedule', [EmployeeCalendarController::class, 'index'])->name('my-schedule');
+        Route::get('/my-schedule/job/{id}', [EmployeeCalendarController::class, 'job'])->name('my-schedule.job');
+        Route::post('/my-schedule/job/{id}/status', [EmployeeCalendarController::class, 'updateStatus'])->name('my-schedule.status');
+        Route::post('/my-schedule/job/{id}/time/{which}', [EmployeeCalendarController::class, 'recordTime'])
+            ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.time');
+        Route::post('/my-schedule/job/{id}/sign', [EmployeeCalendarController::class, 'sign'])->name('my-schedule.sign');
+        Route::post('/my-schedule/job/{id}/comment', [EmployeeCalendarController::class, 'addComment'])->name('my-schedule.comment');
 
-        Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
-        Route::get('/calendar/embed', [CalendarController::class, 'embed'])->name('calendar.embed');
-        // Placeholder replaced in Phase 9.
-        Route::get('/print/rental-agreement/{id}', fn (string $id) => 'Print — built in Phase 9')->name('print.rental-agreement');
+        // Everything below is full-admin only.
+        Route::middleware('role.admin')->group(function () {
+            Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+            Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
+            Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 
-        // Admin accounts CRUD (JSON).
-        Route::get('/admins', [AdminAccountController::class, 'index'])->name('admins.index');
-        Route::post('/admins', [AdminAccountController::class, 'store'])->name('admins.store');
-        Route::patch('/admins/{id}', [AdminAccountController::class, 'update'])->name('admins.update');
-        Route::delete('/admins/{id}', [AdminAccountController::class, 'destroy'])->name('admins.destroy');
+            Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
+            Route::get('/calendar/embed', [CalendarController::class, 'embed'])->name('calendar.embed');
+            Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
+            // Placeholder replaced in Phase 9.
+            Route::get('/print/rental-agreement/{id}', fn (string $id) => 'Print — built in Phase 9')->name('print.rental-agreement');
 
-        // Admin JSON API (session + CSRF).
-        Route::prefix('api')->name('api.')->group(function () {
-            Route::get('/inquiries', [InquiryApiController::class, 'index'])->name('inquiries.index');
-            Route::post('/inquiries', [InquiryApiController::class, 'store'])->name('inquiries.store');
-            Route::get('/inquiries/counts', [InquiryApiController::class, 'counts'])->name('inquiries.counts');
-            Route::get('/inquiries/{id}', [InquiryApiController::class, 'show'])->name('inquiries.show');
-            Route::patch('/inquiries/{id}', [InquiryApiController::class, 'update'])->name('inquiries.update');
-            Route::get('/inquiries/{id}/history', [InquiryApiController::class, 'history'])->name('inquiries.history');
-            Route::post('/inquiries/{id}/audit', [InquiryApiController::class, 'audit'])->name('inquiries.audit');
-            Route::post('/inquiries/{id}/rental-agreement', [InquiryApiController::class, 'agreement'])->name('inquiries.agreement');
-            Route::delete('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'destroy'])->name('rental-agreement.destroy');
-            Route::post('/inquiries/{id}/payment-link', [InquiryApiController::class, 'paymentLink'])->name('inquiries.payment-link');
-            Route::delete('/payment-link/{id}', [PaymentLinkController::class, 'destroy'])->name('payment-link.destroy');
+            // Admin accounts CRUD (JSON).
+            Route::get('/admins', [AdminAccountController::class, 'index'])->name('admins.index');
+            Route::post('/admins', [AdminAccountController::class, 'store'])->name('admins.store');
+            Route::patch('/admins/{id}', [AdminAccountController::class, 'update'])->name('admins.update');
+            Route::delete('/admins/{id}', [AdminAccountController::class, 'destroy'])->name('admins.destroy');
 
-            // Service catalog
-            Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');
-            Route::post('/services', [ServiceCatalogController::class, 'store'])->name('services.store');
-            Route::patch('/services/{id}', [ServiceCatalogController::class, 'update'])->name('services.update');
-            Route::delete('/services/{id}', [ServiceCatalogController::class, 'destroy'])->name('services.destroy');
+            // Admin JSON API (session + CSRF).
+            Route::prefix('api')->name('api.')->group(function () {
+                Route::get('/inquiries', [InquiryApiController::class, 'index'])->name('inquiries.index');
+                Route::post('/inquiries', [InquiryApiController::class, 'store'])->name('inquiries.store');
+                Route::post('/inquiries/{id}/clone', [InquiryApiController::class, 'clone'])->name('inquiries.clone');
+                Route::get('/inquiries/counts', [InquiryApiController::class, 'counts'])->name('inquiries.counts');
+                Route::get('/inquiries/{id}', [InquiryApiController::class, 'show'])->name('inquiries.show');
+                Route::patch('/inquiries/{id}', [InquiryApiController::class, 'update'])->name('inquiries.update');
+                Route::get('/inquiries/{id}/history', [InquiryApiController::class, 'history'])->name('inquiries.history');
+                Route::post('/inquiries/{id}/audit', [InquiryApiController::class, 'audit'])->name('inquiries.audit');
+                Route::post('/inquiries/{id}/comments', [InquiryApiController::class, 'comment'])->name('inquiries.comment');
+                Route::post('/inquiries/{id}/rental-agreement', [InquiryApiController::class, 'agreement'])->name('inquiries.agreement');
+                Route::delete('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'destroy'])->name('rental-agreement.destroy');
+                Route::post('/inquiries/{id}/payment-link', [InquiryApiController::class, 'paymentLink'])->name('inquiries.payment-link');
+                Route::delete('/payment-link/{id}', [PaymentLinkController::class, 'destroy'])->name('payment-link.destroy');
 
-            // Address autocomplete (OpenStreetMap)
-            Route::get('/address-suggest', [AddressController::class, 'suggest'])->name('address.suggest');
+                // Service catalog
+                Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');
+                Route::post('/services', [ServiceCatalogController::class, 'store'])->name('services.store');
+                Route::patch('/services/{id}', [ServiceCatalogController::class, 'update'])->name('services.update');
+                Route::delete('/services/{id}', [ServiceCatalogController::class, 'destroy'])->name('services.destroy');
 
-            // Site content (marketing copy + serving areas)
-            Route::patch('/content', [SiteContentController::class, 'update'])->name('content.update');
+                // Address autocomplete (OpenStreetMap)
+                Route::get('/address-suggest', [AddressController::class, 'suggest'])->name('address.suggest');
 
-            // Equipment catalog
-            Route::get('/equipment', [AdminEquipmentController::class, 'index'])->name('equipment.index');
-            Route::post('/equipment', [AdminEquipmentController::class, 'store'])->name('equipment.store');
-            Route::patch('/equipment/{id}', [AdminEquipmentController::class, 'update'])->name('equipment.update');
-            Route::delete('/equipment/{id}', [AdminEquipmentController::class, 'destroy'])->name('equipment.destroy');
-        });
+                // Site content (marketing copy + serving areas)
+                Route::patch('/content', [SiteContentController::class, 'update'])->name('content.update');
+
+                // Equipment catalog
+                Route::get('/equipment', [AdminEquipmentController::class, 'index'])->name('equipment.index');
+                Route::post('/equipment', [AdminEquipmentController::class, 'store'])->name('equipment.store');
+                Route::patch('/equipment/{id}', [AdminEquipmentController::class, 'update'])->name('equipment.update');
+                Route::delete('/equipment/{id}', [AdminEquipmentController::class, 'destroy'])->name('equipment.destroy');
+            });
+        }); // end role.admin
     });
 });

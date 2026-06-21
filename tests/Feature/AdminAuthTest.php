@@ -49,6 +49,7 @@ class AdminAuthTest extends TestCase
         $this->withSession([
             'admin_id' => $admin->id,
             'admin_username' => $admin->username,
+            'admin_role' => 'admin',
             'admin_must_change' => true,
         ])->get('/admin')->assertRedirect(route('admin.change-password'));
     }
@@ -60,6 +61,7 @@ class AdminAuthTest extends TestCase
         $this->withSession([
             'admin_id' => $admin->id,
             'admin_username' => $admin->username,
+            'admin_role' => 'admin',
             'admin_must_change' => true,
         ])->postJson(route('admin.change-password.update'), ['newPassword' => 'newsecret'])
             ->assertOk()
@@ -72,6 +74,7 @@ class AdminAuthTest extends TestCase
         $this->withSession([
             'admin_id' => $admin->id,
             'admin_username' => $admin->username,
+            'admin_role' => 'admin',
             'admin_must_change' => false,
         ])->get('/admin')->assertOk();
     }
@@ -82,6 +85,7 @@ class AdminAuthTest extends TestCase
         $this->withSession([
             'admin_id' => $admin->id,
             'admin_username' => $admin->username,
+            'admin_role' => 'admin',
             'admin_must_change' => false,
         ])->deleteJson(route('admin.admins.destroy', $admin->id))
             ->assertStatus(400);
@@ -93,6 +97,7 @@ class AdminAuthTest extends TestCase
         $this->withSession([
             'admin_id' => $admin->id,
             'admin_username' => $admin->username,
+            'admin_role' => 'admin',
             'admin_must_change' => false,
         ])->postJson(route('admin.logout'))->assertOk();
     }

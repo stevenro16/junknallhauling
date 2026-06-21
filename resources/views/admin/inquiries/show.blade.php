@@ -8,6 +8,7 @@
         equipment: @js($equipment),
         services: @js($services),
         allInquiries: @js($allInquiries),
+        employees: @js($employees),
         scheduleEvents: @js($scheduleEvents),
         history: @js($history),
         urls: {
@@ -98,6 +99,23 @@
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="tel" x-model="phone" class="input-light text-sm py-1.5 w-full" placeholder="Phone number"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
                     </div>
+
+                    {{-- A prior order shares this phone/email — offer to pull that customer's saved info in. --}}
+                    <template x-if="customerMatch">
+                        <div class="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                            <x-icon name="user" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"/>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-amber-900">Previous order for this customer</div>
+                                <div class="text-xs text-amber-800 mt-0.5 truncate">
+                                    <span class="font-semibold" x-text="customerMatch.name || 'Unnamed'"></span><template x-if="customerMatch.ref"><span> · <span class="font-mono" x-text="customerMatch.ref"></span></span></template><span> · <span x-text="date(customerMatch.created_at)"></span></span>
+                                </div>
+                            </div>
+                            <button type="button" @click="pullCustomerInfo()"
+                                    class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md text-white"
+                                    :class="customerPulled ? 'bg-emerald-500' : 'bg-amber-500 hover:bg-amber-600'"
+                                    x-text="customerPulled ? 'Pulled ✓' : 'Use this info'"></button>
+                        </div>
+                    </template>
 
                     <template x-if="isEditingCustomer">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -300,6 +318,13 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Notes <span class="text-xs text-emerald-600">(visible to customer)</span></label>
                         <textarea rows="2" x-model="adminNotes" placeholder="Updates, instructions, or notes for the customer..." class="input-light text-sm py-2 w-full resize-none"></textarea>
+                        <div x-show="currentCatalogDescription" x-cloak class="flex justify-end mt-1.5">
+                            <button type="button" @click="pullCatalogDescription()"
+                                    class="text-xs font-medium text-amber-600 hover:text-amber-700 inline-flex items-center gap-1">
+                                <x-icon name="plus" class="w-3.5 h-3.5"/>
+                                Add <span x-text="isEquipment ? 'equipment' : 'service'"></span> description
+                            </button>
+                        </div>
                     </div>
 
                 </div>
@@ -313,9 +338,23 @@
             <div class="card-light border-l-2 border-[#F8C820] p-5">
                 <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Visit Date &amp; Time</div><div class="h-px flex-1 bg-gray-200"></div></div>
                 <div class="space-y-3">
+                    {{-- Assigned employee --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Assigned To</label>
+                        <select x-model="assignedEmployeeId" class="input-light text-sm py-2 w-full">
+                            <option value="">Unassigned</option>
+                            @foreach($employees as $emp)
+                                <option value="{{ $emp->id }}">{{ $emp->username }}</option>
+                            @endforeach
+                        </select>
+                        @if($employees->isEmpty())
+                            <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Admin Accounts.</p>
+                        @endif
+                    </div>
+
                     {{-- Date / Time / Duration --}}
                     <div>
-                        <div class="grid grid-cols-3 gap-3">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <div class="text-sm font-medium text-gray-700 mb-1.5">Date</div>
                                 <input type="date" :value="datePart(confirmedDateTime)" @change="setConfirmedDate($event.target.value)" class="input-light text-sm py-2 w-full">
@@ -327,14 +366,14 @@
                                     <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
                                 </select>
                             </div>
-                            <div>
-                                <div class="text-sm font-medium text-gray-700 mb-1.5">Duration</div>
-                                <div class="flex items-center gap-1">
-                                    <button type="button" @click="stepDuration(-1)" class="w-7 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">&minus;</button>
-                                    <input type="number" x-model="expectedDurationValue" class="input-light text-sm py-2 w-12 text-center px-1" placeholder="—">
-                                    <select x-model="expectedDurationUnit" class="input-light text-sm py-2 w-16 px-1"><option value="hours">hrs</option><option value="days">days</option></select>
-                                    <button type="button" @click="stepDuration(1)" class="w-7 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">+</button>
-                                </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="text-sm font-medium text-gray-700 mb-1.5">Duration</div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="stepDuration(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">&minus;</button>
+                                <input type="number" x-model="expectedDurationValue" class="input-light text-sm py-2 flex-1 min-w-0 text-center px-1" placeholder="—">
+                                <select x-model="expectedDurationUnit" class="input-light text-sm py-2 w-20 px-1 shrink-0"><option value="hours">hrs</option><option value="days">days</option></select>
+                                <button type="button" @click="stepDuration(1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">+</button>
                             </div>
                         </div>
                         <template x-if="inquiry.preferred_day || inquiry.preferred_time">
@@ -382,6 +421,10 @@
                                             <x-icon name="map-pin" class="w-3 h-3 shrink-0 mt-px text-gray-400"/>
                                             <span class="truncate" x-text="ev.address"></span>
                                         </div>
+                                        <div x-show="ev.assigned_employee" x-cloak class="mt-0.5 flex items-center gap-1 text-amber-700">
+                                            <x-icon name="user" class="w-3 h-3 shrink-0 text-amber-500"/>
+                                            <span class="truncate" x-text="ev.assigned_employee"></span>
+                                        </div>
                                     </div>
                                     <div class="flex items-center gap-1 shrink-0 pt-0.5">
                                         <span x-show="ev.conflict" x-cloak class="text-[10px] font-semibold text-red-600">conflict</span>
@@ -392,6 +435,36 @@
                             <div x-show="dayOtherCount === 0" x-cloak class="text-[11px] text-emerald-600 px-1 py-0.5">&check; No other visits scheduled this day.</div>
                         </div>
                     </div>
+
+                    {{-- Move to Scheduled + optional customer notification (once a date & time are set) --}}
+                    <template x-if="canSchedule">
+                        <div class="rounded-xl border border-[#F8C820]/60 bg-amber-50/60 p-3">
+                            <div class="flex items-start gap-2">
+                                <x-icon name="calendar" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"/>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-semibold text-amber-900">Mark this quote as Scheduled?</div>
+                                    <div class="text-xs text-amber-800/90 mt-0.5" x-text="scheduledSummary"></div>
+                                </div>
+                            </div>
+                            <label class="mt-2.5 flex items-start gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                                <input type="checkbox" x-model="notifyCustomer" class="mt-0.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                                <span>Notify the customer of the visit via their preferred method (<span class="font-medium" x-text="preferredMethodLabel"></span>)</span>
+                            </label>
+                            <button type="button" @click="markScheduled()" :disabled="saving" class="mt-3 w-full btn-primary py-2 text-sm">
+                                <span x-text="saving ? 'Saving…' : (notifyCustomer ? 'Schedule &amp; Notify Customer' : 'Mark as Scheduled')"></span>
+                            </button>
+                        </div>
+                    </template>
+
+                    {{-- Already scheduled — offer to (re)send the visit confirmation --}}
+                    <template x-if="hasConfirmedSlot && status === 'scheduled'">
+                        <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 flex items-center justify-between gap-2">
+                            <div class="text-xs text-emerald-700 inline-flex items-center gap-1.5"><x-icon name="check-circle" class="w-4 h-4"/> Scheduled</div>
+                            <button type="button" @click="notifyCustomerOfVisit()" class="text-xs font-medium text-amber-600 hover:text-amber-700 inline-flex items-center gap-1">
+                                Send visit confirmation (<span x-text="preferredMethodLabel"></span>)
+                            </button>
+                        </div>
+                    </template>
 
                     {{-- Day calendar popup — iframe of the selected day's calendar --}}
                     <div x-show="showCalendarModal" x-cloak
@@ -467,6 +540,36 @@
                 </div>
 
                 @include('partials.admin.rental-agreement-panel')
+
+                {{-- Notes & comments (internal + customer-visible) --}}
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    @include('partials.admin.comment-thread', ['postUrl' => route('admin.api.inquiries.comment', $inquiry->id), 'comments' => $comments])
+                </div>
+
+                {{-- Service Visit — field record captured by the assigned employee (read-only) --}}
+                @if($inquiry->arrived_at || $inquiry->departed_at || $inquiry->service_signature)
+                    <div class="bg-white border border-gray-200 rounded-xl p-4">
+                        <div class="text-sm font-medium text-gray-700 mb-3">Service Visit</div>
+                        <dl class="text-sm space-y-2">
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">Arrived</dt>
+                                <dd class="text-gray-900 text-right">{{ $inquiry->arrived_at ? $inquiry->arrived_at->format('D, M j · g:i A') : '—' }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-gray-500">Departed</dt>
+                                <dd class="text-gray-900 text-right">{{ $inquiry->departed_at ? $inquiry->departed_at->format('D, M j · g:i A') : '—' }}</dd>
+                            </div>
+                        </dl>
+                        @if($inquiry->service_signature)
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <div class="text-xs text-gray-500 mb-1">Customer signature
+                                    @if($inquiry->service_signed_at)<span class="text-gray-400">· {{ $inquiry->service_signed_at->format('M j, g:i A') }}</span>@endif
+                                </div>
+                                <img src="{{ $inquiry->service_signature }}" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-28">
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 <template x-if="history.length > 0">
                     <div>

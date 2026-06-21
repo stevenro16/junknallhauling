@@ -20,7 +20,7 @@ class AdminInquiryTest extends TestCase
         ]);
 
         return $this->withSession([
-            'admin_id' => $admin->id, 'admin_username' => $admin->username, 'admin_must_change' => false,
+            'admin_id' => $admin->id, 'admin_username' => $admin->username, 'admin_role' => 'admin', 'admin_must_change' => false,
         ]);
     }
 

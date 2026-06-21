@@ -84,6 +84,16 @@
                     <p class="text-slate-800 whitespace-pre-wrap" x-text="inq.admin_notes"></p>
                 </div>
 
+                <div x-show="inq.comments && inq.comments.length" x-cloak class="mt-4 space-y-2">
+                    <div class="text-xs uppercase tracking-widest text-slate-500 font-bold">Updates from our team</div>
+                    <template x-for="c in (inq.comments || [])" :key="c.id">
+                        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r">
+                            <p class="text-slate-800 whitespace-pre-wrap" x-text="c.body"></p>
+                            <div class="text-[11px] text-slate-500 mt-1" x-text="dateTime(c.created_at)"></div>
+                        </div>
+                    </template>
+                </div>
+
                 <div x-show="inq.initial_estimated_quote" class="mt-4 pt-4 border-t border-gray-200">
                     <div class="text-xs uppercase tracking-widest text-emerald-600 font-bold mb-1.5">INITIAL QUOTE</div>
                     <div class="text-lg font-semibold text-emerald-700">$<span x-text="money(inq.initial_estimated_quote)"></span></div>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -22,6 +23,9 @@ class Inquiry extends Model
             'quoted_price' => 'float',
             'equipment_rental_duration' => 'integer',
             'expected_duration_minutes' => 'integer',
+            'arrived_at' => 'datetime',
+            'departed_at' => 'datetime',
+            'service_signed_at' => 'datetime',
             'quote_verified' => 'boolean',
             'address_verified' => 'boolean',
             'date_time_verified' => 'boolean',
@@ -61,6 +65,16 @@ class Inquiry extends Model
     public function paymentLinks(): HasMany
     {
         return $this->hasMany(PaymentLink::class, 'inquiry_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(InquiryComment::class, 'inquiry_id');
+    }
+
+    public function assignedEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'assigned_employee_id');
     }
 
     /** Status-history rows that represent verification events (public-visible subset). */

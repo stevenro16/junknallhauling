@@ -22,6 +22,7 @@ class CalendarController extends Controller
             'time' => (string) $request->query('time', ''),
             'duration' => max(15, (int) $request->query('duration', 120)),
             'label' => (string) $request->query('label', 'This visit'),
+            'exclude' => (string) $request->query('exclude', ''),
         ]);
     }
 
@@ -30,6 +31,7 @@ class CalendarController extends Controller
     {
         return Inquiry::whereNotNull('confirmed_date_time')
             ->where('status', '!=', 'cancelled')
+            ->with('assignedEmployee:id,username')
             ->orderBy('confirmed_date_time')
             ->get()
             ->map(fn (Inquiry $i) => [
@@ -37,6 +39,7 @@ class CalendarController extends Controller
                 'service_type' => $i->service_type, 'address' => $i->address,
                 'confirmed_date_time' => $i->confirmed_date_time,
                 'expected_duration_minutes' => $i->expected_duration_minutes ?? 120,
+                'assigned_employee' => $i->assignedEmployee?->username,
             ])->values();
     }
 }

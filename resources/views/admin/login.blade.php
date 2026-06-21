@@ -58,7 +58,8 @@ function adminLogin() {
                     if (this.remember) localStorage.setItem('admin_remembered_username', this.username);
                     else localStorage.removeItem('admin_remembered_username');
                     const data = await res.json();
-                    window.location.href = data.mustChangePassword ? '{{ route('admin.change-password') }}' : '{{ route('admin.dashboard') }}';
+                    const home = data.role === 'employee' ? '{{ route('admin.my-schedule') }}' : '{{ route('admin.dashboard') }}';
+                    window.location.href = data.mustChangePassword ? '{{ route('admin.change-password') }}' : home;
                 } else {
                     const data = await res.json().catch(() => ({}));
                     this.error = data.error || 'Login failed.';

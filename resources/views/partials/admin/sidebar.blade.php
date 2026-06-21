@@ -5,18 +5,29 @@
     $qsection = request()->query('section', 'inquiries');
     $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
     $onCalendar = $path === 'admin/calendar';
+    $onCustomers = $path === 'admin/customers';
+    $isEmployee = session('admin_role') === 'employee';
 
-    $main = [
-        ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
-        ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
-        ['key' => 'stats', 'label' => 'Analytics', 'icon' => 'bar-chart', 'href' => route('admin.dashboard', ['section' => 'stats']), 'active' => $current === 'stats'],
-    ];
-    $settingsItems = [
-        ['key' => 'content', 'label' => 'Site Content', 'icon' => 'pencil', 'href' => route('admin.dashboard', ['section' => 'content']), 'active' => $current === 'content'],
-        ['key' => 'admins', 'label' => 'Admin Accounts', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
-        ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
-        ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
-    ];
+    if ($isEmployee) {
+        // Employees only get their own schedule.
+        $main = [
+            ['key' => 'my-schedule', 'label' => 'My Schedule', 'icon' => 'calendar', 'href' => route('admin.my-schedule'), 'active' => str_starts_with($path, 'admin/my-schedule')],
+        ];
+        $settingsItems = [];
+    } else {
+        $main = [
+            ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
+            ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
+            ['key' => 'customers', 'label' => 'Customers', 'icon' => 'user', 'href' => route('admin.customers'), 'active' => $onCustomers],
+            ['key' => 'stats', 'label' => 'Analytics', 'icon' => 'bar-chart', 'href' => route('admin.dashboard', ['section' => 'stats']), 'active' => $current === 'stats'],
+        ];
+        $settingsItems = [
+            ['key' => 'content', 'label' => 'Site Content', 'icon' => 'pencil', 'href' => route('admin.dashboard', ['section' => 'content']), 'active' => $current === 'content'],
+            ['key' => 'admins', 'label' => 'Admin Accounts', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
+            ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
+            ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
+        ];
+    }
     $activeCls = 'bg-[#F8C820]/10 text-[#F8C820] border border-[#EAB308]/30';
     $idleCls = 'text-gray-300 hover:bg-charcoal-700 hover:text-white';
 @endphp
@@ -63,11 +74,13 @@
             </a>
         @endforeach
 
-        @if($collapsible)
-            <div class="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-gray-500" x-show="navExpanded" x-cloak>Settings</div>
-            <div class="mx-3 my-3 border-t border-charcoal-700" x-show="!navExpanded" x-cloak></div>
-        @else
-            <div class="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Settings</div>
+        @if(count($settingsItems))
+            @if($collapsible)
+                <div class="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-gray-500" x-show="navExpanded" x-cloak>Settings</div>
+                <div class="mx-3 my-3 border-t border-charcoal-700" x-show="!navExpanded" x-cloak></div>
+            @else
+                <div class="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Settings</div>
+            @endif
         @endif
 
         @foreach($settingsItems as $item)
