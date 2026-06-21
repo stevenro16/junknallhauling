@@ -24,14 +24,26 @@ class AdminCatalogTest extends TestCase
     {
         $a = $this->actingAdmin();
 
-        $a->postJson('/admin/api/services', ['key' => 'junk-removal', 'label' => 'Junk Removal', 'default_price' => 375, 'default_duration_minutes' => 120])
+        // Key is derived from the service name (admin no longer provides one).
+        $a->postJson('/admin/api/services', ['label' => 'Junk Removal', 'default_price' => 375, 'default_duration_minutes' => 120])
             ->assertStatus(201);
-
         $svc = ServiceCatalog::first();
-        $a->postJson('/admin/api/services', ['key' => 'junk-removal', 'label' => 'dup'])->assertStatus(409);
+        $this->assertSame('junk-removal', $svc->key);
+
+        // A same-named service gets a unique key rather than colliding.
+        $a->postJson('/admin/api/services', ['label' => 'Junk Removal'])->assertStatus(201);
+        $this->assertTrue(ServiceCatalog::where('key', 'junk-removal-2')->exists());
+        $this->assertSame(2, ServiceCatalog::where('label', 'Junk Removal')->count());
+
+        // A name is required.
+        $a->postJson('/admin/api/services', ['label' => ''])->assertStatus(400);
 
         $a->patchJson("/admin/api/services/{$svc->id}", ['default_price' => 400])->assertOk();
         $this->assertEquals(400.0, $svc->fresh()->default_price);
+
+        // Customer instructions (for later workflows).
+        $a->patchJson("/admin/api/services/{$svc->id}", ['customer_instructions' => 'Bring a gate key'])->assertOk();
+        $this->assertSame('Bring a gate key', $svc->fresh()->customer_instructions);
 
         // Customer visibility toggle (separate from active; visible by default).
         $this->assertTrue($svc->fresh()->customer_visible);
@@ -52,6 +64,10 @@ class AdminCatalogTest extends TestCase
 
         $a->patchJson("/admin/api/equipment/{$eq->id}", ['daily_rate' => 600])->assertOk();
         $this->assertEquals(600.0, $eq->fresh()->daily_rate);
+
+        // Customer instructions (for later workflows).
+        $a->patchJson("/admin/api/equipment/{$eq->id}", ['customer_instructions' => 'Operator must be certified'])->assertOk();
+        $this->assertSame('Operator must be certified', $eq->fresh()->customer_instructions);
 
         // Customer visibility toggle (separate from active; visible by default).
         $this->assertTrue($eq->fresh()->customer_visible);
