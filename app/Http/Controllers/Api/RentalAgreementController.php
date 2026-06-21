@@ -37,22 +37,23 @@ class RentalAgreementController extends Controller
 
         return response()->json([
             'agreement' => [
-                'token'      => $agreement->token,
+                'token' => $agreement->token,
                 'expires_at' => $agreement->expires_at,
             ],
             'inquiry' => [
-                'ref'                       => $inquiry->ref,
-                'name'                      => $inquiry->name,
-                'phone'                     => $inquiry->phone,
-                'email'                     => $inquiry->email,
-                'service_type'              => $inquiry->service_type,
-                'equipment_type'            => $inquiry->equipment_type,
+                'ref' => $inquiry->ref,
+                'name' => $inquiry->name,
+                'phone' => $inquiry->phone,
+                'email' => $inquiry->email,
+                'service_type' => $inquiry->service_type,
+                'equipment_type' => $inquiry->equipment_type,
                 'equipment_rental_duration' => $inquiry->equipment_rental_duration,
-                'equipment_rental_unit'     => $inquiry->equipment_rental_unit,
-                'quoted_price'              => $inquiry->quoted_price,
-                'confirmed_date_time'       => $inquiry->confirmed_date_time,
-                'address'                   => $inquiry->address,
-                'admin_notes'               => $inquiry->admin_notes,
+                'equipment_rental_unit' => $inquiry->equipment_rental_unit,
+                'quoted_price' => $inquiry->quoted_price,
+                'confirmed_date_time' => $inquiry->confirmed_date_time,
+                'pickup_date_time' => $inquiry->pickup_date_time,
+                'address' => $inquiry->address,
+                'admin_notes' => $inquiry->admin_notes,
             ],
         ]);
     }
@@ -63,7 +64,7 @@ class RentalAgreementController extends Controller
      */
     public function sign(string $token, Request $request): JsonResponse
     {
-        $formData  = $request->input('form_data');
+        $formData = $request->input('form_data');
         $signature = $request->input('signature_base64');
 
         if (! $formData || ! $signature) {
@@ -90,10 +91,10 @@ class RentalAgreementController extends Controller
         // One-time use guard at the SQL level. A query-builder update() bypasses
         // the form_data array cast, so encode it explicitly.
         RentalAgreement::where('token', $token)->whereNull('signed_at')->update([
-            'form_data'        => json_encode($formData),
+            'form_data' => json_encode($formData),
             'signature_base64' => $signature,
-            'signed_at'        => $signedAt,
-            'ip_address'       => $ip ?: null,
+            'signed_at' => $signedAt,
+            'ip_address' => $ip ?: null,
         ]);
 
         return response()->json(['success' => true, 'signed_at' => $signedAt]);

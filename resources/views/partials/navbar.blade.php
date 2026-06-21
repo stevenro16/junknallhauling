@@ -32,7 +32,7 @@
                 <div class="border-l border-white/15 pl-5 ml-2 flex items-center gap-4">
                     @if($isAdmin)
                         <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-1.5 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors">
-                            <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                            <x-icon name="lock" class="w-3 h-3"/> Login Portal
                         </a>
                         <div class="relative" @click.outside="menuOpen = false">
                             <button type="button" @click="menuOpen = !menuOpen"
@@ -56,7 +56,7 @@
                     @else
                         <button type="button" @click="openLogin()"
                                 class="flex items-center gap-1.5 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors">
-                            <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                            <x-icon name="lock" class="w-3 h-3"/> Login Portal
                         </button>
                     @endif
                 </div>
@@ -85,14 +85,14 @@
                 </a>
                 @if($isAdmin)
                     <a href="{{ route('admin.dashboard') }}" @click="mobileOpen = false" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors">
-                        <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                        <x-icon name="lock" class="w-3 h-3"/> Login Portal
                     </a>
                     <button type="button" @click="mobileOpen = false; signOut()" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-red-400 hover:text-red-300 transition-colors text-left">
                         <x-icon name="log-out" class="w-3 h-3"/> Sign Out
                     </button>
                 @else
                     <button type="button" @click="mobileOpen = false; openLogin()" class="py-3 flex items-center gap-2 text-xs uppercase tracking-[1.5px] text-slate-400 hover:text-[#F8C820] transition-colors text-left">
-                        <x-icon name="lock" class="w-3 h-3"/> Admin Portal
+                        <x-icon name="lock" class="w-3 h-3"/> Login Portal
                     </button>
                 @endif
             </div>
@@ -108,9 +108,9 @@
             </button>
             <div class="flex items-center gap-2.5 mb-1">
                 <x-icon name="lock" class="w-5 h-5 text-[#F8C820]"/>
-                <h3 class="text-xl font-semibold text-gray-100">Admin Login</h3>
+                <h3 class="text-xl font-semibold text-gray-100">Login Portal</h3>
             </div>
-            <p class="text-sm text-gray-400 mb-6">Sign in to the admin portal.</p>
+            <p class="text-sm text-gray-400 mb-6">Sign in to the portal.</p>
             <form @submit.prevent="submitLogin()" class="space-y-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1.5">Username</label>

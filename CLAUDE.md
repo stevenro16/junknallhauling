@@ -11,8 +11,12 @@ dumpster-rental, light-demolition and equipment-rental business serving the Inla
 
 - **Public site:** home, services/pricing, about, reviews, contact (quote request with photo upload),
   and a customer "check status" lookup. Plus a tokenized rental-agreement signing page.
-- **Admin portal** (`/admin`): inquiry pipeline, calendar, service & equipment catalogs, admin-account
-  management. Custom session auth (not Laravel's `auth` scaffolding).
+- **Admin portal** (`/admin`): inquiry pipeline, calendar (day / 3-day / 5-day / week, with an embedded
+  day-picker for scheduling visits + equipment pickups), analytics, customer search/reports, service &
+  equipment catalogs, admin-account management. Custom session auth (not Laravel's `auth` scaffolding).
+- **Employee portal** (`/admin/my-schedule`): field staff log in to a day/3-day/week calendar of *only*
+  their assigned visits & pickups, open a job sheet, add notes, and advance status / collect an arrival
+  signature in the field. Role-gated — employees can't reach the admin CRM.
 
 It was **ported from an earlier Next.js app**, which is why the public JSON API under `/api/*` mirrors
 the old Next.js route shape and the Alpine front-end calls it with `fetch()`.
@@ -46,13 +50,14 @@ app/
   Http/Controllers/
     Public/      ContactController, StatusController, RentalAgreementController  (render Blade)
     Api/         Service, Equipment, Lookup, Quote, Ip, RentalAgreement         (stateless JSON)
-    Admin/       Auth, Dashboard, Inquiry, InquiryApi, Calendar,
-                 ServiceCatalog, Equipment, AdminAccount
+    Admin/       Auth, Dashboard, Inquiry, InquiryApi, Calendar, EmployeeCalendar, Customer,
+                 EodReport, ServiceCatalog, Equipment, AdminAccount, SiteContent, PaymentLink, Address
   Http/Middleware/
-    EnsureAdmin.php           (alias: 'admin')          — session admin guard
+    EnsureAdmin.php           (alias: 'admin')          — session login guard (any role)
+    EnsureAdminRole.php       (alias: 'role.admin')     — admin-only gate (employees → my-schedule/403)
     RequirePasswordChange.php (alias: 'admin.password') — forces first-login pw change
-  Models/        Admin, Inquiry, InquiryStatusHistory, RentalAgreement,
-                 EquipmentType, ServiceCatalog, User
+  Models/        Admin, Inquiry, InquiryStatusHistory, InquiryComment, RentalAgreement,
+                 EquipmentType, ServiceCatalog, SiteContent, PaymentLink, User
 config/business.php           Business identity + service/status vocab
 routes/
   web.php        Public pages + /admin/* (session-guarded)
@@ -65,10 +70,14 @@ resources/
     layouts/     public.blade.php, admin.blade.php, bare.blade.php
     partials/    navbar, footer, admin/*
     public/      home, services, about, reviews, contact, status, rental-agreement
-    admin/       dashboard, calendar, login, inquiries/*, change-password
+    admin/       dashboard, calendar, calendar-embed, my-schedule, eod-report, login,
+                 inquiries/*, change-password
 database/
   migrations/    users, cache, jobs (framework) + inquiries, inquiry_status_history,
-                 admins, equipment_types, service_catalog, rental_agreements
+                 inquiry_comments, admins, equipment_types, service_catalog,
+                 rental_agreements, site_content, payment_links + incremental adds:
+                 employee role/assignment, service-visit log, pickup date/duration/assignee,
+                 urgency, admin active flag
   seeders/       AdminSeeder, EquipmentTypeSeeder, ServiceCatalogSeeder, DemoInquirySeeder
   sqlite-to-mysql.php   Generator: dumps SQLite -> MySQL .sql for phpMyAdmin import (see §7)
 ```
@@ -117,15 +126,22 @@ php artisan tinker
 - **Public API (`routes/api.php`)** is **stateless — no session, no CSRF**. The Alpine front-end POSTs to
   `/api/quote` etc. with `window.jsonHeaders()` (no CSRF token). Exceptions there render as JSON
   (`shouldRenderJsonWhen api/*`).
-- **Admin auth is custom**, not Laravel's `auth`. `EnsureAdmin` guards `/admin/*` via session; new admins
-  are forced through a password change (`RequirePasswordChange`) before reaching the dashboard. The admin
-  JSON API is under `/admin/api/*` (session + CSRF).
+- **Admin auth is custom**, not Laravel's `auth`. `EnsureAdmin` guards `/admin/*` via session; new accounts
+  are forced through a password change (`RequirePasswordChange`) before reaching the app. The admin JSON
+  API is under `/admin/api/*` (session + CSRF).
+- **Roles.** `admins.role` is `admin` | `employee`. `EnsureAdminRole` (`role.admin`) wraps the admin-only
+  routes; employees are redirected to **My Schedule** (or 403 on JSON). New employees default to password
+  `model123!` and must set a password + email on first login. Visits/pickups carry
+  `assigned_employee_id` / `pickup_assigned_employee_id`; an employee's calendar shows only their own.
 - **IDs:** business tables (`inquiries`, `admins`, `equipment_types`, `service_catalog`,
   `rental_agreements`, `inquiry_status_history`) use **string UUID/ULID** primary keys. Framework tables
   (`users`, `jobs`, `failed_jobs`, `migrations`) use auto-increment integers.
-- **Inquiry status flow:** `new → reviewing → quoted → scheduled → service_performed → completed`
-  (`cancelled` and the off-path `left_voicemail` exist too). Defined in `config/business.php`; status
-  history is tracked in `inquiry_status_history`.
+- **Inquiry status flow:** the main pipeline (`status_options`) is
+  `new → reviewing → quoted → scheduled → service_performed → completed` (+ `cancelled`). Off-path labels
+  also exist (`status_labels`): `left_voicemail`, and the equipment-rental track
+  `equipment_delivered` / `equipment_picked_up`. Defined in `config/business.php`; status history is
+  tracked in `inquiry_status_history`. Quotes also carry an `urgency` flag (`routine` | `urgent`) set on
+  the public form.
 - **Behind a proxy:** GoDaddy/Cloudflare sit in front, so `trustProxies(at: '*')` is set; `$request->ip()`
   (used by `/api/ip` and rental-agreement signing) resolves the real client IP.
 

@@ -1,11 +1,11 @@
 @extends('layouts.bare')
 
-@section('title', 'Admin Access — '.config('business.name'))
+@section('title', 'Login Portal — '.config('business.name'))
 
 @section('content')
 <div class="min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-sm card-dark p-10" x-data="adminLogin()">
-        <h1 class="font-black text-3xl mb-2 text-white">Admin Access</h1>
+        <h1 class="font-black text-3xl mb-2 text-white">Login Portal</h1>
         <p class="text-gray-400 mb-8 text-sm">Sign in with your username and password.</p>
 
         <form @submit.prevent="submit" class="space-y-4">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class CalendarController extends Controller
 {
@@ -23,6 +24,9 @@ class CalendarController extends Controller
             'duration' => max(15, (int) $request->query('duration', 120)),
             'label' => (string) $request->query('label', 'This visit'),
             'exclude' => (string) $request->query('exclude', ''),
+            'target' => $request->query('target') === 'pickup' ? 'pickup' : 'visit',
+            'assignee' => (string) $request->query('assignee', ''),
+            'assigneeName' => (string) $request->query('assignee_name', ''),
         ]);
     }
 
@@ -31,7 +35,7 @@ class CalendarController extends Controller
     {
         $rows = Inquiry::where('status', '!=', 'cancelled')
             ->where(fn ($q) => $q->whereNotNull('confirmed_date_time')->orWhereNotNull('pickup_date_time'))
-            ->with('assignedEmployee:id,username')
+            ->with(['assignedEmployee:id,username', 'pickupAssignedEmployee:id,username'])
             ->orderBy('confirmed_date_time')
             ->get();
 
@@ -41,34 +45,47 @@ class CalendarController extends Controller
     /**
      * Flatten inquiries into calendar entries: one for the delivery/visit
      * (confirmed_date_time) and, for equipment rentals, one for the pickup
-     * (pickup_date_time, 1-hour block). Shared with the employee schedule.
+     * (pickup_date_time). Shared with the employee schedule.
      */
     public static function calendarEntries($rows)
     {
         $events = [];
         foreach ($rows as $i) {
             if ($i->confirmed_date_time) {
-                $events[] = self::entry($i, 'visit', $i->confirmed_date_time, $i->expected_duration_minutes ?? 120);
+                $events[] = self::entry($i, 'visit');
             }
             if ($i->pickup_date_time) {
-                $events[] = self::entry($i, 'pickup', $i->pickup_date_time, 60);
+                $events[] = self::entry($i, 'pickup');
             }
         }
 
         return collect($events)->values();
     }
 
-    private static function entry(Inquiry $i, string $type, string $dt, int $duration): array
+    /** One calendar entry for an inquiry's visit or pickup (datetime/duration/assignee by type). */
+    public static function entry(Inquiry $i, string $type): array
     {
+        $isPickup = $type === 'pickup';
+        $dt = $isPickup ? $i->pickup_date_time : $i->confirmed_date_time;
+        $duration = $isPickup ? ($i->pickup_duration_minutes ?: 60) : ($i->expected_duration_minutes ?? 120);
+        $employee = $isPickup ? $i->pickupAssignedEmployee?->username : $i->assignedEmployee?->username;
+        $assigneeId = $isPickup ? $i->pickup_assigned_employee_id : $i->assigned_employee_id;
+
+        // Flag a pickup scheduled before the delivery visit (illogical → warn).
+        $beforeVisit = $isPickup && $i->confirmed_date_time && $i->pickup_date_time
+            && Carbon::parse($i->pickup_date_time)->lt(Carbon::parse($i->confirmed_date_time));
+
         return [
-            'event_id' => $type === 'pickup' ? $i->id.':pickup' : $i->id,
+            'event_id' => $isPickup ? $i->id.':pickup' : $i->id,
             'id' => $i->id,
             'type' => $type,
             'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
             'service_type' => $i->service_type, 'equipment_type' => $i->equipment_type, 'address' => $i->address,
             'confirmed_date_time' => $dt,   // the datetime for this entry (visit or pickup)
             'expected_duration_minutes' => $duration,
-            'assigned_employee' => $i->assignedEmployee?->username,
+            'assigned_employee' => $employee,
+            'assignee_id' => $assigneeId,
+            'before_visit' => $beforeVisit,
         ];
     }
 }

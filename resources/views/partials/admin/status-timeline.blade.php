@@ -33,6 +33,8 @@
             <button type="button" x-show="isEquipment" @click="quickUpdateStatus('equipment_delivered')" :disabled="saving || status === 'equipment_delivered'"
                     class="px-3 py-1 text-xs rounded-lg border transition-all active:scale-[0.985] disabled:opacity-50"
                     :class="status === 'equipment_delivered' ? 'bg-cyan-50 text-cyan-700 border-cyan-300' : 'border-gray-300 text-gray-600 hover:border-cyan-400 hover:text-cyan-700 hover:bg-cyan-50'">Equipment Delivered</button>
+            <button type="button" x-show="status === 'equipment_delivered'" x-cloak @click="quickUpdateStatus('equipment_picked_up')" :disabled="saving"
+                    class="px-3 py-1 text-xs rounded-lg border transition-all active:scale-[0.985] disabled:opacity-50 border-gray-300 text-gray-600 hover:border-sky-400 hover:text-sky-700 hover:bg-sky-50">Equipment Picked Up</button>
             <button type="button" @click="quickUpdateStatus('left_voicemail')" :disabled="saving || status === 'left_voicemail'"
                     class="px-3 py-1 text-xs rounded-lg border transition-all active:scale-[0.985] disabled:opacity-50"
                     :class="status === 'left_voicemail' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' : 'border-gray-300 text-gray-600 hover:border-yellow-400 hover:text-yellow-700 hover:bg-yellow-50'">Left Voicemail</button>

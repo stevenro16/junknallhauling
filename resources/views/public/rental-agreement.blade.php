@@ -124,22 +124,37 @@
                     </div>
 
                     {{-- Pickup Time --}}
-                    <div x-ref="pickupTimeField" class="rounded-xl transition-shadow" :class="invalidField === 'pickupTimeField' && 'ring-2 ring-red-400 p-3 -m-3'">
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Dumpster will be picked up on the day agreed upon and at the same time it was delivered. Please confirm time below.</label>
-                        <div class="flex items-center gap-3">
-                            <input type="time" x-model="pickupTime" class="input-dark w-40" required>
-                            <span x-show="pickupTime" class="text-sm text-gray-600 font-medium" x-text="formatTime12Hour(pickupTime)"></span>
+                    {{-- Already scheduled by us → show it (read-only). --}}
+                    <template x-if="hasScheduledPickup">
+                        <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4">
+                            <div class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-1.5">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                                Scheduled Pickup
+                            </div>
+                            <div class="text-gray-900 font-medium mt-1" x-text="scheduledPickupLabel()"></div>
+                            <p class="text-xs text-gray-500 mt-1">Your equipment is scheduled to be picked up at this time. Contact us if you need to change it.</p>
                         </div>
-                        <div class="flex items-center gap-2 mt-2">
-                            <span class="text-xs text-gray-500 mr-1">Quick times:</span>
-                            @foreach(['08:00' => '8:00 AM', '09:00' => '9:00 AM', '10:00' => '10:00 AM'] as $val => $lbl)
-                                <button type="button" @click="pickupTime = '{{ $val }}'"
-                                        class="px-3 py-1 text-xs rounded-lg border border-gray-300 hover:bg-[#F8C820] hover:text-charcoal-900 hover:border-[#F8C820] transition-all active:scale-95">{{ $lbl }}</button>
-                            @endforeach
+                    </template>
+
+                    {{-- Not scheduled → ask the customer to confirm a pickup time. --}}
+                    <template x-if="!hasScheduledPickup">
+                        <div x-ref="pickupTimeField" class="rounded-xl transition-shadow" :class="invalidField === 'pickupTimeField' && 'ring-2 ring-red-400 p-3 -m-3'">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Dumpster will be picked up on the day agreed upon and at the same time it was delivered. Please confirm time below.</label>
+                            <div class="flex items-center gap-3">
+                                <input type="time" x-model="pickupTime" class="input-dark w-40">
+                                <span x-show="pickupTime" class="text-sm text-gray-600 font-medium" x-text="formatTime12Hour(pickupTime)"></span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-xs text-gray-500 mr-1">Quick times:</span>
+                                @foreach(['08:00' => '8:00 AM', '09:00' => '9:00 AM', '10:00' => '10:00 AM'] as $val => $lbl)
+                                    <button type="button" @click="pickupTime = '{{ $val }}'"
+                                            class="px-3 py-1 text-xs rounded-lg border border-gray-300 hover:bg-[#F8C820] hover:text-charcoal-900 hover:border-[#F8C820] transition-all active:scale-95">{{ $lbl }}</button>
+                                @endforeach
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Or use the time picker above. Time will be stored as <span x-text="pickupTime ? formatTime12Hour(pickupTime) : 'e.g. 8:30 AM'"></span></p>
+                            <p class="text-xs text-gray-500 mt-2">If the time entered on the contract differs from a prior conversation, we must confirm we can guarantee.</p>
                         </div>
-                        <p class="text-[10px] text-gray-500 mt-1">Or use the time picker above. Time will be stored as <span x-text="pickupTime ? formatTime12Hour(pickupTime) : 'e.g. 8:30 AM'"></span></p>
-                    </div>
-                    <p class="text-xs text-gray-500 -mt-2">If the time entered on the contract differs from a prior conversation, we must confirm we can guarantee.</p>
+                    </template>
 
                     {{-- Signature --}}
                     <div x-ref="signatureField" class="rounded-xl transition-shadow" :class="invalidField === 'signatureField' && 'ring-2 ring-red-400 p-3 -m-3'">

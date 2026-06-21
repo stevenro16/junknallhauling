@@ -9,6 +9,7 @@
         services: @js($services),
         allInquiries: @js($allInquiries),
         employees: @js($employees),
+        customerPickup: @js($customerPickup),
         scheduleEvents: @js($scheduleEvents),
         history: @js($history),
         urls: {
@@ -32,7 +33,34 @@
 
     {{-- Mobile: floating status bar pinned to the bottom (tap to change status) +
          a Save button that appears when there are unsaved edits --}}
-    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false; showQuickNav = false">
+    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false; showQuickNav = false; showOtherActions = false">
+        {{-- other-actions menu (opens upward): Equipment Delivered / Left Voicemail / Cancel --}}
+        <div x-show="showOtherActions" x-cloak x-transition.opacity.duration.150ms
+             class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <span class="text-xs uppercase tracking-widest text-gray-400">Other actions</span>
+                <button type="button" @click="showOtherActions = false" class="text-gray-400 p-1 -mr-1"><x-icon name="x" class="w-5 h-5"/></button>
+            </div>
+            <div class="p-3 space-y-2">
+                <button type="button" x-show="isEquipment" @click="showOtherActions = false; quickUpdateStatus('equipment_delivered')" :disabled="saving || status === 'equipment_delivered'"
+                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-700 font-medium text-sm active:bg-cyan-100 disabled:opacity-50 transition-colors">
+                    <x-icon name="truck" class="w-5 h-5 shrink-0"/> Equipment Delivered
+                </button>
+                <button type="button" x-show="status === 'equipment_delivered'" x-cloak @click="showOtherActions = false; quickUpdateStatus('equipment_picked_up')" :disabled="saving"
+                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-sky-300 bg-sky-50 text-sky-700 font-medium text-sm active:bg-sky-100 disabled:opacity-50 transition-colors">
+                    <x-icon name="check-circle" class="w-5 h-5 shrink-0"/> Equipment Picked Up
+                </button>
+                <button type="button" @click="showOtherActions = false; quickUpdateStatus('left_voicemail')" :disabled="saving || status === 'left_voicemail'"
+                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-yellow-300 bg-yellow-50 text-yellow-700 font-medium text-sm active:bg-yellow-100 disabled:opacity-50 transition-colors">
+                    <x-icon name="voicemail" class="w-5 h-5 shrink-0"/> Left Voicemail
+                </button>
+                <button type="button" @click="showOtherActions = false; quickUpdateStatus('cancelled')" :disabled="saving || status === 'cancelled'"
+                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-red-300 bg-red-50 text-red-700 font-medium text-sm active:bg-red-100 disabled:opacity-50 transition-colors">
+                    <x-icon name="x" class="w-5 h-5 shrink-0"/> Cancel Quote
+                </button>
+            </div>
+        </div>
+
         {{-- quick jump-to-section menu (opens upward) --}}
         <div x-show="showQuickNav" x-cloak x-transition.opacity.duration.150ms
              class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
@@ -79,7 +107,13 @@
 
         {{-- bottom bar --}}
         <div class="bg-white border-t border-gray-200 p-2.5 shadow-[0_-2px_12px_rgba(0,0,0,0.12)] flex items-center gap-2">
-            <button type="button" @click="showStatusSheet = !showStatusSheet; showQuickNav = false"
+            <button type="button" @click="showOtherActions = !showOtherActions; showStatusSheet = false; showQuickNav = false"
+                    class="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-colors"
+                    :class="showOtherActions ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-300 bg-gray-50 text-gray-600 active:bg-gray-100'"
+                    aria-label="Other actions">
+                <x-icon name="settings" class="w-5 h-5"/>
+            </button>
+            <button type="button" @click="showStatusSheet = !showStatusSheet; showQuickNav = false; showOtherActions = false"
                     class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-300 bg-gray-50 active:bg-gray-100 transition-colors">
                 <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="dotClass(status)"></span>
                 <span class="text-[10px] uppercase tracking-widest text-gray-400 shrink-0">Status</span>
@@ -87,7 +121,7 @@
                 <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="!showStatusSheet && 'rotate-180'"/>
             </button>
             <button x-show="dirty" x-cloak type="button" @click="save()" :disabled="saving" class="btn-primary py-2.5 px-5 text-sm shrink-0"><span x-text="saving ? '…' : 'Save'"></span></button>
-            <button type="button" @click="showQuickNav = !showQuickNav; showStatusSheet = false"
+            <button type="button" @click="showQuickNav = !showQuickNav; showStatusSheet = false; showOtherActions = false"
                     class="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-colors"
                     :class="showQuickNav ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-300 bg-gray-50 text-gray-600 active:bg-gray-100'"
                     aria-label="Jump to section">
@@ -109,7 +143,8 @@
                             <span class="font-mono text-amber-700 text-sm tracking-widest bg-amber-50 border border-amber-200 px-2 py-0.5 rounded" x-text="inquiry.ref"></span>
                             <h1 x-show="!isEditingCustomer" class="text-gray-900 text-3xl tracking-widest font-bold" x-text="inquiry.name || '(no name)'"></h1>
                         </div>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <span x-show="urgency === 'urgent'" x-cloak class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300"><x-icon name="alert" class="w-3 h-3"/> Urgent</span>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(status)" x-text="statusLabel(status)"></span>
                             <div class="flex items-center gap-1.5 flex-shrink-0">
                                 <button type="button" @click="isEditingCustomer = !isEditingCustomer" class="p-1.5 rounded hover:bg-gray-200 text-amber-600 transition-colors" title="Edit customer fields"><x-icon name="pencil" class="w-4 h-4"/></button>
@@ -129,6 +164,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="tel" x-model="phone" class="input-light text-sm py-1.5 w-full" placeholder="Phone number"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
+                    </div>
+
+                    {{-- Urgency --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Urgency</label>
+                        <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+                            <button type="button" @click="urgency = 'routine'" class="px-3 py-1.5 transition-colors" :class="urgency === 'routine' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Routine</button>
+                            <button type="button" @click="urgency = 'urgent'" class="px-3 py-1.5 border-l border-gray-300 transition-colors inline-flex items-center gap-1" :class="urgency === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"><x-icon name="alert" class="w-3.5 h-3.5"/> Urgent</button>
+                        </div>
                     </div>
 
                     {{-- A prior order shares this phone/email — offer to pull that customer's saved info in. --}}
@@ -196,6 +240,7 @@
                                     class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
                                     :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Equipment Rental</button>
                         </div>
+                        <p x-show="jobError" x-cloak class="text-xs text-red-600 mt-1.5">Please select a <span x-text="isEquipment ? 'equipment type' : 'service'"></span> before saving.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -375,11 +420,11 @@
                         <select x-model="assignedEmployeeId" class="input-light text-sm py-2 w-full">
                             <option value="">Unassigned</option>
                             @foreach($employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->username }}</option>
+                                <option value="{{ $emp['id'] }}">{{ $emp['label'] }}</option>
                             @endforeach
                         </select>
-                        @if($employees->isEmpty())
-                            <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Account Management.</p>
+                        @if(count($employees) <= 1)
+                            <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Account Management, or assign yourself.</p>
                         @endif
                     </div>
 
@@ -392,7 +437,9 @@
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-gray-700 mb-1.5">Time</div>
-                                <select :value="timePart(confirmedDateTime)" @change="setConfirmedTime($event.target.value)" class="input-light text-sm py-2 w-full">
+                                {{-- x-init re-syncs the value after x-for renders the slots (a saved time
+                                     would otherwise not match before the options exist). --}}
+                                <select :value="timePart(confirmedDateTime)" @change="setConfirmedTime($event.target.value)" x-init="$nextTick(() => { $el.value = timePart(confirmedDateTime) })" class="input-light text-sm py-2 w-full">
                                     <option value="">Select time...</option>
                                     <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
                                 </select>
@@ -408,27 +455,6 @@
                             </div>
                         </div>
 
-                        {{-- Equipment pickup date/time (equipment rentals only) — shows on the calendar as a 1-hour pickup task --}}
-                        <template x-if="isEquipment">
-                            <div class="mt-3 pt-3 border-t border-gray-200">
-                                <div class="text-sm font-semibold text-cyan-700 mb-1.5 inline-flex items-center gap-1.5"><x-icon name="truck" class="w-4 h-4"/> Equipment Pickup</div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <div class="text-xs font-medium text-gray-600 mb-1">Pickup Date</div>
-                                        <input type="date" :value="datePart(pickupDateTime)" @change="setPickupDate($event.target.value)" class="input-light text-sm py-2 w-full">
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-medium text-gray-600 mb-1">Pickup Time</div>
-                                        <select :value="timePart(pickupDateTime)" @change="setPickupTime($event.target.value)" class="input-light text-sm py-2 w-full">
-                                            <option value="">Select time...</option>
-                                            <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
-                                        </select>
-                                    </div>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Pickup tasks appear on the calendar as 1-hour blocks.</p>
-                            </div>
-                        </template>
-
                         <template x-if="inquiry.preferred_day || inquiry.preferred_time">
                             <div class="mt-1.5">
                                 <div class="text-[10px] text-gray-500 mb-1">Customer prefers: <span x-text="inquiry.preferred_day"></span><span x-show="inquiry.preferred_time"> (<span x-text="inquiry.preferred_time"></span>)</span></div>
@@ -443,51 +469,84 @@
                         </template>
                     </div>
 
-                    {{-- Day schedule — what's already booked on the selected date --}}
-                    <div x-show="datePart(confirmedDateTime)" x-cloak class="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-                        <div class="flex items-center justify-between gap-2 mb-2">
-                            <div class="text-xs font-semibold text-gray-700 inline-flex items-center gap-1.5">
-                                <x-icon name="calendar" class="w-3.5 h-3.5 text-amber-500"/>
-                                <span>Scheduled on <span x-text="new Date(datePart(confirmedDateTime) + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })"></span></span>
+                    {{-- Visit day schedule — moved directly under the visit duration --}}
+                    @include('partials.admin.day-schedule-panel', [
+                        'dateExpr' => 'confirmedDateTime', 'schedule' => 'daySchedule',
+                        'conflict' => 'dayConflictCount', 'other' => 'dayOtherCount',
+                        'modal' => 'showCalendarModal', 'selfLabel' => 'This visit',
+                    ])
+
+                    {{-- Equipment Pickup (equipment rentals) — own date/time + duration + day calendar --}}
+                    <template x-if="isEquipment">
+                        <div class="pt-3 border-t border-gray-200 space-y-3">
+                            <div class="text-sm font-semibold text-cyan-700 inline-flex items-center gap-1.5"><x-icon name="truck" class="w-4 h-4"/> Equipment Pickup</div>
+
+                            {{-- Warn if the pickup is scheduled before the delivery visit --}}
+                            <div x-show="pickupBeforeVisit" x-cloak class="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-2.5 text-xs text-red-700">
+                                <x-icon name="alert" class="w-4 h-4 shrink-0 mt-px"/>
+                                <span>The pickup is scheduled <span class="font-semibold">before</span> the delivery visit. Double-check the dates.</span>
                             </div>
-                            <button type="button" @click="showCalendarModal = true" class="text-[10px] text-amber-600 hover:text-amber-700 inline-flex items-center gap-0.5 shrink-0">Open day calendar <x-icon name="external-link" class="w-2.5 h-2.5"/></button>
-                        </div>
 
-                        {{-- conflict warning --}}
-                        <div x-show="dayConflictCount > 0" x-cloak class="mb-2 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
-                            &#9888;&#65039; <span x-text="dayConflictCount === 1 ? '1 visit overlaps this time slot' : dayConflictCount + ' visits overlap this time slot'"></span>
-                        </div>
-
-                        {{-- agenda for the day --}}
-                        <div class="space-y-1">
-                            <template x-for="ev in daySchedule" :key="ev.id + '-' + ev.start.getTime()">
-                                <div class="flex items-start gap-2 px-2 py-1.5 rounded-lg border text-xs transition-colors"
-                                     :class="ev.isSelf ? 'border-[#F8C820]/60 bg-[#F8C820]/10' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white')">
-                                    <span class="font-mono text-gray-600 shrink-0 whitespace-nowrap pt-0.5" x-text="clock(ev.start) + '–' + clock(ev.end)"></span>
-                                    <span class="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" :class="dotClass(ev.status)"></span>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="truncate">
-                                            <span class="font-medium text-gray-800" x-text="ev.isSelf ? 'This visit' : (ev.name || '(no name)')"></span>
-                                            <span x-show="!ev.isSelf" class="text-gray-400 capitalize" x-text="' · ' + serviceLabel(ev.service_type)"></span>
-                                        </div>
-                                        <div x-show="ev.address" x-cloak class="mt-0.5 flex items-start gap-1 text-gray-500">
-                                            <x-icon name="map-pin" class="w-3 h-3 shrink-0 mt-px text-gray-400"/>
-                                            <span class="truncate" x-text="ev.address"></span>
-                                        </div>
-                                        <div x-show="ev.assigned_employee" x-cloak class="mt-0.5 flex items-center gap-1 text-amber-700">
-                                            <x-icon name="user" class="w-3 h-3 shrink-0 text-amber-500"/>
-                                            <span class="truncate" x-text="ev.assigned_employee"></span>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-1 shrink-0 pt-0.5">
-                                        <span x-show="ev.conflict" x-cloak class="text-[10px] font-semibold text-red-600">conflict</span>
-                                        <a x-show="!ev.isSelf" :href="detailUrl(ev.id)" class="text-amber-600 hover:text-amber-700" title="Open quote"><x-icon name="external-link" class="w-3 h-3"/></a>
-                                    </div>
+                            {{-- Customer-requested pickup from a signed agreement (only when we haven't scheduled one) --}}
+                            <template x-if="showCustomerPickup">
+                                <div class="rounded-lg border border-cyan-300 bg-cyan-50 p-3">
+                                    <div class="text-xs font-semibold text-cyan-800">Customer requested a pickup</div>
+                                    <div class="text-sm text-gray-800 mt-0.5" x-text="customerPickupLabel"></div>
+                                    <button type="button" @click="applyCustomerPickup()" class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700">Use this for pickup</button>
                                 </div>
                             </template>
-                            <div x-show="dayOtherCount === 0" x-cloak class="text-[11px] text-emerald-600 px-1 py-0.5">&check; No other visits scheduled this day.</div>
+
+                            {{-- Estimated pickup from the visit time + rental duration (when nothing is set / requested) --}}
+                            <template x-if="showEstimatedPickup">
+                                <div class="rounded-lg border border-cyan-200 bg-cyan-50/60 p-3">
+                                    <div class="text-xs font-semibold text-cyan-800">Estimated pickup</div>
+                                    <div class="text-sm text-gray-800 mt-0.5" x-text="estimatedPickup.label"></div>
+                                    <div class="text-[10px] text-gray-500 mt-0.5">Based on the visit time + rental duration (counts business hours 7am&ndash;5pm).</div>
+                                    <button type="button" @click="applyEstimatedPickup()" class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700">Use estimate</button>
+                                </div>
+                            </template>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Date</div>
+                                    <input type="date" :value="datePart(pickupDateTime)" @change="setPickupDate($event.target.value)" class="input-light text-sm py-2 w-full">
+                                </div>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Time</div>
+                                    <select :value="timePart(pickupDateTime)" @change="setPickupTime($event.target.value)" x-init="$nextTick(() => { $el.value = timePart(pickupDateTime) })" class="input-light text-sm py-2 w-full">
+                                        <option value="">Select time...</option>
+                                        <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Duration</div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="stepPickupDuration(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">&minus;</button>
+                                    <input type="number" x-model="pickupDurationValue" class="input-light text-sm py-2 flex-1 min-w-0 text-center px-1" placeholder="—">
+                                    <select x-model="pickupDurationUnit" class="input-light text-sm py-2 w-20 px-1 shrink-0"><option value="hours">hrs</option><option value="days">days</option></select>
+                                    <button type="button" @click="stepPickupDuration(1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Assigned To</div>
+                                <select x-model="pickupAssignedEmployeeId" class="input-light text-sm py-2 w-full">
+                                    <option value="">Unassigned</option>
+                                    @foreach($employees as $emp)
+                                        <option value="{{ $emp['id'] }}">{{ $emp['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Pickup day schedule --}}
+                            @include('partials.admin.day-schedule-panel', [
+                                'dateExpr' => 'pickupDateTime', 'schedule' => 'pickupDaySchedule',
+                                'conflict' => 'pickupDayConflictCount', 'other' => 'pickupDayOtherCount',
+                                'modal' => 'showPickupCalendarModal', 'selfLabel' => 'This pickup',
+                                'iconColor' => 'text-cyan-600',
+                            ])
                         </div>
-                    </div>
+                    </template>
 
                     {{-- Move to Scheduled + optional customer notification (once a date & time are set) --}}
                     <template x-if="canSchedule">
@@ -529,6 +588,19 @@
                                 <button type="button" @click="showCalendarModal = false" class="text-gray-400 hover:text-gray-600"><x-icon name="x" class="w-5 h-5"/></button>
                             </div>
                             <iframe :src="showCalendarModal ? calendarEmbedUrl : 'about:blank'" class="flex-1 w-full border-0" title="Day calendar"></iframe>
+                        </div>
+                    </div>
+
+                    {{-- Pickup day calendar popup --}}
+                    <div x-show="showPickupCalendarModal" x-cloak
+                         class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+                         @click.self="showPickupCalendarModal = false" @keydown.escape.window="showPickupCalendarModal = false">
+                        <div class="w-full max-w-3xl bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden flex flex-col" style="height:82vh">
+                            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 shrink-0">
+                                <div class="text-sm font-semibold text-gray-800">Pickup Calendar — <span x-text="pickupDateTime ? new Date(datePart(pickupDateTime) + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''"></span></div>
+                                <button type="button" @click="showPickupCalendarModal = false" class="text-gray-400 hover:text-gray-600"><x-icon name="x" class="w-5 h-5"/></button>
+                            </div>
+                            <iframe :src="showPickupCalendarModal ? pickupCalendarEmbedUrl : 'about:blank'" class="flex-1 w-full border-0" title="Pickup day calendar"></iframe>
                         </div>
                     </div>
 

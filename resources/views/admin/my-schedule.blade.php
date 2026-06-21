@@ -10,10 +10,10 @@
             <h2 class="text-2xl font-semibold">My Schedule</h2>
             <p class="text-sm text-gray-500">Your assigned visits</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
-                <template x-for="mode in ['day','week']" :key="mode">
-                    <button @click="viewMode = mode" class="px-4 py-1.5 transition-colors capitalize" :class="viewMode === mode ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'" x-text="mode"></button>
+                <template x-for="m in [{v:'day',l:'Day'},{v:'3day',l:'3 Day'},{v:'week',l:'Week'}]" :key="m.v">
+                    <button @click="viewMode = m.v" class="px-3 sm:px-4 py-1.5 transition-colors whitespace-nowrap" :class="viewMode === m.v ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'" x-text="m.l"></button>
                 </template>
             </div>
             <button @click="today()" class="btn-outline text-sm px-4 py-2">Today</button>
@@ -30,29 +30,20 @@
     {{-- Day view --}}
     @include('partials.admin.calendar-day')
 
-    {{-- Week view --}}
-    <div x-show="viewMode === 'week'" class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-        <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-            @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $d)
-                <div class="p-2 text-center text-xs font-medium text-gray-500 border-r border-gray-200 last:border-r-0">{{ $d }}</div>
-            @endforeach
+    {{-- 3-day view: columns on desktop, stacked on mobile --}}
+    <div x-show="viewMode === '3day'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div class="grid gap-px bg-gray-200 grid-cols-1 sm:grid-cols-3">
+            <template x-for="(day, index) in rangeDays" :key="index">
+                @include('partials.admin.my-schedule-day-cell')
+            </template>
         </div>
-        <div class="grid grid-cols-7">
+    </div>
+
+    {{-- Week view: columns on desktop, stacked on mobile --}}
+    <div x-show="viewMode === 'week'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div class="grid gap-px bg-gray-200 grid-cols-1 sm:grid-cols-7">
             <template x-for="(day, index) in weekDays" :key="index">
-                <div @click="eventsForKey(dayKey(day)).length > 0 && goToDay(day)" class="min-h-[200px] p-2 border-r border-gray-200 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors" :class="isToday(day) && 'bg-amber-50'">
-                    <div class="text-xs font-medium mb-2" :class="isToday(day) ? 'text-amber-600' : 'text-gray-700'" x-text="day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })"></div>
-                    <div class="space-y-1.5">
-                        <div x-show="eventsForKey(dayKey(day)).length === 0" class="text-[11px] text-gray-400 italic">—</div>
-                        <template x-for="ev in eventsForKey(dayKey(day))" :key="ev.inquiry.event_id">
-                            <a :href="detailUrl(ev.inquiry.id)" @click.stop class="block p-1.5 text-[11px] rounded-lg border transition-all" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
-                                <div class="flex items-center gap-1"><span class="text-gray-500" x-text="fmtClock(ev.start)"></span><span x-show="ev.inquiry.type === 'pickup'" x-cloak class="text-[9px] font-bold uppercase text-cyan-700">Pickup</span></div>
-                                <div class="text-gray-800 truncate font-medium" x-text="ev.inquiry.name"></div>
-                                <div class="text-[10px] text-gray-600 truncate capitalize"><span x-text="jobKind(ev.inquiry)"></span> &middot; <span x-text="jobLabel(ev.inquiry)"></span></div>
-                                <div x-show="ev.inquiry.address" x-cloak class="text-[10px] text-gray-400 truncate" x-text="ev.inquiry.address"></div>
-                            </a>
-                        </template>
-                    </div>
-                </div>
+                @include('partials.admin.my-schedule-day-cell')
             </template>
         </div>
     </div>

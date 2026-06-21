@@ -2,6 +2,7 @@
     $tableData = $inquiries->map(fn ($i) => [
         'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'phone' => $i->phone, 'email' => $i->email,
         'status' => $i->status, 'service_type' => $i->service_type, 'zip_code' => $i->zip_code,
+        'urgency' => $i->urgency,
         'equipment_type' => $i->equipment_type,
         'equipment_rental_duration' => $i->equipment_rental_duration,
         'equipment_rental_unit' => $i->equipment_rental_unit,
@@ -79,7 +80,10 @@
                 <tbody class="divide-y divide-gray-100">
                     <template x-for="i in filtered" :key="i.id">
                         <tr class="hover:bg-amber-50/40 cursor-pointer" @click="window.location.href = detailUrl(i.id)">
-                            <td class="px-4 py-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(i.status)" x-text="statusLabel(i.status)"></span></td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(i.status)" x-text="statusLabel(i.status)"></span>
+                                <span x-show="i.urgency === 'urgent'" x-cloak class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300"><x-icon name="alert" class="w-2.5 h-2.5"/> Urgent</span>
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="font-mono text-amber-700 text-xs" x-text="i.ref"></div>
                                 <div class="text-[10px] text-gray-400 mt-0.5" x-show="i.updated_at" x-text="'Updated ' + dateTime(i.updated_at)"></div>
@@ -123,7 +127,10 @@
                             <div class="font-semibold text-gray-900 truncate" x-text="i.name || '(no name)'"></div>
                             <div class="text-xs text-gray-500" x-text="i.phone"></div>
                         </div>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shrink-0" :class="statusClass(i.status)" x-text="statusLabel(i.status)"></span>
+                        <div class="flex flex-col items-end gap-1 shrink-0">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(i.status)" x-text="statusLabel(i.status)"></span>
+                            <span x-show="i.urgency === 'urgent'" x-cloak class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300"><x-icon name="alert" class="w-2.5 h-2.5"/> Urgent</span>
+                        </div>
                     </div>
                     <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span class="font-mono text-amber-700" x-text="i.ref"></span>

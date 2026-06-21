@@ -63,22 +63,41 @@
                             <p x-show="errors.email" x-text="errors.email" class="text-red-600 text-xs mt-1" x-cloak></p>
                         </div>
 
-                        {{-- Preferred contact method --}}
-                        <div>
-                            <label class="block text-slate-700 text-sm font-medium mb-1.5">Preferred contact method</label>
-                            <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
-                                <button type="button" @click="preferredContactMethod = 'phone'"
-                                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
-                                        :class="preferredContactMethod === 'phone' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">
-                                    <x-icon name="phone" class="w-4 h-4"/> Phone
-                                </button>
-                                <button type="button" @click="preferredContactMethod = 'email'"
-                                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
-                                        :class="preferredContactMethod === 'email' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">
-                                    <x-icon name="mail" class="w-4 h-4"/> Email
-                                </button>
+                        {{-- Preferred contact method + urgency --}}
+                        <div class="flex flex-wrap items-start gap-x-8 gap-y-4">
+                            <div>
+                                <label class="block text-slate-700 text-sm font-medium mb-1.5">Preferred contact method</label>
+                                <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                                    <button type="button" @click="preferredContactMethod = 'phone'"
+                                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
+                                            :class="preferredContactMethod === 'phone' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">
+                                        <x-icon name="phone" class="w-4 h-4"/> Phone
+                                    </button>
+                                    <button type="button" @click="preferredContactMethod = 'email'"
+                                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+                                            :class="preferredContactMethod === 'email' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">
+                                        <x-icon name="mail" class="w-4 h-4"/> Email
+                                    </button>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">We'll reach out using your preferred method.</p>
                             </div>
-                            <p class="text-xs text-slate-500 mt-1">We'll reach out using your preferred method.</p>
+
+                            <div>
+                                <label class="block text-slate-700 text-sm font-medium mb-1.5">Urgency</label>
+                                <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                                    <button type="button" @click="urgency = 'routine'"
+                                            class="px-4 py-2 text-sm font-medium transition-colors"
+                                            :class="urgency === 'routine' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">
+                                        Routine
+                                    </button>
+                                    <button type="button" @click="urgency = 'urgent'"
+                                            class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+                                            :class="urgency === 'urgent' ? 'bg-red-500 text-white' : 'bg-white text-slate-700 hover:bg-gray-50'">
+                                        <x-icon name="alert" class="w-4 h-4"/> Urgent
+                                    </button>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Let us know if this is time-sensitive.</p>
+                            </div>
                         </div>
 
                         {{-- Job type pill --}}

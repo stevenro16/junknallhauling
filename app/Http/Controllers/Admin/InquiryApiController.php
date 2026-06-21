@@ -100,7 +100,7 @@ class InquiryApiController extends Controller
             'status', 'name', 'admin_notes', 'address', 'confirmed_date_time', 'pickup_date_time', 'equipment_type',
             'equipment_rental_unit', 'phone', 'email', 'preferred_contact_method',
             'payment_method', 'payment_date', 'payment_notes', 'service_type',
-            'zip_code', 'preferred_day', 'preferred_time', 'assigned_employee_id',
+            'zip_code', 'preferred_day', 'preferred_time', 'assigned_employee_id', 'pickup_assigned_employee_id', 'urgency',
         ];
         foreach ($strings as $k) {
             if (array_key_exists($k, $b)) {
@@ -113,7 +113,7 @@ class InquiryApiController extends Controller
                 $updates[$k] = $b[$k] === null || $b[$k] === '' ? null : (float) $b[$k];
             }
         }
-        foreach (['equipment_rental_duration', 'expected_duration_minutes'] as $k) {
+        foreach (['equipment_rental_duration', 'expected_duration_minutes', 'pickup_duration_minutes'] as $k) {
             if (array_key_exists($k, $b)) {
                 $updates[$k] = $b[$k] === null || $b[$k] === '' ? null : (int) $b[$k];
             }

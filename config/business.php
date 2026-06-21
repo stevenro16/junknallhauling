@@ -37,6 +37,7 @@ return [
         'quoted' => 'Quoted',
         'scheduled' => 'Scheduled',
         'equipment_delivered' => 'Equipment Delivered',
+        'equipment_picked_up' => 'Equipment Picked Up',
         'service_performed' => 'Service Performed',
         'completed' => 'Completed',
         'cancelled' => 'Cancelled',

@@ -80,7 +80,7 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @foreach($visits as $v)
-                            <tr class="align-top">
+                            <tr class="align-top cursor-pointer hover:bg-amber-50/40 print:cursor-auto print:hover:bg-transparent" onclick="window.location='{{ route('admin.inquiries.show', $v->id) }}'">
                                 <td class="px-3 py-3 whitespace-nowrap font-medium text-gray-800">{{ \Carbon\Carbon::parse($v->confirmed_date_time)->format('g:i A') }}</td>
                                 <td class="px-3 py-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $statusColors[$v->status] ?? 'bg-gray-100 text-gray-600 border-gray-300' }}">{{ ucwords(str_replace('_', ' ', $v->status)) }}</span></td>
                                 <td class="px-3 py-3">
@@ -120,7 +120,7 @@
         {{-- Mobile cards --}}
         <div class="md:hidden print:hidden space-y-3">
             @foreach($visits as $v)
-                <div class="card-light p-4">
+                <a href="{{ route('admin.inquiries.show', $v->id) }}" class="card-light p-4 block active:bg-amber-50/60">
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
                             <div class="font-semibold text-gray-900">{{ \Carbon\Carbon::parse($v->confirmed_date_time)->format('g:i A') }} · {{ $v->name ?: '(no name)' }}</div>
@@ -144,7 +144,7 @@
                     @if($v->service_signature)
                         <div class="mt-2"><div class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Customer Signature</div><img src="{{ $v->service_signature }}" alt="Signature" class="h-14 border border-gray-200 rounded bg-white"></div>
                     @endif
-                </div>
+                </a>
             @endforeach
         </div>
     @endif

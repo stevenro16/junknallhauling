@@ -108,6 +108,7 @@ Alpine.data('quoteForm', () => ({
     serviceType: '', zipCode: '', preferredDay: '', preferredTime: '',
     website: '',               // honeypot
     preferredContactMethod: 'phone',
+    urgency: 'routine',        // routine | urgent
     // service + equipment catalogs
     serviceOptions: FALLBACK_SERVICES,
     equipmentOptions: [],
@@ -216,6 +217,7 @@ Alpine.data('quoteForm', () => ({
             preferred_day: this.preferredDay || null,
             preferred_time: this.preferredTime || null,
             preferred_contact_method: this.preferredContactMethod,
+            urgency: this.urgency,
         };
         if (this.serviceType === 'equipment' && this.selectedEquipment) {
             payload.equipment_type = this.selectedEquipment;
@@ -279,13 +281,13 @@ Alpine.data('statusLookup', () => ({
     statusLabel(s) {
         return ({
             new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted',
-            scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
+            scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', equipment_picked_up: 'Equipment Picked Up', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
         })[s] || 'New';
     },
     statusClass(s) {
         const map = {
             new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted',
-            scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
+            scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', equipment_picked_up: 'status-equipment_picked_up', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
         };
         return map[s] || 'status-new';
     },
@@ -333,12 +335,26 @@ Alpine.data('agreementForm', (token) => ({
                         : (json.error || 'Failed to load agreement'));
                 }
                 this.data = json;
+                // If the admin already scheduled a pickup, prefill + display it
+                // (the customer just confirms, rather than choosing a time).
+                const pdt = json.inquiry?.pickup_date_time;
+                if (pdt && pdt.includes('T')) {
+                    this.pickupDate = pdt.split('T')[0];
+                    this.pickupTime = (pdt.split('T')[1] || '').substring(0, 5);
+                }
             })
             .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
             .finally(() => { this.loading = false; });
     },
 
     get inquiry() { return this.data?.inquiry ?? null; },
+    get hasScheduledPickup() { const p = this.inquiry?.pickup_date_time; return !!(p && p.includes('T') && (p.split('T')[1] || '').length >= 4); },
+    scheduledPickupLabel() {
+        const p = this.inquiry?.pickup_date_time;
+        if (!p) return '';
+        const d = new Date(p);
+        return isNaN(d.getTime()) ? '' : d.toLocaleString([], { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    },
     firstName() { return (this.inquiry?.name || '').split(' ')[0] || ''; },
     lastName() { return (this.inquiry?.name || '').split(' ').slice(1).join(' ') || ''; },
 
@@ -456,7 +472,7 @@ Alpine.data('agreementForm', (token) => ({
         if (ack && [...ack.querySelectorAll('input[type="checkbox"]')].some((c) => !c.checked)) {
             return this.flag('ackSection', 'Please check all of the acknowledgment boxes.');
         }
-        if (!this.pickupTime) return this.flag('pickupTimeField', 'Please choose a pickup time.');
+        if (!this.hasScheduledPickup && !this.pickupTime) return this.flag('pickupTimeField', 'Please choose a pickup time.');
         if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
         if (!this.pickupDate) return this.flag('dateField', 'Please select the date.');
         if (!this.agreed) return this.flag('agreedField', 'Please confirm you agree to the terms.');
@@ -479,6 +495,8 @@ Alpine.data('agreementForm', (token) => ({
                     signed_name: this.inquiry?.name || '',
                     pickup_date: this.pickupDate || null,
                     pickup_time: this.pickupTime ? this.formatTime12Hour(this.pickupTime) : null,
+                    pickup_time_24: this.pickupTime || null,
+                    pickup_was_scheduled: this.hasScheduledPickup,
                     inquiry_snapshot: this.inquiry,
                 },
                 signature_base64: signatureData,

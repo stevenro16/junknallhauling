@@ -28,6 +28,22 @@ class InquiryController extends Controller
         // rendered server-side in the read-only Service Visit summary instead.
         $inquiry->makeHidden('service_signature');
 
+        // Pickup time the customer requested on a signed rental agreement — surfaced
+        // so the admin can schedule the pickup when one isn't set yet.
+        $customerPickup = null;
+        foreach ($inquiry->rentalAgreements()->whereNotNull('signed_at')->orderByDesc('signed_at')->get() as $a) {
+            $fd = $a->form_data ?? [];
+            if (! empty($fd['pickup_date']) || ! empty($fd['pickup_time'])) {
+                $customerPickup = [
+                    'date' => $fd['pickup_date'] ?? null,
+                    'time' => $fd['pickup_time'] ?? null,       // formatted, for display
+                    'time24' => $fd['pickup_time_24'] ?? null,  // HH:MM, for applying to the field
+                    'signed_at' => $a->signed_at,
+                ];
+                break;
+            }
+        }
+
         return view('admin.inquiries.show', [
             'inquiry' => $inquiry,
             'history' => $inquiry->statusHistory()->orderByDesc('changed_at')->get(),
@@ -35,11 +51,13 @@ class InquiryController extends Controller
             // Service-catalog options for the Job Details picker (the dedicated
             // 'equipment' entry is excluded — that's the Equipment Rental pill).
             'services' => ServiceCatalog::active()->where('key', '!=', 'equipment')->orderBy('label')->get(),
-            // Employees the quote can be assigned to.
-            'employees' => Admin::where('role', 'employee')->orderBy('username')->get(['id', 'username']),
+            // People the quote/pickup can be assigned to: employees + the current
+            // admin (so they can put themselves on a job/pickup).
+            'employees' => $this->assignees(),
             // Threaded comments (internal + customer-visible).
             'comments' => $inquiry->comments()->orderBy('created_at')->get()
                 ->map(fn ($c) => EmployeeCalendarController::commentPayload($c))->values(),
+            'customerPickup' => $customerPickup,
             'agreements' => $inquiry->rentalAgreements()->orderByDesc('created_at')->get()
                 ->map(fn ($a) => InquiryApiController::agreementPayload($a))->values(),
             'paymentLinks' => $inquiry->paymentLinks()->orderByDesc('created_at')->get()
@@ -62,7 +80,22 @@ class InquiryController extends Controller
                     'confirmed_date_time' => $i->confirmed_date_time,
                     'expected_duration_minutes' => $i->expected_duration_minutes,
                     'assigned_employee' => $i->assignedEmployee?->username,
+                    'assigned_employee_id' => $i->assigned_employee_id,
                 ])->values(),
         ]);
+    }
+
+    /** Employees + the current admin (labelled "(me)") — who a job or pickup can be assigned to. */
+    private function assignees()
+    {
+        $list = Admin::where('role', 'employee')->orderBy('username')->get(['id', 'username'])
+            ->map(fn (Admin $e) => ['id' => $e->id, 'username' => $e->username, 'label' => $e->username]);
+
+        $me = Admin::find(session('admin_id'));
+        if ($me) {
+            $list->push(['id' => $me->id, 'username' => $me->username, 'label' => $me->username.' (me)']);
+        }
+
+        return $list->values();
     }
 }

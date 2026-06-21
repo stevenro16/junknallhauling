@@ -77,6 +77,11 @@ class Inquiry extends Model
         return $this->belongsTo(Admin::class, 'assigned_employee_id');
     }
 
+    public function pickupAssignedEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'pickup_assigned_employee_id');
+    }
+
     /** Status-history rows that represent verification events (public-visible subset). */
     public function verificationHistory(): HasMany
     {

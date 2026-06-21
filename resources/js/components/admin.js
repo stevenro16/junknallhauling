@@ -69,11 +69,11 @@ Alpine.data('adminShell', (cfg = {}) => ({
 // ---------------------------------------------------------------------------
 const STATUS_LABELS = {
     new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted',
-    scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
+    scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', equipment_picked_up: 'Equipment Picked Up', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
 };
 const STATUS_CLASSES = {
     new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted',
-    scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
+    scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', equipment_picked_up: 'status-equipment_picked_up', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
 };
 const SERVICE_LABELS = {
     'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental',
@@ -215,6 +215,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     serviceCatalog: cfg.services || [],
     allInquiries: cfg.allInquiries || [],
     employees: cfg.employees || [], // {id, username} — for resolving the assigned-employee name
+    customerPickup: cfg.customerPickup || null, // pickup the customer requested on a signed agreement
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
     history: cfg.history || [],
     saving: false,
@@ -228,11 +229,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     // editable fields
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
+    jobError: false,    // flagged when saving without a service/equipment chosen
     adminNotes: '', status: 'new',
-    assignedEmployeeId: '',
+    assignedEmployeeId: '', pickupAssignedEmployeeId: '',
     address: '', confirmedDateTime: '', pickupDateTime: '',
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
+    urgency: 'routine',
     isEditingCustomer: false,
     customerPulled: false, // brief confirmation after pulling a prior customer's info
     notifyCustomer: false, // tick to text/email the customer when scheduling the visit
@@ -241,6 +244,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     equipmentRentalDuration: '', equipmentRentalUnit: '',
     expectedDurationValue: '', expectedDurationUnit: 'hours', adminHoursPerDay: '8',
     expectedDurationMinutes: 120,
+    pickupDurationValue: 1, pickupDurationUnit: 'hours', pickupDurationMinutes: 60,
     quotedPrice: '',
     quoteCopied: false, _quoteCopiedTimer: null, // transient "copied to Quoted Price" flash
     paymentMethod: '', paymentMethodOther: '', paymentDate: '', paymentNotes: '',
@@ -253,8 +257,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     showPhotoModal: false,
     showVoicemailModal: false, voicemailNote: '', showCancelConfirm: false,
     showCalendarModal: false,
+    showPickupCalendarModal: false,
     showStatusSheet: false, // mobile status picker
     showQuickNav: false,    // mobile jump-to-section menu
+    showOtherActions: false, // mobile other-actions menu (delivered / voicemail / cancel)
     statusChoices: ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed', 'left_voicemail', 'cancelled'],
 
     init() {
@@ -262,17 +268,24 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         // Keep expected_duration_minutes in sync with the hrs/days editor.
         this.$watch('expectedDurationValue', () => this.syncDuration());
         this.$watch('expectedDurationUnit', () => this.syncDuration());
+        this.$watch('pickupDurationValue', () => this.syncPickupDuration());
+        this.$watch('pickupDurationUnit', () => this.syncPickupDuration());
         // Apply a visit placed in the day-calendar popup (iframe). Validate the
         // message shape (a YYYY-MM-DDTHH:MM datetime) rather than the exact origin
         // so host aliases (127.0.0.1 vs localhost) can't silently drop it.
         window.addEventListener('message', (e) => {
             const d = e.data;
             if (!d || d.type !== 'calendar-pick' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d.datetime || '')) return;
-            this.confirmedDateTime = d.datetime;
-            // If the card was resized in the calendar, apply the new duration too.
             const mins = Number(d.duration);
-            if (mins > 0) { this.expectedDurationUnit = 'hours'; this.expectedDurationValue = Math.round((mins / 60) * 100) / 100; }
-            this.showCalendarModal = false; // saving in the calendar closes the popup
+            if (d.target === 'pickup') {
+                this.pickupDateTime = d.datetime;
+                if (mins > 0) { this.pickupDurationUnit = 'hours'; this.pickupDurationValue = Math.round((mins / 60) * 100) / 100; }
+                this.showPickupCalendarModal = false;
+            } else {
+                this.confirmedDateTime = d.datetime;
+                if (mins > 0) { this.expectedDurationUnit = 'hours'; this.expectedDurationValue = Math.round((mins / 60) * 100) / 100; }
+                this.showCalendarModal = false; // saving in the calendar closes the popup
+            }
         });
     },
 
@@ -282,12 +295,19 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.expectedDurationMinutes = this.expectedDurationUnit === 'days'
             ? Math.round(qty * 8 * 60) : Math.round(qty * 60);
     },
+    syncPickupDuration() {
+        const qty = Number(this.pickupDurationValue);
+        if (!qty || qty <= 0) return;
+        this.pickupDurationMinutes = this.pickupDurationUnit === 'days'
+            ? Math.round(qty * 8 * 60) : Math.round(qty * 60);
+    },
 
     hydrate(inq) {
         this.inquiry = inq;
         this.adminNotes = inq.admin_notes || '';
         this.status = inq.status;
         this.assignedEmployeeId = inq.assigned_employee_id || '';
+        this.pickupAssignedEmployeeId = inq.pickup_assigned_employee_id || '';
         this.address = inq.address || '';
         this.confirmedDateTime = inq.confirmed_date_time || '';
         // No scheduled visit yet → pre-fill the date with the customer's next preferred
@@ -298,6 +318,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             this.confirmedDateTime = `${day}T`;
         }
         this.pickupDateTime = inq.pickup_date_time || '';
+        this.pickupDurationMinutes = inq.pickup_duration_minutes ?? 60;
+        this.pickupDurationUnit = 'hours';
+        this.pickupDurationValue = Math.round((this.pickupDurationMinutes / 60) * 100) / 100;
         // Single stored name → first word is the first name, the rest is the last name.
         const nameParts = (inq.name || '').trim().split(/\s+/).filter(Boolean);
         this.firstName = nameParts.shift() || '';
@@ -305,6 +328,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.phone = inq.phone || '';
         this.email = inq.email || '';
         this.preferredContactMethod = inq.preferred_contact_method || 'phone';
+        this.urgency = inq.urgency || 'routine';
         this.customerZip = inq.zip_code || '';
         this.customerPreferredDay = inq.preferred_day || '';
         this.customerPreferredTime = inq.preferred_time || '';
@@ -352,6 +376,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // Pill toggle. Switching to Service ensures a valid catalog selection and
     // seeds the visit duration from that service's default.
     setJobType(type) {
+        this.jobError = false;
         if (this.jobType === type) return;
         this.jobType = type;
         if (type === 'service') {
@@ -362,7 +387,12 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         }
     },
 
-    onServiceChange() { this.applyServiceDefaultDuration(); },
+    // A service (or a real equipment type) must be chosen for the quote to save.
+    get jobSelected() {
+        return this.isEquipment ? !!(this.equipmentType && this.equipmentType !== '__other__') : !!this.serviceType;
+    },
+
+    onServiceChange() { this.jobError = false; this.applyServiceDefaultDuration(); },
 
     // Seed the Visit "Duration" field from the selected service's default.
     applyServiceDefaultDuration() {
@@ -545,7 +575,19 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const label = encodeURIComponent(this.fullName || this.inquiry.name || 'This visit');
         // Exclude this quote's own saved visit — it's represented by the draggable pick card.
         const exclude = encodeURIComponent(this.inquiry.id || '');
-        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}`;
+        const assignee = encodeURIComponent(this.assignedEmployeeId || '');
+        const aName = encodeURIComponent(this.employeeName(this.assignedEmployeeId) || '');
+        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}&target=visit&assignee=${assignee}&assignee_name=${aName}`;
+    },
+    get pickupCalendarEmbedUrl() {
+        const date = encodeURIComponent(this.datePart(this.pickupDateTime) || '');
+        const time = encodeURIComponent(this.timePart(this.pickupDateTime) || '');
+        const dur = encodeURIComponent(this.pickupDurationMinutes || 60);
+        const label = encodeURIComponent((this.fullName || this.inquiry.name || 'Pickup') + ' — pickup');
+        const exclude = encodeURIComponent(this.inquiry.id || '');
+        const assignee = encodeURIComponent(this.pickupAssignedEmployeeId || '');
+        const aName = encodeURIComponent(this.employeeName(this.pickupAssignedEmployeeId) || '');
+        return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}&target=pickup&assignee=${assignee}&assignee_name=${aName}`;
     },
 
     get currentVisitWindow() {
@@ -553,6 +595,55 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const start = new Date(this.confirmedDateTime);
         if (isNaN(start.getTime())) return null;
         const mins = Number(this.expectedDurationMinutes) || 120;
+        return { start, end: new Date(start.getTime() + mins * 60000) };
+    },
+    get pickupBeforeVisit() {
+        if (!this.isEquipment) return false;
+        const v = new Date(this.confirmedDateTime), p = new Date(this.pickupDateTime);
+        return !isNaN(v.getTime()) && !isNaN(p.getTime()) && p < v;
+    },
+
+    // Estimate the pickup from the delivery time + requested rental duration. Hours
+    // are counted within a 7am–5pm window — past 5pm rolls to 7am the next day.
+    _addRentalTime(start, qty, unit) {
+        const WORK_START = 7, WORK_END = 17;
+        const cursor = new Date(start);
+        if (unit === 'days') { cursor.setDate(cursor.getDate() + qty); return cursor; }
+        let remaining = qty * 60; // minutes
+        let guard = 0;
+        while (remaining > 0 && guard++ < 1000) {
+            const endOfDay = new Date(cursor); endOfDay.setHours(WORK_END, 0, 0, 0);
+            const minsUntilEnd = (endOfDay - cursor) / 60000;
+            if (minsUntilEnd <= 0) { cursor.setDate(cursor.getDate() + 1); cursor.setHours(WORK_START, 0, 0, 0); continue; }
+            if (remaining <= minsUntilEnd) { cursor.setTime(cursor.getTime() + remaining * 60000); remaining = 0; }
+            else { remaining -= minsUntilEnd; cursor.setDate(cursor.getDate() + 1); cursor.setHours(WORK_START, 0, 0, 0); }
+        }
+        return cursor;
+    },
+    get estimatedPickup() {
+        if (!this.isEquipment || this.datePart(this.pickupDateTime)) return null;       // only when not set
+        if (!this.datePart(this.confirmedDateTime) || !this.timePart(this.confirmedDateTime)) return null; // need a delivery date+time
+        const start = new Date(this.confirmedDateTime);
+        const qty = Number(this.equipmentRentalDuration);
+        if (isNaN(start.getTime()) || !qty || qty <= 0) return null;
+        const end = this._addRentalTime(start, qty, this.equipmentRentalUnit || 'hours');
+        const p = (n) => String(n).padStart(2, '0');
+        return {
+            date: `${end.getFullYear()}-${p(end.getMonth() + 1)}-${p(end.getDate())}`,
+            time24: `${p(end.getHours())}:${p(end.getMinutes())}`,
+            label: end.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        };
+    },
+    get showEstimatedPickup() { return !this.showCustomerPickup && !!this.estimatedPickup; },
+    applyEstimatedPickup() {
+        const e = this.estimatedPickup;
+        if (e) this.pickupDateTime = `${e.date}T${e.time24}`;
+    },
+    get currentPickupWindow() {
+        if (!this.pickupDateTime) return null;
+        const start = new Date(this.pickupDateTime);
+        if (isNaN(start.getTime())) return null;
+        const mins = Number(this.pickupDurationMinutes) || 60;
         return { start, end: new Date(start.getTime() + mins * 60000) };
     },
 
@@ -565,7 +656,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             .map((e) => {
                 const start = new Date(e.confirmed_date_time);
                 const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
-                const conflict = !!(cur && start < cur.end && end > cur.start);
+                // Only a conflict if it's the same person double-booked at the same time.
+                const samePerson = !!(e.assigned_employee_id && e.assigned_employee_id === this.assignedEmployeeId);
+                const conflict = !!(cur && samePerson && start < cur.end && end > cur.start);
                 return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, start, end, isSelf: false, conflict };
             });
         // Add this inquiry's own (live, possibly-unsaved) visit, highlighted.
@@ -580,9 +673,31 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     get dayOtherCount() { return this.daySchedule.filter((e) => !e.isSelf).length; },
     get dayConflictCount() { return this.daySchedule.filter((e) => e.conflict).length; },
 
+    get pickupDaySchedule() {
+        const key = this.datePart(this.pickupDateTime);
+        if (!key) return [];
+        const cur = this.currentPickupWindow;
+        const rows = this.scheduleEvents
+            .filter((e) => e.id !== this.inquiry.id && e.confirmed_date_time && this.datePart(e.confirmed_date_time) === key)
+            .map((e) => {
+                const start = new Date(e.confirmed_date_time);
+                const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
+                // Only a conflict if the same person is double-booked at the same time.
+                const samePerson = !!(e.assigned_employee_id && e.assigned_employee_id === this.pickupAssignedEmployeeId);
+                const conflict = !!(cur && samePerson && start < cur.end && end > cur.start);
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, start, end, isSelf: false, conflict };
+            });
+        if (cur) {
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeName(this.pickupAssignedEmployeeId), start: cur.start, end: cur.end, isSelf: true, conflict: false });
+        }
+        return rows.sort((a, b) => a.start - b.start);
+    },
+    get pickupDayOtherCount() { return this.pickupDaySchedule.filter((e) => !e.isSelf).length; },
+    get pickupDayConflictCount() { return this.pickupDaySchedule.filter((e) => e.conflict).length; },
+
     clock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
 
     getServiceLabel(key) { return this.serviceLabel(key) || 'Not specified'; },
@@ -613,11 +728,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             address: this.address || null,
             // Only a date+time counts as a scheduled visit — a pre-filled date alone is not saved.
             confirmed_date_time: (this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)) ? this.confirmedDateTime : null,
-            // Equipment pickup (date+time) — only for equipment rentals.
+            // Equipment pickup (date+time + on-site duration) — only for equipment rentals.
             pickup_date_time: (isEq && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) ? this.pickupDateTime : null,
+            pickup_duration_minutes: (isEq && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) ? this.pickupDurationMinutes : null,
+            pickup_assigned_employee_id: isEq ? (this.pickupAssignedEmployeeId || null) : null,
             phone: this.phone || null,
             email: this.email || null,
             preferred_contact_method: this.preferredContactMethod,
+            urgency: this.urgency,
             zip_code: this.customerZip || null,
             preferred_day: this.customerPreferredDay || null,
             preferred_time: this.customerPreferredTime || null,
@@ -634,6 +752,12 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     },
 
     async save(overrides = {}) {
+        // Require a service or equipment selection before saving the quote.
+        if (!this.jobSelected) {
+            this.jobError = true;
+            this.scrollToSection('sec-job');
+            return;
+        }
         this.saving = true;
         try {
             const res = await fetch(this.urls.update, { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this.buildBody(overrides)) });
@@ -727,17 +851,35 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const cur = Number(this.expectedDurationValue) || 0;
         this.expectedDurationValue = Math.max(minVal, Math.round((cur + dir * step) * 10) / 10);
     },
+    stepPickupDuration(dir) {
+        const step = this.pickupDurationUnit === 'days' ? 1 : 0.5;
+        const minVal = this.pickupDurationUnit === 'days' ? 1 : 0.5;
+        const cur = Number(this.pickupDurationValue) || 0;
+        this.pickupDurationValue = Math.max(minVal, Math.round((cur + dir * step) * 10) / 10);
+    },
 
     // confirmed date/time split-field setters
-    setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime) || '00:00'; this.confirmedDateTime = v ? `${v}T${t}` : ''; },
+    setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime); this.confirmedDateTime = v ? `${v}T${t}` : ''; },
     setConfirmedTime(v) { const d = this.datePart(this.confirmedDateTime); if (!v) { this.confirmedDateTime = d ? `${d}T` : ''; return; } this.confirmedDateTime = d ? `${d}T${v}` : v; },
 
     // equipment pickup date/time split-field setters
-    setPickupDate(v) { const t = this.timePart(this.pickupDateTime) || '00:00'; this.pickupDateTime = v ? `${v}T${t}` : ''; },
+    setPickupDate(v) { const t = this.timePart(this.pickupDateTime); this.pickupDateTime = v ? `${v}T${t}` : ''; },
     setPickupTime(v) { const d = this.datePart(this.pickupDateTime); if (!v) { this.pickupDateTime = d ? `${d}T` : ''; return; } this.pickupDateTime = d ? `${d}T${v}` : v; },
+
+    // Pickup the customer requested on the agreement, only worth surfacing when we haven't scheduled one.
+    get showCustomerPickup() { return !!(this.isEquipment && this.customerPickup && (this.customerPickup.date || this.customerPickup.time) && !this.datePart(this.pickupDateTime)); },
+    get customerPickupLabel() {
+        const p = this.customerPickup; if (!p) return '';
+        const d = p.date ? new Date(p.date + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+        return [d, p.time].filter(Boolean).join(' at ');
+    },
+    applyCustomerPickup() {
+        const p = this.customerPickup; if (!p || !p.date) return;
+        this.pickupDateTime = `${p.date}T${p.time24 || '08:00'}`;
+    },
     setPaymentDate(v) { const t = this.timePart(this.paymentDate) || '00:00'; this.paymentDate = v ? `${v}T${t}` : ''; },
     setPaymentTime(v) { const d = this.datePart(this.paymentDate); if (!v) { this.paymentDate = d ? `${d}T` : ''; return; } this.paymentDate = d ? `${d}T${v}` : v; },
-    pickPreferredDate(dateStr) { const t = this.timePart(this.confirmedDateTime) || '00:00'; this.confirmedDateTime = `${dateStr}T${t}`; },
+    pickPreferredDate(dateStr) { const t = this.timePart(this.confirmedDateTime); this.confirmedDateTime = `${dateStr}T${t}`; },
 }));
 
 // ---------------------------------------------------------------------------
@@ -1107,7 +1249,11 @@ Alpine.data('calendar', (cfg = {}) => ({
     pickedMinutes: null,
     pickDuration: cfg.pickDuration || 120, // visit length (min) — sizes the preview card
     pickLabel: cfg.pickLabel || 'This visit',
+    pickTarget: cfg.pickTarget || 'visit', // 'visit' | 'pickup' — which field the parent applies the pick to
     pickInquiryId: cfg.pickInquiryId || '', // hide this quote's saved event (the pick card stands in for it)
+    assigneeFilter: cfg.assignee || '',     // only show this person's visits (embed)…
+    assigneeName: cfg.assigneeName || '',
+    viewAll: false,                         // …unless "View All" is ticked
     // drag state
     dragMode: null, _grabOffsetMin: 0, _justDragged: false, _durationChanged: false,
 
@@ -1189,7 +1335,7 @@ Alpine.data('calendar', (cfg = {}) => ({
         if (this.pickedMinutes == null) return;
         const pad = (n) => String(n).padStart(2, '0');
         const time = `${pad(Math.floor(this.pickedMinutes / 60))}:${pad(this.pickedMinutes % 60)}`;
-        const msg = { type: 'calendar-pick', datetime: `${this.pickedDateKey}T${time}` };
+        const msg = { type: 'calendar-pick', target: this.pickTarget, datetime: `${this.pickedDateKey}T${time}` };
         if (this._durationChanged) msg.duration = this.pickDuration; // only override duration if the card was resized
         try { window.parent.postMessage(msg, '*'); } catch (e) { /* not embedded */ }
     },
@@ -1202,7 +1348,11 @@ Alpine.data('calendar', (cfg = {}) => ({
         if (this.pickedMinutes == null) return '';
         const top = (this.pickedMinutes - DAY_START_HOUR * 60) * HOUR_PX / 60;
         const height = Math.max(HOUR_PX * 0.5, (this.pickDuration / 60) * HOUR_PX);
-        return `position:absolute;top:${top}px;height:${height}px;left:4px;right:4px`;
+        // Share a column with any events it overlaps so the preview doesn't cover them.
+        const pick = this._dayColumns().find((it) => it.isPick);
+        const cols = pick ? pick.cols : 1, lane = pick ? pick.lane : 0;
+        const left = (lane / cols) * 100, width = 100 / cols;
+        return `position:absolute;top:${top}px;height:${height}px;left:calc(${left}% + 4px);width:calc(${width}% - 8px)`;
     },
     minutesToLabel(m) { const pad = (n) => String(n).padStart(2, '0'); return fmtTime12(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`); },
     get pickedTimeLabel() { return this.pickedMinutes == null ? '' : this.minutesToLabel(this.pickedMinutes); },
@@ -1225,12 +1375,14 @@ Alpine.data('calendar', (cfg = {}) => ({
             reviewing: 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/40 hover:border-amber-500/70',
             quoted: 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/40 hover:border-indigo-500/70',
             scheduled: 'bg-[#F8C820]/10 hover:bg-[#F8C820]/20 border-[#F8C820]/40 hover:border-[#F8C820]/70',
+            equipment_delivered: 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/40 hover:border-cyan-500/70',
+            equipment_picked_up: 'bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/40 hover:border-sky-500/70',
             service_performed: 'bg-teal-500/10 hover:bg-teal-500/20 border-teal-500/40 hover:border-teal-500/70',
             completed: 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/40 hover:border-emerald-500/70',
         })[s] || 'bg-gray-100 hover:bg-gray-200 border-gray-300 hover:border-gray-400';
     },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
     statusLabel(s) { return ({ new: 'New', left_voicemail: 'Voicemail', reviewing: 'Reviewing', quoted: 'Quoted', scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed' })[s] || s; },
     serviceLabel(s) { return (s || '').replace(/-/g, ' '); },
@@ -1240,8 +1392,20 @@ Alpine.data('calendar', (cfg = {}) => ({
     jobLabel(inq) { return (inq.equipment_type && String(inq.equipment_type).trim()) || this.serviceLabel(inq.service_type); },
     fmtClock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
 
+    // When scheduling from a quote, hide only the entry being placed (the pick card
+    // stands in for it) — NOT the quote's other entry, so a visit + its pickup both show.
+    get _excludeEventId() {
+        if (!this.pickInquiryId) return null;
+        return this.pickTarget === 'pickup' ? `${this.pickInquiryId}:pickup` : this.pickInquiryId;
+    },
     get calendarEvents() {
-        return this.events.filter((e) => e.confirmed_date_time).filter((e) => e.id !== this.pickInquiryId).map((e) => {
+        const ex = this._excludeEventId;
+        const byAssignee = !this.viewAll && this.assigneeFilter;
+        return this.events
+            .filter((e) => e.confirmed_date_time)
+            .filter((e) => e.event_id !== ex)
+            .filter((e) => !byAssignee || e.assignee_id === this.assigneeFilter)
+            .map((e) => {
             const start = new Date(e.confirmed_date_time);
             const end = new Date(start.getTime() + (e.expected_duration_minutes || 120) * 60000);
             return { inquiry: e, start, end, key: start.toISOString().split('T')[0] };
@@ -1274,24 +1438,44 @@ Alpine.data('calendar', (cfg = {}) => ({
     get weekDays() { const ws = this.weekStart; return Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(d.getDate() + i); return d; }); },
 
     // day layout
-    get dayLayout() {
+    // Lane assignment for the day timeline. Returns every item (real events + the
+    // drag/pick preview, when picking on this day) with a lane index and a column
+    // count, so overlapping items get staggered side-by-side instead of stacking.
+    _dayColumns() {
         const key = this.currentDate.toISOString().split('T')[0];
-        const evs = this.eventsForKey(key);
+        const items = this.eventsForKey(key).map((e) => ({ ev: e, start: e.start, end: e.end, isPick: false }));
+        if (this.pickOnThisDay) {
+            const ps = new Date(this.currentDate);
+            ps.setHours(0, this.pickedMinutes, 0, 0);
+            const pe = new Date(ps.getTime() + this.pickDuration * 60000);
+            items.push({ ev: null, start: ps, end: pe, isPick: true });
+        }
+        items.sort((a, b) => a.start - b.start || a.end - b.end);
         const laneEnds = [];
-        const withLanes = evs.map((e) => {
-            let lane = laneEnds.findIndex((end) => end <= e.start);
-            if (lane === -1) { lane = laneEnds.length; laneEnds.push(e.end); } else { laneEnds[lane] = e.end; }
-            return { ...e, lane };
+        items.forEach((it) => {
+            let lane = laneEnds.findIndex((end) => end <= it.start);
+            if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end); } else { laneEnds[lane] = it.end; }
+            it.lane = lane;
         });
-        return withLanes.map((e) => {
-            const concurrent = withLanes.filter((o) => o.start < e.end && o.end > e.start).length;
+        // Columns = widest lane in the cluster of items this one overlaps, so every
+        // item in a run of overlaps shares the same width and they tile cleanly.
+        items.forEach((it) => {
+            const overlap = items.filter((o) => o.start < it.end && o.end > it.start);
+            it.cols = Math.max(...overlap.map((o) => o.lane)) + 1;
+        });
+        return items;
+    },
+
+    get dayLayout() {
+        const dayStart = DAY_START_HOUR * 60, dayEnd = DAY_END_HOUR * 60;
+        return this._dayColumns().filter((it) => !it.isPick).map((it) => {
+            const e = it.ev;
             const startMin = e.start.getHours() * 60 + e.start.getMinutes();
             const endMin = e.end.getHours() * 60 + e.end.getMinutes();
-            const dayStart = DAY_START_HOUR * 60, dayEnd = DAY_END_HOUR * 60;
             const top = Math.max(0, (startMin - dayStart) * HOUR_PX / 60);
             const rawH = (Math.min(endMin, dayEnd) - Math.max(startMin, dayStart)) * HOUR_PX / 60;
             const height = Math.max(HOUR_PX * 0.45, rawH);
-            const left = (e.lane / concurrent) * 100, width = 100 / concurrent;
+            const left = (it.lane / it.cols) * 100, width = 100 / it.cols;
             return { ...e, style: `position:absolute;top:${top}px;height:${height}px;left:calc(${left}% + 4px);width:calc(${width}% - 8px)`, big: height >= HOUR_PX };
         });
     },

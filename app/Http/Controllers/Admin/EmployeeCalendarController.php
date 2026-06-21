@@ -18,14 +18,27 @@ class EmployeeCalendarController extends Controller
     {
         $me = $request->session()->get('admin_id');
 
-        $rows = Inquiry::where('assigned_employee_id', $me)
-            ->where('status', '!=', 'cancelled')
-            ->where(fn ($q) => $q->whereNotNull('confirmed_date_time')->orWhereNotNull('pickup_date_time'))
-            ->with('assignedEmployee:id,username')
+        // Visits assigned to me, plus equipment pickups assigned to me.
+        $rows = Inquiry::where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($me) {
+                $q->where(fn ($x) => $x->where('assigned_employee_id', $me)->whereNotNull('confirmed_date_time'))
+                    ->orWhere(fn ($x) => $x->where('pickup_assigned_employee_id', $me)->whereNotNull('pickup_date_time'));
+            })
+            ->with(['assignedEmployee:id,username', 'pickupAssignedEmployee:id,username'])
             ->orderBy('confirmed_date_time')
             ->get();
 
-        return view('admin.my-schedule', ['events' => CalendarController::calendarEntries($rows)]);
+        $events = collect();
+        foreach ($rows as $i) {
+            if ($i->assigned_employee_id === $me && $i->confirmed_date_time) {
+                $events->push(CalendarController::entry($i, 'visit'));
+            }
+            if ($i->pickup_assigned_employee_id === $me && $i->pickup_date_time) {
+                $events->push(CalendarController::entry($i, 'pickup'));
+            }
+        }
+
+        return view('admin.my-schedule', ['events' => $events->values()]);
     }
 
     /** Job sheet for an assigned visit (full detail + comments). */
