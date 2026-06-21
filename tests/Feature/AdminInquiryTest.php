@@ -35,6 +35,21 @@ class AdminInquiryTest extends TestCase
         $this->actingAdmin()->get("/admin/inquiries/{$inq->id}")->assertOk()->assertSee($inq->ref);
     }
 
+    public function test_opening_a_new_quote_advances_it_to_reviewing(): void
+    {
+        $inq = Inquiry::create(['name' => 'Lead', 'phone' => '9095552222', 'email' => 'l@e.com', 'service_type' => 'other', 'zip_code' => '92399', 'status' => 'new']);
+        $admin = $this->actingAdmin();
+
+        $admin->get("/admin/inquiries/{$inq->id}")->assertOk();
+        $this->assertSame('reviewing', $inq->fresh()->status);
+        $this->assertSame(1, $inq->statusHistory()->where('new_status', 'reviewing')->count());
+
+        // Re-opening a non-new quote doesn't change it again.
+        $admin->get("/admin/inquiries/{$inq->id}")->assertOk();
+        $this->assertSame('reviewing', $inq->fresh()->status);
+        $this->assertSame(1, $inq->statusHistory()->where('new_status', 'reviewing')->count());
+    }
+
     public function test_store_creates_inquiry(): void
     {
         $this->actingAdmin()->postJson('/admin/api/inquiries', ['phone' => '9095551111', 'name' => 'New Lead'])
