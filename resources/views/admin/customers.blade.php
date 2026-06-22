@@ -13,36 +13,48 @@
         <p class="text-sm text-gray-500">Search by phone or email to see a customer's history and analytics.</p>
     </div>
 
-    {{-- Search + results --}}
+    {{-- Search + results (collapses once a customer is selected; tap the header to reopen) --}}
     <div class="card-light p-4 mb-6 print:hidden">
-        <label class="block text-xs text-gray-500 mb-1">Search customers</label>
-        <div class="relative">
-            <x-icon name="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"/>
-            <input type="search" x-model="query" placeholder="Phone number, email, or name…" class="input-light pl-9" autofocus>
-        </div>
+        <button type="button" @click="listExpanded = !listExpanded" class="w-full flex items-center justify-between gap-3 text-left">
+            <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-800">Find a customer</div>
+                <div class="text-xs text-gray-500 truncate">
+                    <span x-show="!listExpanded && selected" x-cloak>Showing <span class="font-medium text-gray-700" x-text="selected ? (selected.name || selected.phone || '(no name)') : ''"></span> &middot; tap to search another</span>
+                    <span x-show="listExpanded || !selected">Search by phone, email, or name</span>
+                </div>
+            </div>
+            <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="listExpanded && 'rotate-180'"/>
+        </button>
 
-        <div class="mt-3">
-            <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-2" x-text="query.trim().length < 2 ? 'Recent customers' : (results.length + ' match' + (results.length === 1 ? '' : 'es'))"></div>
-            <div class="space-y-1.5">
-                <template x-for="c in results" :key="c.key">
-                    <button type="button" @click="select(c.key)"
-                            class="w-full text-left rounded-lg border p-3 transition-colors"
-                            :class="selectedKey === c.key ? 'border-amber-400 bg-amber-50/60' : 'border-gray-200 hover:border-gray-300'">
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="font-medium text-gray-900 truncate" x-text="c.name || '(no name)'"></div>
-                                <div class="text-xs text-gray-500 truncate">
-                                    <span x-text="c.phone || '—'"></span><span x-show="c.email"> · <span x-text="c.email"></span></span>
+        <div x-show="listExpanded" x-cloak x-transition.opacity class="mt-3">
+            <div class="relative">
+                <x-icon name="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"/>
+                <input type="search" x-model="query" placeholder="Phone number, email, or name…" class="input-light pl-9">
+            </div>
+
+            <div class="mt-3">
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-2" x-text="query.trim().length < 2 ? 'Recent customers' : (results.length + ' match' + (results.length === 1 ? '' : 'es'))"></div>
+                <div class="space-y-1.5">
+                    <template x-for="c in results" :key="c.key">
+                        <button type="button" @click="select(c.key)"
+                                class="w-full text-left rounded-lg border p-3 transition-colors"
+                                :class="selectedKey === c.key ? 'border-amber-400 bg-amber-50/60' : 'border-gray-200 hover:border-gray-300'">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="font-medium text-gray-900 truncate" x-text="c.name || '(no name)'"></div>
+                                    <div class="text-xs text-gray-500 truncate">
+                                        <span x-text="c.phone || '—'"></span><span x-show="c.email"> · <span x-text="c.email"></span></span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="text-xs font-semibold text-gray-700" x-text="c.count + (c.count === 1 ? ' quote' : ' quotes')"></div>
+                                    <div class="text-[10px] text-gray-400" x-text="'Last ' + date(c.lastSeen)"></div>
                                 </div>
                             </div>
-                            <div class="text-right shrink-0">
-                                <div class="text-xs font-semibold text-gray-700" x-text="c.count + (c.count === 1 ? ' quote' : ' quotes')"></div>
-                                <div class="text-[10px] text-gray-400" x-text="'Last ' + date(c.lastSeen)"></div>
-                            </div>
-                        </div>
-                    </button>
-                </template>
-                <div x-show="results.length === 0" class="text-sm text-gray-400 py-4 text-center">No customers found.</div>
+                        </button>
+                    </template>
+                    <div x-show="results.length === 0" class="text-sm text-gray-400 py-4 text-center">No customers found.</div>
+                </div>
             </div>
         </div>
     </div>

@@ -265,6 +265,11 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     init() {
         this.hydrate(this.inquiry);
+        // A brand-new quote arrives with no customer info (just a phone, if that) →
+        // open the customer fields for editing so it's one less click for the admin.
+        if (!this.firstName && !this.lastName && !this.email && !this.address) {
+            this.isEditingCustomer = true;
+        }
         // Keep expected_duration_minutes in sync with the hrs/days editor.
         this.$watch('expectedDurationValue', () => this.syncDuration());
         this.$watch('expectedDurationUnit', () => this.syncDuration());
@@ -702,18 +707,55 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     getServiceLabel(key) { return this.serviceLabel(key) || 'Not specified'; },
 
+    // Accepts one or more comma-separated day names ("Monday" / "Monday, Wednesday")
+    // and returns the upcoming dates for each, de-duplicated and sorted ascending.
     getNextTwoOccurrences(dayName) {
         const map = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
-        const target = map[(dayName || '').toLowerCase()];
-        if (target === undefined) return [];
-        const out = []; const d = new Date(); d.setHours(0, 0, 0, 0);
-        let add = (target - d.getDay() + 7) % 7; if (add === 0) add = 7;
-        d.setDate(d.getDate() + add);
-        for (let i = 0; i < 2; i++) { out.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() + 7); }
+        const names = String(dayName || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+        const out = [];
+        for (const name of names) {
+            const target = map[name];
+            if (target === undefined) continue;
+            const d = new Date(); d.setHours(0, 0, 0, 0);
+            let add = (target - d.getDay() + 7) % 7; if (add === 0) add = 7;
+            d.setDate(d.getDate() + add);
+            for (let i = 0; i < 2; i++) { out.push(d.toISOString().split('T')[0]); d.setDate(d.getDate() + 7); }
+        }
+        return [...new Set(out)].sort();
+    },
+    // Next `count` upcoming dates (from tomorrow) that fall on one of the customer's
+    // preferred days (comma-separated). Empty when no preferred day is set.
+    recommendedDates(count = 3) {
+        const map = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+        const targets = String(this.customerPreferredDay || '').split(',')
+            .map((s) => map[s.trim().toLowerCase()]).filter((n) => n !== undefined);
+        if (!targets.length) return [];
+        const out = []; const base = new Date(); base.setHours(0, 0, 0, 0);
+        const p = (x) => String(x).padStart(2, '0');
+        for (let i = 1; out.length < count && i <= 90; i++) {
+            const d = new Date(base); d.setDate(base.getDate() + i);
+            if (targets.includes(d.getDay())) out.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+        }
         return out;
     },
     dayLabel(dateStr) {
         return new Date(dateStr + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' });
+    },
+
+    // Multi-select chips: toggle a value within a comma-separated string field,
+    // re-ordered to the canonical day/time order (unknown legacy values kept).
+    togglePref(field, value) {
+        const set = new Set(String(this[field] || '').split(',').map((s) => s.trim()).filter(Boolean));
+        set.has(value) ? set.delete(value) : set.add(value);
+        const order = field.toLowerCase().includes('day')
+            ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+            : ['Morning (8am - 12pm)', 'Afternoon (12pm - 5pm)', 'Evening (5pm - 8pm)'];
+        const ordered = order.filter((v) => set.has(v));
+        const extras = [...set].filter((v) => !order.includes(v));
+        this[field] = [...ordered, ...extras].join(', ');
+    },
+    prefHas(field, value) {
+        return String(this[field] || '').split(',').map((s) => s.trim()).includes(value);
     },
     _tomorrowKey() { const d = new Date(); d.setDate(d.getDate() + 1); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; },
 
@@ -1026,6 +1068,7 @@ Alpine.data('customerLookup', (cfg = {}) => ({
     detailBase: cfg.detailBase || '',
     query: '',
     selectedKey: '',
+    listExpanded: true,   // collapses once a customer is picked; re-openable to browse again
 
     _key(i) {
         const p = (i.phone || '').replace(/\D/g, '').slice(-10);
@@ -1080,7 +1123,7 @@ Alpine.data('customerLookup', (cfg = {}) => ({
         }).slice(0, 30);
     },
 
-    select(key) { this.selectedKey = key; },
+    select(key) { this.selectedKey = key; this.query = ''; this.listExpanded = false; },
     get selected() { return this.customers.find((c) => c.key === this.selectedKey) || null; },
     get selectedQuotes() {
         return this.selected ? [...this.selected.items].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : [];

@@ -184,5 +184,27 @@
     <div class="mt-4 card-light p-5">
         @include('partials.admin.comment-thread', ['postUrl' => route($routeBase.'.comment', $inquiry->id), 'comments' => $comments])
     </div>
+
+    {{-- Quote status — shown to everyone; only the admin Field View can change it manually --}}
+    <div class="mt-4 card-light p-5">
+        <div class="flex items-center justify-between gap-3">
+            <div class="text-sm font-semibold text-gray-800">Quote Status</div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shrink-0 {{ $statusColors[$inquiry->status] ?? 'bg-gray-100 text-gray-600 border-gray-300' }}">{{ $statusLabel }}</span>
+        </div>
+        @if($adminField)
+            <form method="POST" action="{{ route($routeBase.'.status', $inquiry->id) }}" class="mt-3 flex flex-col sm:flex-row gap-2">
+                @csrf
+                <select name="status" class="input-light flex-1">
+                    @foreach(config('business.status_labels') as $key => $label)
+                        <option value="{{ $key }}" @selected($inquiry->status === $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn-primary py-2 px-5 text-sm shrink-0">Update Status</button>
+            </form>
+            <p class="text-xs text-gray-400 mt-2">Manually set the quote status.</p>
+        @else
+            <p class="text-xs text-gray-400 mt-2">Status is managed by the office.</p>
+        @endif
+    </div>
 </div>
 @endsection

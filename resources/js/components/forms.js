@@ -129,6 +129,23 @@ Alpine.data('quoteForm', () => ({
     },
 
     get isEquipment() { return this.jobType === 'equipment'; },
+
+    // Multi-select chips: toggle a value within a comma-separated string field,
+    // re-ordered to the canonical day/time order.
+    togglePref(field, value) {
+        const set = new Set(String(this[field] || '').split(',').map((s) => s.trim()).filter(Boolean));
+        set.has(value) ? set.delete(value) : set.add(value);
+        const order = field.toLowerCase().includes('day')
+            ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+            : ['Morning (8am - 12pm)', 'Afternoon (12pm - 5pm)', 'Evening (5pm - 8pm)'];
+        const ordered = order.filter((v) => set.has(v));
+        const extras = [...set].filter((v) => !order.includes(v));
+        this[field] = [...ordered, ...extras].join(', ');
+    },
+    prefHas(field, value) {
+        return String(this[field] || '').split(',').map((s) => s.trim()).includes(value);
+    },
+
     // Service choices exclude the catalog's 'equipment' entry (that's the pill).
     get serviceChoices() { return this.serviceOptions.filter((o) => o.key !== 'equipment'); },
     // Catalog price for the chosen service (shown as the estimate).

@@ -74,6 +74,17 @@ class FieldViewTest extends TestCase
         $this->assertSame('service_performed', $inq->fresh()->status);
     }
 
+    public function test_admin_can_manually_set_any_status_from_field_view(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();
+
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/status", ['status' => 'cancelled'])
+            ->assertRedirect(route('admin.field.job', $inq->id));
+
+        $this->assertSame('cancelled', $inq->fresh()->status);
+    }
+
     public function test_employee_cannot_reach_field_view(): void
     {
         $emp = $this->employee();

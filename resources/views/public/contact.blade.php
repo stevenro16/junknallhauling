@@ -181,33 +181,33 @@
                         </div>
 
                         {{-- Zip + schedule --}}
-                        <div class="grid sm:grid-cols-3 gap-5">
-                            <div class="sm:col-span-1">
+                        <div class="space-y-5">
+                            <div class="sm:max-w-[200px]">
                                 <label class="block text-slate-700 text-sm font-medium mb-1.5">Zip Code <span class="text-orange-500">*</span></label>
                                 <input type="text" placeholder="92399" maxlength="10" class="input" x-model="zipCode">
                                 <p x-show="errors.zipCode" x-text="errors.zipCode" class="text-red-600 text-xs mt-1" x-cloak></p>
                             </div>
                             <div>
                                 <label class="block text-slate-700 text-sm font-medium mb-1.5">Preferred Day <span class="text-slate-500 text-xs font-normal">(optional)</span></label>
-                                <select class="input" x-model="preferredDay">
-                                    <option value="">Any day</option>
-                                    <option value="Monday">Monday</option>
-                                    <option value="Tuesday">Tuesday</option>
-                                    <option value="Wednesday">Wednesday</option>
-                                    <option value="Thursday">Thursday</option>
-                                    <option value="Friday">Friday</option>
-                                    <option value="Saturday">Saturday</option>
-                                    <option value="Sunday">Sunday</option>
-                                </select>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="d in [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday']]" :key="d[1]">
+                                        <button type="button" @click="togglePref('preferredDay', d[1])"
+                                                class="px-4 py-2 rounded-lg border text-sm font-medium transition-colors"
+                                                :class="prefHas('preferredDay', d[1]) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white border-gray-300 text-slate-700 hover:border-orange-400'"
+                                                x-text="d[0]"></button>
+                                    </template>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-slate-700 text-sm font-medium mb-1.5">Preferred Time <span class="text-slate-500 text-xs font-normal">(optional)</span></label>
-                                <select class="input" x-model="preferredTime">
-                                    <option value="">Any time</option>
-                                    <option value="Morning (8am - 12pm)">Morning (8am - 12pm)</option>
-                                    <option value="Afternoon (12pm - 5pm)">Afternoon (12pm - 5pm)</option>
-                                    <option value="Evening (5pm - 8pm)">Evening (5pm - 8pm)</option>
-                                </select>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="t in [['Morning','Morning (8am - 12pm)'],['Afternoon','Afternoon (12pm - 5pm)'],['Evening','Evening (5pm - 8pm)']]" :key="t[1]">
+                                        <button type="button" @click="togglePref('preferredTime', t[1])"
+                                                class="px-4 py-2 rounded-lg border text-sm font-medium transition-colors"
+                                                :class="prefHas('preferredTime', t[1]) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white border-gray-300 text-slate-700 hover:border-orange-400'"
+                                                x-text="t[0]"></button>
+                                    </template>
+                                </div>
                             </div>
                         </div>
 

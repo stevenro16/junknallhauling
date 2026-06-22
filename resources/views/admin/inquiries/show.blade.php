@@ -193,10 +193,30 @@
                     </template>
 
                     <template x-if="isEditingCustomer">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label><input type="text" x-model="customerZip" class="input-light text-sm py-1.5 w-full" placeholder="Zip code"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label><input type="text" x-model="customerPreferredDay" class="input-light text-sm py-1.5 w-full" placeholder="e.g. Monday"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label><input type="text" x-model="customerPreferredTime" class="input-light text-sm py-1.5 w-full" placeholder="e.g. Morning"></div>
+                        <div class="space-y-4">
+                            <div class="sm:max-w-[180px]"><label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label><input type="text" x-model="customerZip" class="input-light text-sm py-1.5 w-full" placeholder="Zip code"></div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="d in [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday']]" :key="d[1]">
+                                        <button type="button" @click="togglePref('customerPreferredDay', d[1])"
+                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                                                :class="prefHas('customerPreferredDay', d[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
+                                                x-text="d[0]"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="t in [['Morning','Morning (8am - 12pm)'],['Afternoon','Afternoon (12pm - 5pm)'],['Evening','Evening (5pm - 8pm)']]" :key="t[1]">
+                                        <button type="button" @click="togglePref('customerPreferredTime', t[1])"
+                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                                                :class="prefHas('customerPreferredTime', t[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
+                                                x-text="t[0]"></button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </template>
                     <template x-if="!isEditingCustomer">
@@ -445,6 +465,19 @@
                                 </select>
                             </div>
                         </div>
+
+                        {{-- Customer preferences + the next dates that match their preferred day(s) --}}
+                        <template x-if="customerPreferredDay || customerPreferredTime">
+                            <div class="mt-2">
+                                <div class="text-[11px] text-gray-500 mb-1">Customer prefers: <span class="font-medium text-gray-600" x-text="customerPreferredDay || 'any day'"></span><span x-show="customerPreferredTime"> · <span class="font-medium text-gray-600" x-text="customerPreferredTime"></span></span></div>
+                                <div x-show="recommendedDates(3).length" class="flex gap-2 flex-wrap">
+                                    <template x-for="(dateStr, index) in recommendedDates(3)" :key="index">
+                                        <button type="button" @click="pickPreferredDate(dateStr)" class="text-xs px-2.5 py-1 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 active:scale-[0.985] transition-all" x-text="dayLabel(dateStr)"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
                         <div class="mt-3">
                             <div class="text-sm font-medium text-gray-700 mb-1.5">Duration</div>
                             <div class="flex items-center gap-2">
@@ -455,18 +488,6 @@
                             </div>
                         </div>
 
-                        <template x-if="inquiry.preferred_day || inquiry.preferred_time">
-                            <div class="mt-1.5">
-                                <div class="text-[10px] text-gray-500 mb-1">Customer prefers: <span x-text="inquiry.preferred_day"></span><span x-show="inquiry.preferred_time"> (<span x-text="inquiry.preferred_time"></span>)</span></div>
-                                <template x-if="inquiry.preferred_day">
-                                    <div class="flex gap-2 flex-wrap">
-                                        <template x-for="(dateStr, index) in getNextTwoOccurrences(inquiry.preferred_day)" :key="index">
-                                            <button type="button" @click="pickPreferredDate(dateStr)" class="text-xs px-2.5 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 active:scale-[0.985] transition-all" x-text="dayLabel(dateStr)"></button>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
                     </div>
 
                     {{-- Visit day schedule — moved directly under the visit duration --}}
@@ -583,9 +604,15 @@
                          class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
                          @click.self="showCalendarModal = false" @keydown.escape.window="showCalendarModal = false">
                         <div class="w-full max-w-3xl bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden flex flex-col" style="height:82vh">
-                            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 shrink-0">
-                                <div class="text-sm font-semibold text-gray-800">Calendar — <span x-text="confirmedDateTime ? new Date(datePart(confirmedDateTime) + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''"></span></div>
-                                <button type="button" @click="showCalendarModal = false" class="text-gray-400 hover:text-gray-600"><x-icon name="x" class="w-5 h-5"/></button>
+                            <div class="flex items-start justify-between px-4 py-2.5 border-b border-gray-200 shrink-0 gap-3">
+                                <div class="min-w-0">
+                                    <div class="text-sm font-semibold text-gray-800">Calendar — <span x-text="confirmedDateTime ? new Date(datePart(confirmedDateTime) + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''"></span></div>
+                                    <div x-show="customerPreferredDay || customerPreferredTime" x-cloak class="mt-0.5 text-[11px] text-amber-700 inline-flex items-center gap-1">
+                                        <x-icon name="user" class="w-3 h-3 shrink-0 text-amber-500"/>
+                                        <span>Customer prefers: <span class="font-medium" x-text="customerPreferredDay || 'any day'"></span><span x-show="customerPreferredTime"> · <span class="font-medium" x-text="customerPreferredTime"></span></span></span>
+                                    </div>
+                                </div>
+                                <button type="button" @click="showCalendarModal = false" class="text-gray-400 hover:text-gray-600 shrink-0"><x-icon name="x" class="w-5 h-5"/></button>
                             </div>
                             <iframe :src="showCalendarModal ? calendarEmbedUrl : 'about:blank'" class="flex-1 w-full border-0" title="Day calendar"></iframe>
                         </div>

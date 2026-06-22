@@ -15,9 +15,6 @@ use Illuminate\Http\Request;
  */
 class FieldViewController extends Controller
 {
-    /** Statuses settable from the field sheet (the signature also auto-advances). */
-    private const FIELD_STATUSES = ['service_performed'];
-
     /** Calendar of every scheduled visit + equipment pickup (admin oversight). */
     public function index()
     {
@@ -85,13 +82,13 @@ class FieldViewController extends Controller
         return response()->json(['comment' => EmployeeCalendarController::commentPayload($comment)]);
     }
 
-    /** Advance the job status from the field (service performed). */
+    /** Set the job status from the field. Admin Field View, so any valid status is allowed. */
     public function updateStatus(Request $request, string $id)
     {
         $inquiry = Inquiry::findOrFail($id);
         $new = (string) $request->input('status');
 
-        if (! in_array($new, self::FIELD_STATUSES, true)) {
+        if (! array_key_exists($new, config('business.status_labels'))) {
             return back()->with('jobError', 'That status is not allowed.');
         }
 
