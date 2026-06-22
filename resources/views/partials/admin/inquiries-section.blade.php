@@ -7,7 +7,7 @@
         'equipment_rental_duration' => $i->equipment_rental_duration,
         'equipment_rental_unit' => $i->equipment_rental_unit,
         'confirmed_date_time' => $i->confirmed_date_time, 'quoted_price' => $i->quoted_price,
-        'assigned_employee' => $i->assignedEmployee?->username,
+        'assigned_employee' => \App\Models\Admin::namesFor($i->assigneeIds('visit')),
         'payment_method' => $i->payment_method,
         'created_at' => $i->created_at, 'updated_at' => $i->updated_at,
         'agreement' => $i->rentalAgreements->isEmpty()

@@ -16,6 +16,8 @@
         pickTarget: @js($target),
         assignee: @js($assignee),
         assigneeName: @js($assigneeName),
+        employees: @js($employees),
+        embed: true,
      })">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h2 class="text-base font-bold text-gray-900" x-text="headerLabel"></h2>
@@ -32,13 +34,8 @@
         </div>
     </div>
 
-    {{-- Assignee filter: by default show only this person's visits; View All shows everyone --}}
-    <div x-show="assigneeFilter" x-cloak class="flex items-center justify-between gap-2 mb-2 text-xs">
-        <span class="text-gray-500" x-text="viewAll ? 'Showing all visits' : ('Showing only ' + (assigneeName || 'assignee') + '’s visits')"></span>
-        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none font-medium text-gray-700">
-            <input type="checkbox" x-model="viewAll" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500"> View All
-        </label>
-    </div>
+    {{-- Assignee quick-filter (pre-selected to this quote's assignee; 2+ → columns) --}}
+    @include('partials.admin.calendar-assignee-filter')
 
     {{-- Hint / placed status (day-pick view only) --}}
     <div x-show="viewMode === 'day' && pickedMinutes === null" class="mb-3 text-xs text-gray-500">Click a time to place this visit. Drag it to reschedule, or drag its bottom edge to change the duration.</div>

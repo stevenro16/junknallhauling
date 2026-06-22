@@ -19,6 +19,15 @@
         </div>
     </div>
 
+    {{-- Confirming a return from Stripe Checkout --}}
+    <div x-show="confirming && !paid" x-cloak class="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6">
+        <div class="max-w-md text-center">
+            <x-icon name="circle" class="w-10 h-10 animate-spin text-[#EAB308] mx-auto mb-4"/>
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Confirming your payment…</h1>
+            <p class="text-gray-600" x-text="confirmNote || 'One moment while we finish up.'"></p>
+        </div>
+    </div>
+
     {{-- Paid / success --}}
     <div x-show="paid" x-cloak class="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6">
         <div class="max-w-lg w-full bg-white rounded-2xl shadow p-8 text-center">
@@ -33,7 +42,7 @@
     </div>
 
     {{-- Payment form --}}
-    <div x-show="!loading && data && !paid" x-cloak class="min-h-screen bg-[#F8F7F4] py-10 px-4">
+    <div x-show="!loading && data && !paid && !confirming" x-cloak class="min-h-screen bg-[#F8F7F4] py-10 px-4">
         <div class="max-w-lg mx-auto">
             <div class="text-center mb-6">
                 <h1 class="text-3xl md:text-4xl font-black tracking-tight text-gray-900">Complete Your Payment</h1>

@@ -87,7 +87,8 @@
                                     <div class="font-medium text-gray-900">{{ $v->name ?: '(no name)' }}</div>
                                     <div class="text-xs text-gray-500">{{ $v->phone }}</div>
                                     @if($v->address)<div class="text-xs text-gray-500">{{ $v->address }}</div>@endif
-                                    @if($v->assignedEmployee)<div class="text-xs text-amber-700 mt-0.5">Tech: {{ $v->assignedEmployee->username }}</div>@endif
+                                    @php($techs = \App\Models\Admin::namesFor($v->assigneeIds('visit')))
+                                    @if($techs)<div class="text-xs text-amber-700 mt-0.5">Tech: {{ $techs }}</div>@endif
                                 </td>
                                 <td class="px-3 py-3">
                                     <div class="text-gray-800 capitalize">{{ $jobLabel($v) ?: '—' }}</div>
@@ -133,7 +134,8 @@
                         <span class="text-gray-700 capitalize">{{ $jobLabel($v) ?: '—' }}@if($rental($v)) <span class="text-gray-400">· {{ $rental($v) }}</span>@endif</span>
                         @if($v->quoted_price)<span class="font-semibold text-emerald-600">${{ number_format((float) $v->quoted_price, 2) }}</span>@endif
                     </div>
-                    @if($v->assignedEmployee)<div class="mt-1 text-xs text-amber-700">Tech: {{ $v->assignedEmployee->username }}</div>@endif
+                    @php($techs = \App\Models\Admin::namesFor($v->assigneeIds('visit')))
+                    @if($techs)<div class="mt-1 text-xs text-amber-700">Tech: {{ $techs }}</div>@endif
                     @if($v->arrived_at || $v->departed_at)
                         <div class="mt-2 text-xs text-gray-600 flex flex-wrap gap-x-4">
                             <span><span class="text-gray-400">In:</span> {{ $v->arrived_at?->format('g:i A') ?: '—' }}</span>

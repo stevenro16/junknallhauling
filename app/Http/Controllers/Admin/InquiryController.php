@@ -53,7 +53,7 @@ class InquiryController extends Controller
             'services' => ServiceCatalog::active()->where('key', '!=', 'equipment')->orderBy('label')->get(),
             // People the quote/pickup can be assigned to: employees + the current
             // admin (so they can put themselves on a job/pickup).
-            'employees' => $this->assignees(),
+            'employees' => self::assignees(),
             // Threaded comments (internal + customer-visible).
             'comments' => $inquiry->comments()->orderBy('created_at')->get()
                 ->map(fn ($c) => EmployeeCalendarController::commentPayload($c))->values(),
@@ -71,22 +71,21 @@ class InquiryController extends Controller
             // Confirmed visits for the in-form day-schedule panel (scheduling context).
             'scheduleEvents' => Inquiry::whereNotNull('confirmed_date_time')
                 ->where('status', '!=', 'cancelled')
-                ->with('assignedEmployee:id,username')
                 ->orderBy('confirmed_date_time')
-                ->get(['id', 'ref', 'name', 'status', 'service_type', 'address', 'confirmed_date_time', 'expected_duration_minutes', 'assigned_employee_id'])
+                ->get(['id', 'ref', 'name', 'status', 'service_type', 'address', 'confirmed_date_time', 'expected_duration_minutes', 'assigned_employee_id', 'assigned_employee_ids'])
                 ->map(fn (Inquiry $i) => [
                     'id' => $i->id, 'ref' => $i->ref, 'name' => $i->name, 'status' => $i->status,
                     'service_type' => $i->service_type, 'address' => $i->address,
                     'confirmed_date_time' => $i->confirmed_date_time,
                     'expected_duration_minutes' => $i->expected_duration_minutes,
-                    'assigned_employee' => $i->assignedEmployee?->username,
-                    'assigned_employee_id' => $i->assigned_employee_id,
+                    'assigned_employee' => Admin::namesFor($i->assigneeIds('visit')),
+                    'assigned_employee_ids' => $i->assigneeIds('visit'),
                 ])->values(),
         ]);
     }
 
     /** Employees + the current admin (labelled "(me)") — who a job or pickup can be assigned to. */
-    private function assignees()
+    public static function assignees()
     {
         $list = Admin::where('role', 'employee')->orderBy('username')->get(['id', 'username'])
             ->map(fn (Admin $e) => ['id' => $e->id, 'username' => $e->username, 'label' => $e->username]);

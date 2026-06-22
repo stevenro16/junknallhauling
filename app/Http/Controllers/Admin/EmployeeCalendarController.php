@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\CapturesFieldSignature;
+use App\Http\Controllers\Concerns\EstimatesTravel;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\InquiryComment;
@@ -9,6 +11,9 @@ use Illuminate\Http\Request;
 
 class EmployeeCalendarController extends Controller
 {
+    use CapturesFieldSignature;
+    use EstimatesTravel;
+
     /** Statuses an employee may set on a job they're assigned to (field updates).
      *  Completion stays an admin step (after billing), so it's intentionally absent. */
     private const EMPLOYEE_STATUSES = ['service_performed'];
@@ -18,22 +23,19 @@ class EmployeeCalendarController extends Controller
     {
         $me = $request->session()->get('admin_id');
 
-        // Visits assigned to me, plus equipment pickups assigned to me.
+        // Any scheduled visit/pickup where I'm one of the assignees (filtered in PHP
+        // so it works the same on SQLite + MySQL regardless of JSON-query support).
         $rows = Inquiry::where('status', '!=', 'cancelled')
-            ->where(function ($q) use ($me) {
-                $q->where(fn ($x) => $x->where('assigned_employee_id', $me)->whereNotNull('confirmed_date_time'))
-                    ->orWhere(fn ($x) => $x->where('pickup_assigned_employee_id', $me)->whereNotNull('pickup_date_time'));
-            })
-            ->with(['assignedEmployee:id,username', 'pickupAssignedEmployee:id,username'])
+            ->where(fn ($q) => $q->whereNotNull('confirmed_date_time')->orWhereNotNull('pickup_date_time'))
             ->orderBy('confirmed_date_time')
             ->get();
 
         $events = collect();
         foreach ($rows as $i) {
-            if ($i->assigned_employee_id === $me && $i->confirmed_date_time) {
+            if ($i->confirmed_date_time && in_array($me, $i->assigneeIds('visit'), true)) {
                 $events->push(CalendarController::entry($i, 'visit'));
             }
-            if ($i->pickup_assigned_employee_id === $me && $i->pickup_date_time) {
+            if ($i->pickup_date_time && in_array($me, $i->assigneeIds('pickup'), true)) {
                 $events->push(CalendarController::entry($i, 'pickup'));
             }
         }
@@ -51,6 +53,12 @@ class EmployeeCalendarController extends Controller
             'comments' => $inquiry->comments()->orderBy('created_at')->get()
                 ->map(fn (InquiryComment $c) => self::commentPayload($c))->values(),
         ]);
+    }
+
+    /** Driving estimate from the employee's current location to their assigned job. */
+    public function eta(Request $request, string $id)
+    {
+        return $this->travelEstimate($this->ownedInquiry($request, $id), $request);
     }
 
     /** Add an internal (or customer-visible) comment to an assigned job. */
@@ -115,37 +123,19 @@ class EmployeeCalendarController extends Controller
         return redirect()->route('admin.my-schedule.job', $inquiry->id)->with('jobSaved', true);
     }
 
-    /** Store the customer's signature for a completed visit (and mark it completed). */
+    /** Capture a per-action customer signature (service performed / equipment delivered / picked up). */
     public function sign(Request $request, string $id)
     {
-        $inquiry = $this->ownedInquiry($request, $id);
-
-        $signature = (string) $request->input('signature');
-        if (! str_starts_with($signature, 'data:image/')) {
-            return response()->json(['error' => 'A signature is required.'], 422);
-        }
-
-        $inquiry->update([
-            'service_signature' => $signature,
-            'service_signed_at' => now(),
-        ]);
-
-        // Capturing the customer's signature marks the service performed, so the
-        // admin can send the bill. (Completion stays an admin step, post-billing.)
-        if (! in_array($inquiry->status, ['service_performed', 'completed'], true)) {
-            $old = $inquiry->status;
-            $inquiry->update(['status' => 'service_performed']);
-            $inquiry->logStatusChange($old, 'service_performed', $request->session()->get('admin_username', 'employee'));
-        }
-
-        return response()->json(['success' => true]);
+        return $this->storeSignature($this->ownedInquiry($request, $id), $request);
     }
 
-    /** Resolve an inquiry that belongs to the current employee, or 404. */
+    /** Resolve an inquiry the current employee is assigned to (visit or pickup), or 404. */
     private function ownedInquiry(Request $request, string $id): Inquiry
     {
         $inquiry = Inquiry::find($id);
-        abort_unless($inquiry && $inquiry->assigned_employee_id === $request->session()->get('admin_id'), 404);
+        $me = $request->session()->get('admin_id');
+        $owns = $inquiry && (in_array($me, $inquiry->assigneeIds('visit'), true) || in_array($me, $inquiry->assigneeIds('pickup'), true));
+        abort_unless($owns, 404);
 
         return $inquiry;
     }

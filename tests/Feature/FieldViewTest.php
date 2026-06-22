@@ -59,7 +59,8 @@ class FieldViewTest extends TestCase
         $this->sessionFor($admin)->get("/admin/field/job/{$inq->id}")
             ->assertOk()
             ->assertSee('Open full quote')
-            ->assertSee('Payment Link');
+            ->assertSee('Amount due')
+            ->assertSee('Mark Paid');
     }
 
     public function test_field_signature_marks_service_performed(): void
@@ -83,6 +84,46 @@ class FieldViewTest extends TestCase
             ->assertRedirect(route('admin.field.job', $inq->id));
 
         $this->assertSame('cancelled', $inq->fresh()->status);
+    }
+
+    public function test_admin_records_in_field_payment_and_settles_open_link(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry(['quoted_price' => 300]);
+        $link = $inq->paymentLinks()->create(['token' => 'tok-'.$inq->id, 'amount' => 300]);
+
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/payment", ['payment_method' => 'Cash'])
+            ->assertOk()
+            ->assertJsonPath('payment_method', 'Cash');
+
+        $this->assertSame('Cash', $inq->fresh()->payment_method);
+        $this->assertNotNull($inq->fresh()->payment_date);
+        // The open link is settled so it doesn't linger as "awaiting payment".
+        $this->assertNotNull($link->fresh()->paid_at);
+    }
+
+    public function test_field_payment_requires_a_method(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();
+
+        $this->sessionFor($admin)->postJson("/admin/field/job/{$inq->id}/payment", ['payment_method' => ''])
+            ->assertStatus(422);
+    }
+
+    public function test_signature_with_status_records_that_action(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry(['service_type' => 'equipment', 'equipment_type' => 'Boom Lift']);
+
+        $this->sessionFor($admin)->postJson("/admin/field/job/{$inq->id}/sign", [
+            'signature' => 'data:image/png;base64,iVBORw0KGgo=',
+            'status' => 'equipment_delivered',
+        ])->assertOk();
+
+        $fresh = $inq->fresh();
+        $this->assertSame('equipment_delivered', $fresh->status);
+        $this->assertArrayHasKey('equipment_delivered', $fresh->signatures);
     }
 
     public function test_employee_cannot_reach_field_view(): void

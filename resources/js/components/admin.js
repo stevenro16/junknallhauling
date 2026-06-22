@@ -1,6 +1,7 @@
 // Admin-area Alpine components: sidebar shell, dashboard, inquiry detail,
 // status timeline, calendar, catalogs.
 import Alpine from 'alpinejs';
+import qrcode from 'qrcode-generator';
 
 // ---------------------------------------------------------------------------
 // Admin shell — sidebar collapse state + self-service password / account modals.
@@ -231,12 +232,16 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     jobError: false,    // flagged when saving without a service/equipment chosen
     adminNotes: '', status: 'new',
-    assignedEmployeeId: '', pickupAssignedEmployeeId: '',
+    assignedEmployeeIds: [], pickupAssignedEmployeeIds: [],
     address: '', confirmedDateTime: '', pickupDateTime: '',
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     urgency: 'routine',
     isEditingCustomer: false,
+    isMobile: false,
+    // Per-section collapse (mobile only). Completed sections start collapsed; the
+    // header stays tappable to reopen. Desktop always shows everything.
+    collapsed: { customer: false, job: false, visit: false, payment: false },
     customerPulled: false, // brief confirmation after pulling a prior customer's info
     notifyCustomer: false, // tick to text/email the customer when scheduling the visit
     customerZip: '', customerPreferredDay: '', customerPreferredTime: '',
@@ -270,6 +275,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         if (!this.firstName && !this.lastName && !this.email && !this.address) {
             this.isEditingCustomer = true;
         }
+        // On mobile, collapse sections that are already complete (re-openable). The
+        // collapse only takes effect on mobile (see sectionOpen); desktop shows all.
+        const mq = window.matchMedia('(max-width: 639px)');
+        this.isMobile = mq.matches;
+        mq.addEventListener('change', (e) => { this.isMobile = e.matches; });
+        const done = this.sectionDone;
+        for (const s of ['customer', 'job', 'visit', 'payment']) this.collapsed[s] = !!done[s];
         // Keep expected_duration_minutes in sync with the hrs/days editor.
         this.$watch('expectedDurationValue', () => this.syncDuration());
         this.$watch('expectedDurationUnit', () => this.syncDuration());
@@ -282,13 +294,18 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             const d = e.data;
             if (!d || d.type !== 'calendar-pick' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d.datetime || '')) return;
             const mins = Number(d.duration);
+            // Assignees chosen in the popup also set the assignment (when any are selected;
+            // clearing to "Everyone" leaves the current assignment untouched).
+            const assignees = Array.isArray(d.assignees) ? d.assignees.filter(Boolean) : null;
             if (d.target === 'pickup') {
                 this.pickupDateTime = d.datetime;
                 if (mins > 0) { this.pickupDurationUnit = 'hours'; this.pickupDurationValue = Math.round((mins / 60) * 100) / 100; }
+                if (assignees && assignees.length) this.pickupAssignedEmployeeIds = assignees;
                 this.showPickupCalendarModal = false;
             } else {
                 this.confirmedDateTime = d.datetime;
                 if (mins > 0) { this.expectedDurationUnit = 'hours'; this.expectedDurationValue = Math.round((mins / 60) * 100) / 100; }
+                if (assignees && assignees.length) this.assignedEmployeeIds = assignees;
                 this.showCalendarModal = false; // saving in the calendar closes the popup
             }
         });
@@ -311,8 +328,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.inquiry = inq;
         this.adminNotes = inq.admin_notes || '';
         this.status = inq.status;
-        this.assignedEmployeeId = inq.assigned_employee_id || '';
-        this.pickupAssignedEmployeeId = inq.pickup_assigned_employee_id || '';
+        this.assignedEmployeeIds = (inq.assigned_employee_ids && inq.assigned_employee_ids.length) ? [...inq.assigned_employee_ids] : (inq.assigned_employee_id ? [inq.assigned_employee_id] : []);
+        this.pickupAssignedEmployeeIds = (inq.pickup_assigned_employee_ids && inq.pickup_assigned_employee_ids.length) ? [...inq.pickup_assigned_employee_ids] : (inq.pickup_assigned_employee_id ? [inq.pickup_assigned_employee_id] : []);
         this.address = inq.address || '';
         this.confirmedDateTime = inq.confirmed_date_time || '';
         // No scheduled visit yet → pre-fill the date with the customer's next preferred
@@ -344,7 +361,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.jobType = (inq.service_type === 'equipment' || inq.equipment_type) ? 'equipment' : 'service';
         this.quotedPrice = inq.quoted_price ?? '';
         this.equipmentRentalDuration = inq.equipment_rental_duration ?? '';
-        this.equipmentRentalUnit = inq.equipment_rental_unit ?? '';
+        this.equipmentRentalUnit = inq.equipment_rental_unit || 'hours';   // Hours is the default
 
         const known = ['Cash', 'Check', 'Credit/Debit Card', 'Venmo', 'Zelle', 'PayPal', 'Invoice'];
         const pm = inq.payment_method || '';
@@ -357,15 +374,11 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             this.paymentDate = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}T${p(n.getHours())}:${p(n.getMinutes())}`;
         }
         this.paymentNotes = inq.payment_notes || '';
+        // Visit duration = the employee's time on site. Kept INDEPENDENT of the
+        // equipment rental length (equipment_rental_duration) — they're unrelated.
         this.expectedDurationMinutes = inq.expected_duration_minutes ?? 120;
-
-        if (inq.equipment_rental_duration != null && inq.equipment_rental_unit) {
-            this.expectedDurationValue = inq.equipment_rental_duration;
-            this.expectedDurationUnit = inq.equipment_rental_unit;
-        } else {
-            this.expectedDurationValue = (inq.expected_duration_minutes ?? 120) / 60;
-            this.expectedDurationUnit = 'hours';
-        }
+        this.expectedDurationValue = (inq.expected_duration_minutes ?? 120) / 60;
+        this.expectedDurationUnit = 'hours';
 
         // Snapshot the saved state so we can detect unsaved edits (dirty).
         this.baseline = JSON.stringify(this.buildBody());
@@ -508,9 +521,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     get sectionDone() {
         return {
             customer: !!(this.fullName && this.phone && this.email && this.address && this.customerZip),
-            job: this.isEquipment
+            job: !!this.address && (this.isEquipment
                 ? !!(this.equipmentType && this.equipmentType !== '__other__' && this.equipmentRentalDuration)
-                : !!this.serviceType,
+                : !!this.serviceType),
             visit: this.hasConfirmedSlot,
             payment: !!(this.quotedPrice !== '' && this.quotedPrice != null && (this.paymentMethod && (this.paymentMethod !== 'Other' || this.paymentMethodOther.trim()))),
         };
@@ -520,6 +533,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
+    // A section's body is visible on desktop always, and on mobile unless collapsed.
+    sectionOpen(s) { return !this.isMobile || !this.collapsed[s]; },
+    toggleSection(s) { if (this.isMobile) this.collapsed[s] = !this.collapsed[s]; },
 
     // --- Schedule the visit + optionally notify the customer ----------------
     get hasConfirmedSlot() { return !!(this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)); },
@@ -580,8 +596,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const label = encodeURIComponent(this.fullName || this.inquiry.name || 'This visit');
         // Exclude this quote's own saved visit — it's represented by the draggable pick card.
         const exclude = encodeURIComponent(this.inquiry.id || '');
-        const assignee = encodeURIComponent(this.assignedEmployeeId || '');
-        const aName = encodeURIComponent(this.employeeName(this.assignedEmployeeId) || '');
+        const assignee = encodeURIComponent(this.assignedEmployeeIds.join(','));
+        const aName = encodeURIComponent(this.employeeNames(this.assignedEmployeeIds));
         return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}&target=visit&assignee=${assignee}&assignee_name=${aName}`;
     },
     get pickupCalendarEmbedUrl() {
@@ -590,8 +606,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const dur = encodeURIComponent(this.pickupDurationMinutes || 60);
         const label = encodeURIComponent((this.fullName || this.inquiry.name || 'Pickup') + ' — pickup');
         const exclude = encodeURIComponent(this.inquiry.id || '');
-        const assignee = encodeURIComponent(this.pickupAssignedEmployeeId || '');
-        const aName = encodeURIComponent(this.employeeName(this.pickupAssignedEmployeeId) || '');
+        const assignee = encodeURIComponent(this.pickupAssignedEmployeeIds.join(','));
+        const aName = encodeURIComponent(this.employeeNames(this.pickupAssignedEmployeeIds));
         return `${this.urls.calendarEmbed}?date=${date}&time=${time}&duration=${dur}&label=${label}&exclude=${exclude}&target=pickup&assignee=${assignee}&assignee_name=${aName}`;
     },
 
@@ -661,19 +677,23 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             .map((e) => {
                 const start = new Date(e.confirmed_date_time);
                 const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
-                // Only a conflict if it's the same person double-booked at the same time.
-                const samePerson = !!(e.assigned_employee_id && e.assigned_employee_id === this.assignedEmployeeId);
+                // Conflict only if a shared assignee is double-booked at the same time.
+                const otherIds = (e.assigned_employee_ids && e.assigned_employee_ids.length) ? e.assigned_employee_ids : (e.assigned_employee_id ? [e.assigned_employee_id] : []);
+                const samePerson = otherIds.some((id) => this.assignedEmployeeIds.includes(id));
                 const conflict = !!(cur && samePerson && start < cur.end && end > cur.start);
-                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, start, end, isSelf: false, conflict };
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, assignee_ids: otherIds, start, end, isSelf: false, conflict };
             });
         // Add this inquiry's own (live, possibly-unsaved) visit, highlighted.
         if (cur) {
-            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeName(this.assignedEmployeeId), start: cur.start, end: cur.end, isSelf: true, conflict: false });
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeNames(this.assignedEmployeeIds), assignee_ids: [...this.assignedEmployeeIds], start: cur.start, end: cur.end, isSelf: true, conflict: false });
         }
         return rows.sort((a, b) => a.start - b.start);
     },
 
     employeeName(id) { return id ? (this.employees.find((e) => e.id === id)?.username || '') : ''; },
+    employeeNames(ids) { return (ids || []).map((id) => this.employeeName(id)).filter(Boolean).join(', '); },
+    toggleAssignee(field, id) { const a = this[field]; const i = a.indexOf(id); if (i === -1) a.push(id); else a.splice(i, 1); },
+    assigneeChecked(field, id) { return this[field].includes(id); },
 
     get dayOtherCount() { return this.daySchedule.filter((e) => !e.isSelf).length; },
     get dayConflictCount() { return this.daySchedule.filter((e) => e.conflict).length; },
@@ -688,19 +708,64 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
                 const start = new Date(e.confirmed_date_time);
                 const end = new Date(start.getTime() + (Number(e.expected_duration_minutes) || 120) * 60000);
                 // Only a conflict if the same person is double-booked at the same time.
-                const samePerson = !!(e.assigned_employee_id && e.assigned_employee_id === this.pickupAssignedEmployeeId);
+                const otherIds = (e.assigned_employee_ids && e.assigned_employee_ids.length) ? e.assigned_employee_ids : (e.assigned_employee_id ? [e.assigned_employee_id] : []);
+                const samePerson = otherIds.some((id) => this.pickupAssignedEmployeeIds.includes(id));
                 const conflict = !!(cur && samePerson && start < cur.end && end > cur.start);
-                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, start, end, isSelf: false, conflict };
+                return { id: e.id, ref: e.ref, name: e.name, status: e.status, service_type: e.service_type, address: e.address, assigned_employee: e.assigned_employee, assignee_ids: otherIds, start, end, isSelf: false, conflict };
             });
         if (cur) {
-            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeName(this.pickupAssignedEmployeeId), start: cur.start, end: cur.end, isSelf: true, conflict: false });
+            rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeNames(this.pickupAssignedEmployeeIds), assignee_ids: [...this.pickupAssignedEmployeeIds], start: cur.start, end: cur.end, isSelf: true, conflict: false });
         }
         return rows.sort((a, b) => a.start - b.start);
     },
     get pickupDayOtherCount() { return this.pickupDaySchedule.filter((e) => !e.isSelf).length; },
     get pickupDayConflictCount() { return this.pickupDaySchedule.filter((e) => e.conflict).length; },
 
+    // Group a day-schedule list into one column per assignee (the job's assignees
+    // first, Unassigned last) — a row with multiple assignees appears in each of
+    // their columns. When the job has assignees (filterIds), narrow to those columns.
+    _assigneeColumns(rows, filterIds) {
+        const map = new Map();
+        for (const r of rows) {
+            const keys = (r.assignee_ids && r.assignee_ids.length) ? r.assignee_ids : ['__unassigned__'];
+            for (const key of keys) {
+                if (!map.has(key)) {
+                    map.set(key, { id: key, name: key === '__unassigned__' ? 'Unassigned' : (this.employeeName(key) || 'Employee'), isUnassigned: key === '__unassigned__', hasSelf: false, rows: [] });
+                }
+                const col = map.get(key);
+                col.rows.push(r);
+                if (r.isSelf) col.hasSelf = true;
+            }
+        }
+        let cols = [...map.values()].sort((a, b) => {
+            if (a.hasSelf !== b.hasSelf) return a.hasSelf ? -1 : 1;
+            if (a.isUnassigned !== b.isUnassigned) return a.isUnassigned ? 1 : -1;
+            return a.name.localeCompare(b.name);
+        });
+        if (filterIds && filterIds.length) cols = cols.filter((c) => filterIds.includes(c.id));
+        return cols;
+    },
+    get dayScheduleColumns() { return this._assigneeColumns(this.daySchedule, this.assignedEmployeeIds); },
+    get pickupDayScheduleColumns() { return this._assigneeColumns(this.pickupDaySchedule, this.pickupAssignedEmployeeIds); },
+
     clock(d) { return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); },
+
+    // Day-schedule preview timeline (a compact 6am–5pm window so gaps are visible).
+    panelStartHour: 6,
+    panelEndHour: 17,
+    panelHourPx: 30,
+    get panelHours() { const h = []; for (let x = this.panelStartHour; x <= this.panelEndHour; x++) h.push(x); return h; },
+    panelHourLabel(h) { const hr = h % 12 === 0 ? 12 : h % 12; return hr + (h >= 12 ? 'p' : 'a'); },
+    panelTop(ev) {
+        const m = ev.start.getHours() * 60 + ev.start.getMinutes();
+        return Math.max(0, (m - this.panelStartHour * 60) * this.panelHourPx / 60);
+    },
+    panelHeight(ev) {
+        const s = ev.start.getHours() * 60 + ev.start.getMinutes();
+        const e = ev.end.getHours() * 60 + ev.end.getMinutes();
+        const h = (Math.min(e, this.panelEndHour * 60) - Math.max(s, this.panelStartHour * 60)) * this.panelHourPx / 60;
+        return Math.max(14, h);
+    },
     dotClass(s) {
         return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
@@ -764,7 +829,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return {
             status: this.status,
             name: this.fullName,
-            assigned_employee_id: this.assignedEmployeeId || null,
+            assigned_employee_ids: this.assignedEmployeeIds,
             service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
             address: this.address || null,
@@ -773,7 +838,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             // Equipment pickup (date+time + on-site duration) — only for equipment rentals.
             pickup_date_time: (isEq && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) ? this.pickupDateTime : null,
             pickup_duration_minutes: (isEq && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) ? this.pickupDurationMinutes : null,
-            pickup_assigned_employee_id: isEq ? (this.pickupAssignedEmployeeId || null) : null,
+            pickup_assigned_employee_ids: isEq ? this.pickupAssignedEmployeeIds : [],
             phone: this.phone || null,
             email: this.email || null,
             preferred_contact_method: this.preferredContactMethod,
@@ -1294,14 +1359,19 @@ Alpine.data('calendar', (cfg = {}) => ({
     pickLabel: cfg.pickLabel || 'This visit',
     pickTarget: cfg.pickTarget || 'visit', // 'visit' | 'pickup' — which field the parent applies the pick to
     pickInquiryId: cfg.pickInquiryId || '', // hide this quote's saved event (the pick card stands in for it)
-    assigneeFilter: cfg.assignee || '',     // only show this person's visits (embed)…
+    assigneeFilter: cfg.assignee || '',     // legacy single-filter (kept for compatibility)
     assigneeName: cfg.assigneeName || '',
-    viewAll: false,                         // …unless "View All" is ticked
+    viewAll: false,
+    employees: cfg.employees || [],          // {id, label} — for the quick-filter buttons
+    selectedAssignees: [],                   // multi-select filter; >1 → per-employee columns
+    embed: !!cfg.embed,                      // scheduling popup — hides the Unassigned column
     // drag state
     dragMode: null, _grabOffsetMin: 0, _justDragged: false, _durationChanged: false,
 
     init() {
         if (cfg.initialView && ['month', 'week', 'day', '3day', '5day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
+        // Embed opens pre-filtered to the quote's assignee(s) (comma-joined; toggleable).
+        if (cfg.assignee) this.selectedAssignees = String(cfg.assignee).split(',').filter(Boolean);
         if (cfg.initialDate) {
             const d = new Date(cfg.initialDate + 'T00:00');
             if (!isNaN(d.getTime())) this.cur = d.getTime();
@@ -1378,7 +1448,7 @@ Alpine.data('calendar', (cfg = {}) => ({
         if (this.pickedMinutes == null) return;
         const pad = (n) => String(n).padStart(2, '0');
         const time = `${pad(Math.floor(this.pickedMinutes / 60))}:${pad(this.pickedMinutes % 60)}`;
-        const msg = { type: 'calendar-pick', target: this.pickTarget, datetime: `${this.pickedDateKey}T${time}` };
+        const msg = { type: 'calendar-pick', target: this.pickTarget, datetime: `${this.pickedDateKey}T${time}`, assignees: [...this.selectedAssignees] };
         if (this._durationChanged) msg.duration = this.pickDuration; // only override duration if the card was resized
         try { window.parent.postMessage(msg, '*'); } catch (e) { /* not embedded */ }
     },
@@ -1443,11 +1513,16 @@ Alpine.data('calendar', (cfg = {}) => ({
     },
     get calendarEvents() {
         const ex = this._excludeEventId;
-        const byAssignee = !this.viewAll && this.assigneeFilter;
+        const sel = this.selectedAssignees;
+        const columns = this.columnMode;
         return this.events
             .filter((e) => e.confirmed_date_time)
             .filter((e) => e.event_id !== ex)
-            .filter((e) => !byAssignee || e.assignee_id === this.assigneeFilter)
+            .filter((e) => {
+                if (!sel.length) return true;                         // none selected → everyone
+                if ((e.assignee_ids || []).some((id) => sel.includes(id))) return true; // a selected employee
+                return columns && !(e.assignee_ids && e.assignee_ids.length);           // unassigned (columns mode)
+            })
             .map((e) => {
             const start = new Date(e.confirmed_date_time);
             const end = new Date(start.getTime() + (e.expected_duration_minutes || 120) * 60000);
@@ -1455,6 +1530,53 @@ Alpine.data('calendar', (cfg = {}) => ({
         });
     },
     eventsForKey(key) { return this.calendarEvents.filter((e) => e.key === key).sort((a, b) => a.start - b.start); },
+
+    // Assignee quick-filter (calendar + embed).
+    toggleAssignee(id) {
+        const i = this.selectedAssignees.indexOf(id);
+        if (i === -1) this.selectedAssignees.push(id);
+        else this.selectedAssignees.splice(i, 1);
+    },
+    assigneeSelected(id) { return this.selectedAssignees.includes(id); },
+
+    // 2+ employees selected → split the day timeline into one column each (+ Unassigned).
+    get columnMode() { return this.viewMode === 'day' && this.selectedAssignees.length > 1; },
+    get dayAssigneeColumns() {
+        const key = this.currentDate.toISOString().split('T')[0];
+        const dayEvents = this.calendarEvents.filter((e) => e.key === key);
+        const cols = this.selectedAssignees.map((id) => ({
+            id, name: this.employees.find((x) => x.id === id)?.label || 'Employee', isUnassigned: false,
+            events: this._layoutColumn(dayEvents.filter((e) => (e.inquiry.assignee_ids || []).includes(id))),
+        }));
+        // The scheduling popup (embed) only shows the selected employees' columns.
+        const unassigned = this.embed ? [] : dayEvents.filter((e) => !(e.inquiry.assignee_ids && e.inquiry.assignee_ids.length));
+        if (unassigned.length) {
+            cols.push({ id: '__unassigned__', name: 'Unassigned', isUnassigned: true, events: this._layoutColumn(unassigned) });
+        }
+        return cols;
+    },
+    // Position a single column's events by time, laning any overlaps within the column.
+    _layoutColumn(evs) {
+        const dayStart = DAY_START_HOUR * 60, dayEnd = DAY_END_HOUR * 60;
+        const sorted = [...evs].sort((a, b) => a.start - b.start || a.end - b.end);
+        const laneEnds = [];
+        sorted.forEach((e) => {
+            let lane = laneEnds.findIndex((end) => end <= e.start);
+            if (lane === -1) { lane = laneEnds.length; laneEnds.push(e.end); } else { laneEnds[lane] = e.end; }
+            e._lane = lane;
+        });
+        return sorted.map((e) => {
+            const overlap = sorted.filter((o) => o.start < e.end && o.end > e.start);
+            const lanes = Math.max(...overlap.map((o) => o._lane)) + 1;
+            const startMin = e.start.getHours() * 60 + e.start.getMinutes();
+            const endMin = e.end.getHours() * 60 + e.end.getMinutes();
+            const top = Math.max(0, (startMin - dayStart) * HOUR_PX / 60);
+            const rawH = (Math.min(endMin, dayEnd) - Math.max(startMin, dayStart)) * HOUR_PX / 60;
+            const height = Math.max(HOUR_PX * 0.45, rawH);
+            const left = (e._lane / lanes) * 100, width = 100 / lanes;
+            return { ...e, style: `position:absolute;top:${top}px;height:${height}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px)`, big: height >= HOUR_PX };
+        });
+    },
 
     // header
     get headerLabel() {
@@ -1695,14 +1817,17 @@ Alpine.data('agreementSender', (cfg = {}) => ({
     error: '',
 
     get contactLabel() {
-        return (this.preferred === 'email' ? 'Email' : 'Text') + ' agreement link';
+        return (this.preferred === 'email' ? 'Email' : 'Text') + ' Rental Agreement Link';
     },
+    // The single active (non-cancelled) agreement — only one exists at a time.
+    get current() { return this.agreements.find((a) => !a.cancelled_at) || null; },
 
     init() {
         const active = this.agreements.find((a) => a.usable);
         if (active) this.link = active.url;
     },
 
+    // Generate (or reuse) the signing link and immediately text/email it to the customer.
     async send() {
         this.sending = true;
         this.error = '';
@@ -1716,11 +1841,26 @@ Alpine.data('agreementSender', (cfg = {}) => ({
             if (!this.agreements.some((x) => x.id === a.id)) {
                 this.agreements.unshift(a);
             }
-            if (this.sendToContact) this.deliver();
+            // Persist any unsaved quote edits alongside the agreement (parent listens).
+            this.$dispatch('quote-save');
+            this.deliver();
         } catch (e) {
             this.error = e.message || 'Error generating the agreement.';
         } finally {
             this.sending = false;
+        }
+    },
+
+    // Copy the active signing link (button text after one has been generated/sent).
+    async copyCurrent() {
+        const url = this.link || (this.current && this.current.url) || '';
+        if (!url) return;
+        try {
+            await navigator.clipboard.writeText(url);
+            this.copied = true;
+            setTimeout(() => { this.copied = false; }, 2000);
+        } catch {
+            this.error = 'Copy failed — open the link and copy manually.';
         }
     },
 
@@ -1801,6 +1941,13 @@ Alpine.data('paymentSender', (cfg = {}) => ({
     copied: false,
     copiedId: '',
     error: '',
+    // Field View extras: scan-to-pay QR + record an in-person payment.
+    field: !!cfg.field,
+    qr: '',
+    method: '',
+    recording: false,
+    paidMethod: cfg.paidMethod || '',
+    paidAt: cfg.paidAt || '',
 
     get contactLabel() {
         return (this.preferred === 'email' ? 'Email' : 'Text') + ' payment link';
@@ -1808,7 +1955,37 @@ Alpine.data('paymentSender', (cfg = {}) => ({
 
     init() {
         const active = this.links.find((l) => l.usable);
-        if (active) { this.link = active.url; this.amount = active.amount; }
+        if (active) { this.link = active.url; this.amount = active.amount; this.makeQr(); }
+    },
+
+    // Render a scannable QR of the active payment link (the customer pays on their phone).
+    makeQr() {
+        if (!this.link) { this.qr = ''; return; }
+        try {
+            const qr = qrcode(0, 'M');
+            qr.addData(this.link);
+            qr.make();
+            this.qr = qr.createDataURL(5, 12);
+        } catch { this.qr = ''; }
+    },
+
+    // Record an in-person payment (cash/check/card/Venmo/…) and mark the job paid.
+    async recordPaid() {
+        if (!this.method) { this.error = 'Pick how the customer paid.'; return; }
+        this.recording = true;
+        this.error = '';
+        try {
+            const res = await fetch(this.cfg.recordUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ payment_method: this.method }) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Could not record the payment.');
+            this.paidMethod = data.payment_method;
+            this.paidAt = data.payment_date;
+            this.method = '';
+        } catch (e) {
+            this.error = e.message || 'Could not record the payment.';
+        } finally {
+            this.recording = false;
+        }
     },
 
     async send() {
@@ -1825,6 +2002,7 @@ Alpine.data('paymentSender', (cfg = {}) => ({
             const i = this.links.findIndex((x) => x.id === l.id);
             if (i === -1) this.links.unshift(l);
             else this.links[i] = l;
+            this.makeQr();
             if (this.sendToContact) this.deliver();
         } catch (e) {
             this.error = e.message || 'Error generating the payment link.';
@@ -1902,15 +2080,21 @@ Alpine.data('serviceSignature', (cfg = {}) => ({
     submitting: false,
     error: '',
     _canvas: null,
+    targetStatus: 'service_performed',  // which field action this signature confirms
+    targetLabel: 'Service Performed',
 
-    // Open the full-screen signing pad (used for both first signature and re-sign).
-    openPad() {
+    // Open the full-screen pad for a specific field action (service performed /
+    // equipment delivered / equipment picked up); saving sets that status.
+    openFor(status, label) {
+        this.targetStatus = status;
+        this.targetLabel = label;
         this.open = true;
         this.error = '';
         this.hasSignature = false;
         // Wait for the overlay to render so the canvas has its real size.
         this.$nextTick(() => this.initPad());
     },
+    openPad() { this.openFor('service_performed', 'Service Performed'); },
     close() { this.open = false; },
 
     initPad() {
@@ -1964,12 +2148,81 @@ Alpine.data('serviceSignature', (cfg = {}) => ({
         this.error = '';
         try {
             const data = this.$refs.canvas.toDataURL('image/png');
-            const res = await fetch(this.signUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ signature: data }) });
+            const res = await fetch(this.signUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ signature: data, status: this.targetStatus }) });
             if (!res.ok) throw new Error('Could not save the signature.');
             window.location.reload();
         } catch (e) {
             this.error = e.message || 'Save failed.';
             this.submitting = false;
+        }
+    },
+}));
+
+// ---------------------------------------------------------------------------
+// etaEstimator — field travel/arrival helper on the job sheet. Uses the device's
+// geolocation + a backend OSRM route estimate (free, no key). The drive time is
+// editable, and "Send ETA" texts/emails the customer their arrival window.
+// ---------------------------------------------------------------------------
+Alpine.data('etaEstimator', (cfg = {}) => ({
+    estimateUrl: cfg.estimateUrl,
+    name: cfg.name || '',
+    phone: cfg.phone || '',
+    email: cfg.email || '',
+    preferred: cfg.preferred === 'email' ? 'email' : 'phone',
+    businessName: cfg.businessName || '',
+    loading: false,
+    error: '',
+    calculated: false,
+    distanceMi: null,
+    travelMin: null,   // editable — the admin/employee can override the estimate
+
+    calculate() {
+        this.error = '';
+        if (!navigator.geolocation) { this.error = 'Location is not available on this device.'; return; }
+        this.loading = true;
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const res = await fetch(this.estimateUrl, {
+                        method: 'POST', headers: window.jsonHeaders(true),
+                        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Could not calculate the route.');
+                    this.distanceMi = data.distance_miles;
+                    this.travelMin = data.duration_minutes;
+                    this.calculated = true;
+                } catch (e) {
+                    this.error = e.message || 'Could not calculate the route.';
+                } finally {
+                    this.loading = false;
+                }
+            },
+            (err) => {
+                this.loading = false;
+                this.error = err.code === 1 ? 'Location permission denied — allow location and try again.' : 'Could not get your current location.';
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
+    },
+
+    get etaLabel() {
+        if (this.travelMin == null || this.travelMin === '') return '';
+        const d = new Date(Date.now() + Number(this.travelMin) * 60000);
+        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    },
+
+    // Text/email the customer the arrival window via the device's messaging app.
+    communicate() {
+        if (this.travelMin == null) return;
+        const eta = this.etaLabel;
+        const msg = `Hi ${this.name || 'there'}, this is ${this.businessName}. We're on our way — estimated arrival around ${eta} (about ${this.travelMin} min out). See you soon!`;
+        if (this.preferred === 'email') {
+            if (!this.email) { this.error = 'No email on file for this customer.'; return; }
+            window.location.href = `mailto:${encodeURIComponent(this.email)}?subject=${encodeURIComponent('On our way')}&body=${encodeURIComponent(msg)}`;
+        } else {
+            if (!this.phone) { this.error = 'No phone number on file for this customer.'; return; }
+            window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
         }
     },
 }));

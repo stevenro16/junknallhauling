@@ -39,6 +39,7 @@ options, inquiry status flow + labels) — the single source of truth, reference
 | DB (dev) | SQLite (`database/database.sqlite`) |
 | DB (prod) | MySQL |
 | Sessions / cache / queue | **database-backed** (see `.env`) — these tables must exist in prod |
+| Payments | Stripe Checkout (`stripe/stripe-php`) on the public pay page; QR via `qrcode-generator` (npm) |
 | Dev tooling | Pint (format), PHPUnit 12, Pail (logs), Collision |
 
 ---
@@ -48,9 +49,9 @@ options, inquiry status flow + labels) — the single source of truth, reference
 ```
 app/
   Http/Controllers/
-    Public/      ContactController, StatusController, RentalAgreementController  (render Blade)
-    Api/         Service, Equipment, Lookup, Quote, Ip, RentalAgreement         (stateless JSON)
-    Admin/       Auth, Dashboard, Inquiry, InquiryApi, Calendar, EmployeeCalendar, Customer,
+    Public/      ContactController, StatusController, RentalAgreementController, Payment  (render Blade)
+    Api/         Service, Equipment, Lookup, Quote, Ip, RentalAgreement, Payment         (stateless JSON)
+    Admin/       Auth, Dashboard, Inquiry, InquiryApi, Calendar, EmployeeCalendar, FieldView, Customer,
                  EodReport, ServiceCatalog, Equipment, AdminAccount, SiteContent, PaymentLink, Address
   Http/Middleware/
     EnsureAdmin.php           (alias: 'admin')          — session login guard (any role)
@@ -70,14 +71,15 @@ resources/
     layouts/     public.blade.php, admin.blade.php, bare.blade.php
     partials/    navbar, footer, admin/*
     public/      home, services, about, reviews, contact, status, rental-agreement
-    admin/       dashboard, calendar, calendar-embed, my-schedule, eod-report, login,
-                 inquiries/*, change-password
+    admin/       dashboard, calendar, calendar-embed, my-schedule (+ employee-job), eod-report,
+                 login, inquiries/*, change-password
+    public/      …, payment (Stripe pay page)
 database/
   migrations/    users, cache, jobs (framework) + inquiries, inquiry_status_history,
                  inquiry_comments, admins, equipment_types, service_catalog,
                  rental_agreements, site_content, payment_links + incremental adds:
                  employee role/assignment, service-visit log, pickup date/duration/assignee,
-                 urgency, admin active flag
+                 urgency, admin active flag, payment_links.stripe_session_id
   seeders/       AdminSeeder, EquipmentTypeSeeder, ServiceCatalogSeeder, DemoInquirySeeder
   sqlite-to-mysql.php   Generator: dumps SQLite -> MySQL .sql for phpMyAdmin import (see §7)
 ```
@@ -133,6 +135,13 @@ php artisan tinker
   routes; employees are redirected to **My Schedule** (or 403 on JSON). New employees default to password
   `model123!` and must set a password + email on first login. Visits/pickups carry
   `assigned_employee_id` / `pickup_assigned_employee_id`; an employee's calendar shows only their own.
+- **Field View (`/admin/field`, admin-only).** `FieldViewController` reuses the employee field experience
+  (`admin.my-schedule` calendar + `admin.employee-job` job sheet) across **all** scheduled jobs, with
+  admin extras: a payment panel (record in person + scan-to-pay QR — see Payments below), a "jump to full
+  quote" button, and a manual status dropdown. The two field views share `employee-job.blade.php`,
+  parameterized via `$routeBase` / `$adminField` (defaults keep the employee usage unchanged). The job
+  sheet captures arrival/departure stamps and a full-screen customer **signature** (`serviceSignature`),
+  which marks the job `service_performed`.
 - **IDs:** business tables (`inquiries`, `admins`, `equipment_types`, `service_catalog`,
   `rental_agreements`, `inquiry_status_history`) use **string UUID/ULID** primary keys. Framework tables
   (`users`, `jobs`, `failed_jobs`, `migrations`) use auto-increment integers.
@@ -144,6 +153,30 @@ php artisan tinker
   the public form.
 - **Behind a proxy:** GoDaddy/Cloudflare sit in front, so `trustProxies(at: '*')` is set; `$request->ip()`
   (used by `/api/ip` and rental-agreement signing) resolves the real client IP.
+
+### Payments
+Three ways a quote gets marked paid; all converge on the inquiry's `payment_method` + `payment_date`
+(and the `payment_links` row's `paid_at`):
+
+1. **Admin records it manually** — the quote edit page's payment section, or the **Field View** payment
+   panel ("Mark Paid" with a method: Cash/Check/Card/Venmo/Zelle). Field View posts to
+   `admin.field.payment` (`FieldViewController::recordPayment`), which also settles any open link.
+2. **Customer pays online** — admin generates a **payment link** (`payment_links`, tokenized) for the
+   saved `quoted_price` and sends it (text/email) or shows a **QR** (Field View). The link opens the
+   public `/pay/{token}` page (`public.payment` + `paymentForm` in `forms.js`).
+3. **Stripe Checkout** (the real gateway) — `Api\PaymentController` drives `/pay/{token}`:
+   - `pay()` creates a **Checkout Session** with inline `price_data` (the quote amount in cents — **no
+     Stripe product catalog**; every quote is a one-off `unit_amount`) and returns the hosted `checkout_url`.
+   - Customer returns to `/pay/{token}?status=success&session_id=…`; `confirm()` retrieves the session and
+     records payment if `payment_status==='paid'`. The **webhook** (`POST /api/stripe/webhook`,
+     signature-verified, `checkout.session.completed`) is the authoritative backstop. `markPaid()` is
+     idempotent (SQL `whereNull('paid_at')` one-time guard), so confirm + webhook can't double-record.
+   - **Config:** `STRIPE_KEY` / `STRIPE_SECRET` / `STRIPE_WEBHOOK_SECRET` in `.env` → `config/services.php`
+     `stripe`. **If `STRIPE_SECRET` is empty, the pay page falls back to a non-charging placeholder** (so
+     dev/tests run without keys). Prod webhook endpoint:
+     `https://rapidinsightdesigns.com/junknallhauling/api/stripe/webhook`.
+   - **Deploying Stripe needs `composer install`** on the server (the `stripe/stripe-php` SDK is new and
+     `vendor/` is gitignored) plus the `payment_links.stripe_session_id` migration.
 
 ---
 

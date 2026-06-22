@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\CapturesFieldSignature;
+use App\Http\Controllers\Concerns\EstimatesTravel;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\InquiryComment;
@@ -15,6 +17,15 @@ use Illuminate\Http\Request;
  */
 class FieldViewController extends Controller
 {
+    use CapturesFieldSignature;
+    use EstimatesTravel;
+
+    /** Driving estimate from the admin's current location to this job's address. */
+    public function eta(Request $request, string $id)
+    {
+        return $this->travelEstimate(Inquiry::findOrFail($id), $request);
+    }
+
     /** Calendar of every scheduled visit + equipment pickup (admin oversight). */
     public function index()
     {
@@ -112,27 +123,38 @@ class FieldViewController extends Controller
         return redirect()->route('admin.field.job', $inquiry->id)->with('jobSaved', true);
     }
 
+    /** Record an in-field payment (cash/check/card/Venmo/…) and mark the job paid. */
+    public function recordPayment(Request $request, string $id)
+    {
+        $inquiry = Inquiry::findOrFail($id);
+
+        $method = trim((string) $request->input('payment_method'));
+        if ($method === '') {
+            return response()->json(['error' => 'Select how the customer paid.'], 422);
+        }
+
+        $inquiry->update([
+            'payment_method' => $method,
+            'payment_date' => now()->format('Y-m-d\TH:i'),
+        ]);
+
+        // Settle any still-open payment link so it doesn't linger as "awaiting payment".
+        $inquiry->paymentLinks()->whereNull('paid_at')->whereNull('cancelled_at')
+            ->update(['paid_at' => now(), 'payment_method' => $method]);
+
+        $inquiry->logAudit('payment_received');
+
+        return response()->json([
+            'payment_method' => $inquiry->payment_method,
+            'payment_date' => $inquiry->payment_date,
+        ]);
+    }
+
     /** Store the customer's signature (and mark the service performed, ready to bill). */
     public function sign(Request $request, string $id)
     {
         $inquiry = Inquiry::findOrFail($id);
 
-        $signature = (string) $request->input('signature');
-        if (! str_starts_with($signature, 'data:image/')) {
-            return response()->json(['error' => 'A signature is required.'], 422);
-        }
-
-        $inquiry->update([
-            'service_signature' => $signature,
-            'service_signed_at' => now(),
-        ]);
-
-        if (! in_array($inquiry->status, ['service_performed', 'completed'], true)) {
-            $old = $inquiry->status;
-            $inquiry->update(['status' => 'service_performed']);
-            $inquiry->logStatusChange($old, 'service_performed', $request->session()->get('admin_username', 'admin'));
-        }
-
-        return response()->json(['success' => true]);
+        return $this->storeSignature($inquiry, $request);
     }
 }

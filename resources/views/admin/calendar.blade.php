@@ -3,7 +3,7 @@
 @section('title', 'Calendar — '.config('business.name'))
 
 @section('admin-content')
-<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), detailBase: '{{ route('admin.inquiries.show', '__ID__') }}', initialView: 'day' })">
+<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.inquiries.show', '__ID__') }}', initialView: 'day' })">
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -26,6 +26,9 @@
         <h2 class="text-xl sm:text-3xl font-black" x-text="headerLabel"></h2>
         <p class="text-sm text-gray-500 mt-1"><span x-text="totalOnCalendar"></span> active pickups on calendar</p>
     </div>
+
+    {{-- Employee quick-filter (multi-select; 2+ → per-employee columns in Day view) --}}
+    @include('partials.admin.calendar-assignee-filter')
 
     {{-- Day view --}}
     @include('partials.admin.calendar-day')

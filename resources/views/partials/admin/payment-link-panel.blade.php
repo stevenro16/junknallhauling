@@ -8,17 +8,59 @@
         phone: @js($inquiry->phone),
         email: @js($inquiry->email),
         name: @js($inquiry->name),
+        field: {{ ($field ?? false) ? 'true' : 'false' }},
+        recordUrl: '{{ ($field ?? false) ? route('admin.field.payment', $inquiry->id) : '' }}',
+        paidMethod: @js($inquiry->payment_method),
+        paidAt: @js($inquiry->payment_date),
     })"
     @if($syncContact ?? true) x-effect="preferred = preferredContactMethod" @endif
     class="bg-white border border-gray-200 rounded-xl shadow-sm border-l-4 border-l-emerald-500 p-5">
 
     <div class="flex items-center justify-between gap-3 mb-2">
-        <div class="text-base font-semibold text-gray-800">Payment Link</div>
+        <div class="text-base font-semibold text-gray-800">{{ ($field ?? false) ? 'Payment' : 'Payment Link' }}</div>
         <button type="button" @click="send()" :disabled="sending" class="btn-primary text-xs py-1.5 px-3 shrink-0">
-            <span x-text="sending ? 'Generating…' : 'Generate Payment Link'"></span>
+            <span x-text="sending ? 'Generating…' : '{{ ($field ?? false) ? 'Pay link / QR' : 'Generate Payment Link' }}'"></span>
         </button>
     </div>
-    <p class="text-xs text-gray-500 mb-3">Generates a link to the quoted price for the customer to pay online. Uses the <span class="font-medium">saved</span> Quoted Price — save the quote first if you just changed it. Check the box below to also send it.</p>
+
+    @if($field ?? false)
+        {{-- In-field collection: record how the customer paid right now --}}
+        <div class="rounded-lg border border-gray-200 p-3 mb-3">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="text-sm font-semibold text-gray-700">Amount due</div>
+                <div class="text-sm font-bold text-emerald-600">@if($inquiry->quoted_price){{ '$'.number_format((float) $inquiry->quoted_price, 2) }}@else<span class="text-gray-400 font-medium">Not set</span>@endif</div>
+            </div>
+
+            {{-- Already recorded as paid --}}
+            <template x-if="paidMethod">
+                <div class="flex items-center justify-between gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2">
+                    <div class="text-sm text-emerald-800">&check; Paid via <span class="font-semibold" x-text="paidMethod"></span><span x-show="paidAt" class="text-emerald-600/80"> · <span x-text="fmt(paidAt)"></span></span></div>
+                    <button type="button" @click="paidMethod = ''" class="text-xs text-emerald-700 hover:text-emerald-900 underline shrink-0">Change</button>
+                </div>
+            </template>
+
+            {{-- Record an in-person payment --}}
+            <template x-if="!paidMethod">
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">Mark how the customer paid in person:</div>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <template x-for="m in ['Cash','Check','Credit/Debit Card','Venmo','Zelle']" :key="m">
+                            <button type="button" @click="method = (method === m ? '' : m)"
+                                    class="px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors"
+                                    :class="method === m ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:bg-emerald-50'"
+                                    x-text="m"></button>
+                        </template>
+                    </div>
+                    <button type="button" @click="recordPaid()" :disabled="recording || !method" class="btn-primary text-sm py-2 px-4 w-full sm:w-auto disabled:opacity-50">
+                        <span x-text="recording ? 'Saving…' : 'Mark Paid'"></span>
+                    </button>
+                </div>
+            </template>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Or have the customer pay online — generate a link to the saved Quoted Price and show the QR for them to scan. Tick the box to also text/email it.</p>
+    @else
+        <p class="text-xs text-gray-500 mb-3">Generates a link to the quoted price for the customer to pay online. Uses the <span class="font-medium">saved</span> Quoted Price — save the quote first if you just changed it. Check the box below to also send it.</p>
+    @endif
 
     {{-- Optionally deliver the link to the customer's preferred contact method --}}
     <label class="flex items-center gap-2 mb-3 text-sm text-gray-700 cursor-pointer select-none">
@@ -28,6 +70,11 @@
 
     {{-- Active payment link --}}
     <div x-show="link" x-cloak class="space-y-2">
+        {{-- Scan-to-pay QR (Field View) --}}
+        <div x-show="field && qr" x-cloak class="flex flex-col items-center gap-1 pb-1">
+            <img :src="qr" alt="Scan to pay" class="w-40 h-40 rounded-lg border border-gray-200 bg-white p-1">
+            <div class="text-[11px] text-gray-500">Have the customer scan to pay</div>
+        </div>
         <label class="block text-[10px] uppercase tracking-widest text-gray-400">Payment link <span x-show="amount !== null" x-cloak class="text-emerald-600 normal-case tracking-normal">— $<span x-text="money(amount)"></span></span></label>
         <div class="flex items-center gap-2">
             <input type="text" readonly :value="link" @focus="$event.target.select()"

@@ -1,9 +1,24 @@
 {{-- Day-view timeline for the calendar component. Shared by the full calendar
      page and the embedded day popup. $linkTarget controls where event links open
      ('_self' on the full page, '_top' inside the iframe popup). $pickMode enables
-     click-to-pick a time (used in the popup). --}}
+     click-to-pick a time (used in the popup). When 2+ employees are selected the
+     timeline splits into one column per employee (+ an Unassigned column). --}}
 @php($evStyleExpr = ($pickMode ?? false) ? "ev.style + ';pointer-events:none'" : 'ev.style')
+@php($cardData = ['evStyleExpr' => $evStyleExpr, 'linkTarget' => $linkTarget ?? '_self'])
 <div x-show="viewMode === 'day'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+    {{-- Per-employee column headers (columns mode only) --}}
+    <div x-show="columnMode" x-cloak class="flex border-b border-gray-200 bg-gray-50">
+        <div class="w-16 shrink-0"></div>
+        <template x-for="col in dayAssigneeColumns" :key="col.id">
+            <div class="flex-1 min-w-0 px-2 py-2 text-center border-l border-gray-200">
+                <div class="text-xs font-semibold truncate inline-flex items-center gap-1 justify-center" :class="col.isUnassigned ? 'text-gray-400' : 'text-gray-700'">
+                    <x-icon name="user" class="w-3 h-3 shrink-0"/><span class="truncate" x-text="col.name"></span>
+                </div>
+                <div class="text-[10px] text-gray-400"><span x-text="col.events.length"></span> visit<span x-show="col.events.length !== 1">s</span></div>
+            </div>
+        </template>
+    </div>
+
     <div class="overflow-y-auto max-h-[75vh]">
         <div class="flex h-[1088px]">
             <div class="w-16 shrink-0 grid grid-rows-[repeat(17,4rem)] bg-white border-r border-gray-200 z-10">
@@ -19,7 +34,7 @@
                     <template x-for="hour in HOURS" :key="hour"><div class="relative border-b border-gray-200/60"><div class="absolute inset-x-0 top-1/2 border-b border-gray-100"></div></div></template>
                 </div>
                 @if($pickMode ?? false)
-                    {{-- draggable preview card for the visit (sized to its duration) --}}
+                    {{-- draggable preview card for the visit (sized to its duration); full-width even in columns mode --}}
                     <div x-show="pickOnThisDay" x-cloak :style="pickCardStyle"
                          @pointerdown.stop.prevent="startMove($event)"
                          class="z-30 rounded-lg border-2 border-amber-500 bg-amber-400/30 shadow px-2 py-1 overflow-hidden cursor-move touch-none select-none"
@@ -33,27 +48,27 @@
                         </div>
                     </div>
                 @endif
-                <div x-show="dayLayout.length === 0" class="absolute inset-0 flex items-center justify-center"><p class="text-gray-500 text-sm">No pickups on this day</p></div>
-                <template x-for="ev in dayLayout" :key="ev.inquiry.event_id">
-                    <a :href="detailUrl(ev.inquiry.id)" target="{{ $linkTarget ?? '_self' }}" :style="{!! $evStyleExpr !!}" class="rounded-lg border transition-all overflow-hidden px-2 py-1 flex flex-col" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
-                        {{-- Text content: clips top-down; reserves bottom space for the always-visible assignee --}}
-                        <div class="flex-1 min-h-0 overflow-hidden flex flex-col" :class="ev.inquiry.assigned_employee && 'pb-3.5'">
-                            <div class="shrink-0 flex items-start justify-between gap-1 mt-0.5">
-                                <div class="flex items-center gap-1 min-w-0">
-                                    <div class="text-[10px] leading-none truncate min-w-0"><span class="font-mono text-amber-600" x-text="ev.inquiry.ref"></span><span class="text-gray-500" x-text="' - (' + fmtClock(ev.start) + ' - ' + fmtClock(ev.end) + ')'"></span></div>
-                                    <span x-show="ev.inquiry.type === 'pickup'" x-cloak class="text-[9px] font-bold uppercase tracking-wide text-cyan-700 shrink-0">Pickup</span>
-                                    <span x-show="ev.inquiry.before_visit" x-cloak title="Pickup is scheduled before the delivery visit" class="shrink-0"><x-icon name="alert" class="w-3 h-3 text-red-600"/></span>
-                                </div>
-                                {{-- Status bubble (top-right) --}}
-                                <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-px rounded-full bg-white/95 border border-black/10 text-[8px] font-semibold text-gray-700 leading-none whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full" :class="dotClass(ev.inquiry.status)"></span><span x-text="statusLabel(ev.inquiry.status)"></span></span>
-                            </div>
-                            <div class="shrink-0 leading-tight truncate"><span class="font-semibold text-sm text-gray-900" x-text="ev.inquiry.name"></span><span class="text-gray-500 text-[10px] capitalize" x-text="' · ' + jobKind(ev.inquiry) + ' · ' + jobLabel(ev.inquiry)"></span></div>
-                            <div x-show="ev.big && ev.inquiry.address" x-cloak class="shrink-0 flex items-start gap-0.5 text-gray-400 text-[10px] leading-tight truncate"><x-icon name="map-pin" class="w-2.5 h-2.5 shrink-0 mt-px"/><span class="truncate" x-text="ev.inquiry.address"></span></div>
-                        </div>
-                        {{-- Assigned-to — always pinned to the bottom-right corner --}}
-                        <div x-show="ev.inquiry.assigned_employee" x-cloak class="absolute right-2 bottom-1 max-w-[calc(100%-1rem)] flex items-center gap-0.5 text-amber-700 text-[10px] leading-none"><x-icon name="user" class="w-2.5 h-2.5 shrink-0"/><span class="truncate" x-text="ev.inquiry.assigned_employee"></span></div>
-                    </a>
+
+                {{-- Single timeline: 0 or 1 employee selected --}}
+                <template x-if="!columnMode">
+                    <div>
+                        <div x-show="dayLayout.length === 0" class="absolute inset-0 flex items-center justify-center"><p class="text-gray-500 text-sm">No visits on this day</p></div>
+                        <template x-for="ev in dayLayout" :key="ev.inquiry.event_id">
+                            @include('partials.admin.calendar-event-card', $cardData)
+                        </template>
+                    </div>
                 </template>
+
+                {{-- Per-employee columns: 2+ employees selected --}}
+                <div x-show="columnMode" x-cloak class="absolute inset-0 flex">
+                    <template x-for="col in dayAssigneeColumns" :key="col.id">
+                        <div class="flex-1 min-w-0 relative border-l border-gray-100">
+                            <template x-for="ev in col.events" :key="ev.inquiry.event_id">
+                                @include('partials.admin.calendar-event-card', $cardData)
+                            </template>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </div>

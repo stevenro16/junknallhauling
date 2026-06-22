@@ -1,10 +1,12 @@
 {{-- Reusable "what's booked on this day" agenda + open-day-calendar button.
+     Bookings are grouped into one column per assignee (the job's assignee first,
+     Unassigned last) — the same column approach as the calendars.
      Parameters (Alpine expression names, interpolated at render):
-       $dateExpr   — datetime state (e.g. 'confirmedDateTime' / 'pickupDateTime')
-       $schedule   — agenda getter   (e.g. 'daySchedule' / 'pickupDaySchedule')
-       $conflict   — conflict count  (e.g. 'dayConflictCount' / 'pickupDayConflictCount')
-       $other      — other count     (e.g. 'dayOtherCount' / 'pickupDayOtherCount')
-       $modal      — modal flag       (e.g. 'showCalendarModal' / 'showPickupCalendarModal')
+       $dateExpr   — datetime state   (e.g. 'confirmedDateTime' / 'pickupDateTime')
+       $columns    — per-assignee columns getter (e.g. 'dayScheduleColumns')
+       $conflict   — conflict count   (e.g. 'dayConflictCount')
+       $other      — other count      (e.g. 'dayOtherCount')
+       $modal      — modal flag        (e.g. 'showCalendarModal')
        $selfLabel  — label for this quote's own row ('This visit' / 'This pickup')
        $iconColor  — calendar icon color class (optional)
 --}}
@@ -21,32 +23,47 @@
         &#9888;&#65039; <span x-text="{{ $conflict }} === 1 ? '1 visit overlaps this time slot' : {{ $conflict }} + ' visits overlap this time slot'"></span>
     </div>
 
-    <div class="space-y-1">
-        <template x-for="ev in {{ $schedule }}" :key="ev.id + '-' + ev.start.getTime()">
-            <div class="flex items-start gap-2 px-2 py-1.5 rounded-lg border text-xs transition-colors"
-                 :class="ev.isSelf ? 'border-[#F8C820]/60 bg-[#F8C820]/10' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white')">
-                <span class="font-mono text-gray-600 shrink-0 whitespace-nowrap pt-0.5" x-text="clock(ev.start) + '–' + clock(ev.end)"></span>
-                <span class="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" :class="dotClass(ev.status)"></span>
-                <div class="flex-1 min-w-0">
-                    <div class="truncate">
-                        <span class="font-medium text-gray-800" x-text="ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : (ev.name || '(no name)')"></span>
-                        <span x-show="!ev.isSelf" class="text-gray-400 capitalize" x-text="' · ' + serviceLabel(ev.service_type)"></span>
-                    </div>
-                    <div x-show="ev.address" x-cloak class="mt-0.5 flex items-start gap-1 text-gray-500">
-                        <x-icon name="map-pin" class="w-3 h-3 shrink-0 mt-px text-gray-400"/>
-                        <span class="truncate" x-text="ev.address"></span>
-                    </div>
-                    <div x-show="ev.assigned_employee" x-cloak class="mt-0.5 flex items-center gap-1 text-amber-700">
-                        <x-icon name="user" class="w-3 h-3 shrink-0 text-amber-500"/>
-                        <span class="truncate" x-text="ev.assigned_employee"></span>
+    {{-- Per-assignee timeline (6am–5pm) so gaps between bookings are easy to see --}}
+    <div x-show="{{ $columns }}.length > 0" x-cloak class="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        {{-- Column headers --}}
+        <div class="flex border-b border-gray-200 bg-gray-50">
+            <div class="w-9 shrink-0"></div>
+            <template x-for="col in {{ $columns }}" :key="col.id">
+                <div class="flex-1 min-w-0 px-1.5 py-1 text-center border-l border-gray-200">
+                    <div class="text-[11px] font-semibold truncate inline-flex items-center gap-1 justify-center" :class="col.isUnassigned ? 'text-gray-400' : 'text-gray-700'">
+                        <x-icon name="user" class="w-3 h-3 shrink-0"/><span class="truncate" x-text="col.name"></span>
                     </div>
                 </div>
-                <div class="flex items-center gap-1 shrink-0 pt-0.5">
-                    <span x-show="ev.conflict" x-cloak class="text-[10px] font-semibold text-red-600">conflict</span>
-                    <a x-show="!ev.isSelf" :href="detailUrl(ev.id)" class="text-amber-600 hover:text-amber-700" title="Open quote"><x-icon name="external-link" class="w-3 h-3"/></a>
-                </div>
+            </template>
+        </div>
+        {{-- Timeline body --}}
+        <div class="flex" :style="`height:${(panelEndHour - panelStartHour) * panelHourPx}px`">
+            {{-- Hour gutter --}}
+            <div class="w-9 shrink-0 relative">
+                <template x-for="h in panelHours" :key="h">
+                    <div class="absolute right-1 text-[9px] text-gray-400 -translate-y-1.5" :style="`top:${(h - panelStartHour) * panelHourPx}px`" x-text="panelHourLabel(h)"></div>
+                </template>
             </div>
-        </template>
-        <div x-show="{{ $other }} === 0" x-cloak class="text-[11px] text-emerald-600 px-1 py-0.5">&check; No other visits booked this day.</div>
+            {{-- Columns --}}
+            <template x-for="col in {{ $columns }}" :key="col.id">
+                <div class="flex-1 min-w-0 relative border-l border-gray-100">
+                    <template x-for="h in panelHours" :key="h">
+                        <div class="absolute left-0 right-0 border-t border-gray-100" :style="`top:${(h - panelStartHour) * panelHourPx}px`"></div>
+                    </template>
+                    <template x-for="ev in col.rows" :key="ev.id + '-' + ev.start.getTime()">
+                        <a :href="ev.isSelf ? null : detailUrl(ev.id)" :title="(ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : (ev.name || '')) + ' · ' + clock(ev.start) + '–' + clock(ev.end)"
+                           class="absolute rounded border px-1 py-0.5 overflow-hidden block leading-tight"
+                           :style="`top:${panelTop(ev)}px;height:${panelHeight(ev)}px;left:2px;right:2px`"
+                           :class="ev.isSelf ? 'border-[#F8C820]/70 bg-[#F8C820]/20' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white hover:bg-amber-50')">
+                            <div class="font-mono text-[8px] text-gray-500 truncate" x-text="clock(ev.start)"></div>
+                            <div class="text-[9px] font-medium text-gray-800 truncate" x-text="ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : (ev.name || '(no name)')"></div>
+                        </a>
+                    </template>
+                </div>
+            </template>
+        </div>
     </div>
+
+    <div x-show="{{ $columns }}.length === 0" x-cloak class="text-[11px] text-gray-400 px-1 py-1 italic">Nothing booked for this assignment on this day.</div>
+    <div x-show="{{ $columns }}.length > 0 && {{ $other }} === 0" x-cloak class="text-[11px] text-emerald-600 px-1 py-1 mt-1">&check; No other visits booked this day.</div>
 </div>

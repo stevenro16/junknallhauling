@@ -68,6 +68,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/my-schedule/job/{id}/time/{which}', [EmployeeCalendarController::class, 'recordTime'])
             ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.time');
         Route::post('/my-schedule/job/{id}/sign', [EmployeeCalendarController::class, 'sign'])->name('my-schedule.sign');
+        Route::post('/my-schedule/job/{id}/eta', [EmployeeCalendarController::class, 'eta'])->name('my-schedule.eta');
         Route::post('/my-schedule/job/{id}/comment', [EmployeeCalendarController::class, 'addComment'])->name('my-schedule.comment');
 
         // Everything below is full-admin only.
@@ -81,6 +82,8 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::post('/field/job/{id}/time/{which}', [FieldViewController::class, 'recordTime'])
                 ->whereIn('which', ['arrival', 'departure'])->name('field.time');
             Route::post('/field/job/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
+            Route::post('/field/job/{id}/eta', [FieldViewController::class, 'eta'])->name('field.eta');
+            Route::post('/field/job/{id}/payment', [FieldViewController::class, 'recordPayment'])->name('field.payment');
             Route::post('/field/job/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
 
             Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');

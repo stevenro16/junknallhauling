@@ -14,10 +14,10 @@ class IpController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $cf       = $request->header('cf-connecting-ip');
-        $xRealIp  = $request->header('x-real-ip');
-        $xff      = $request->header('x-forwarded-for');
-        $xClient  = $request->header('x-client-ip');
+        $cf = $request->header('cf-connecting-ip');
+        $xRealIp = $request->header('x-real-ip');
+        $xff = $request->header('x-forwarded-for');
+        $xClient = $request->header('x-client-ip');
         $forwarded = $request->header('forwarded');
 
         $ip = 'unknown';
@@ -36,12 +36,12 @@ class IpController extends Controller
         }
 
         return response()->json([
-            'ip'      => $ip,
+            'ip' => $ip,
             'headers' => [
                 'cf-connecting-ip' => $cf,
-                'x-forwarded-for'  => $xff,
-                'x-real-ip'        => $xRealIp,
-                'x-client-ip'      => $xClient,
+                'x-forwarded-for' => $xff,
+                'x-real-ip' => $xRealIp,
+                'x-client-ip' => $xClient,
             ],
         ]);
     }

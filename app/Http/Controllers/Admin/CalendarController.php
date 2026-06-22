@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\Inquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -11,7 +12,10 @@ class CalendarController extends Controller
 {
     public function index()
     {
-        return view('admin.calendar', ['events' => $this->events()]);
+        return view('admin.calendar', [
+            'events' => $this->events(),
+            'employees' => InquiryController::assignees(),
+        ]);
     }
 
     /** Compact, bare day view for embedding in the quote page's calendar popup. */
@@ -27,6 +31,7 @@ class CalendarController extends Controller
             'target' => $request->query('target') === 'pickup' ? 'pickup' : 'visit',
             'assignee' => (string) $request->query('assignee', ''),
             'assigneeName' => (string) $request->query('assignee_name', ''),
+            'employees' => InquiryController::assignees(),
         ]);
     }
 
@@ -68,8 +73,8 @@ class CalendarController extends Controller
         $isPickup = $type === 'pickup';
         $dt = $isPickup ? $i->pickup_date_time : $i->confirmed_date_time;
         $duration = $isPickup ? ($i->pickup_duration_minutes ?: 60) : ($i->expected_duration_minutes ?? 120);
-        $employee = $isPickup ? $i->pickupAssignedEmployee?->username : $i->assignedEmployee?->username;
-        $assigneeId = $isPickup ? $i->pickup_assigned_employee_id : $i->assigned_employee_id;
+        $assigneeIds = $i->assigneeIds($type);
+        $employee = Admin::namesFor($assigneeIds);
 
         // Flag a pickup scheduled before the delivery visit (illogical → warn).
         $beforeVisit = $isPickup && $i->confirmed_date_time && $i->pickup_date_time
@@ -84,7 +89,8 @@ class CalendarController extends Controller
             'confirmed_date_time' => $dt,   // the datetime for this entry (visit or pickup)
             'expected_duration_minutes' => $duration,
             'assigned_employee' => $employee,
-            'assignee_id' => $assigneeId,
+            'assignee_id' => $assigneeIds[0] ?? null,   // primary (legacy single-filter)
+            'assignee_ids' => $assigneeIds,             // all assignees (multi filter/columns)
             'before_visit' => $beforeVisit,
         ];
     }

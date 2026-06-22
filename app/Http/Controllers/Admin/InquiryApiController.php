@@ -118,6 +118,15 @@ class InquiryApiController extends Controller
                 $updates[$k] = $b[$k] === null || $b[$k] === '' ? null : (int) $b[$k];
             }
         }
+        // Multi-assignee arrays — store the JSON array and keep the legacy single
+        // column in sync with the first (primary) assignee.
+        foreach ([['assigned_employee_ids', 'assigned_employee_id'], ['pickup_assigned_employee_ids', 'pickup_assigned_employee_id']] as [$arrCol, $singleCol]) {
+            if (array_key_exists($arrCol, $b)) {
+                $ids = array_values(array_filter(array_map('strval', (array) $b[$arrCol]), fn ($v) => $v !== ''));
+                $updates[$arrCol] = $ids;
+                $updates[$singleCol] = $ids[0] ?? null;
+            }
+        }
         // Geocode whenever the address is being set/changed; clear coords when emptied.
         if (array_key_exists('address', $b)) {
             if (! empty($b['address'])) {

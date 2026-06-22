@@ -28,3 +28,7 @@ Route::post('/rental-agreement/{token}', [RentalAgreementController::class, 'sig
 
 Route::get('/payment/{token}', [PaymentController::class, 'show']);
 Route::post('/payment/{token}', [PaymentController::class, 'pay']);
+Route::post('/payment/{token}/confirm', [PaymentController::class, 'confirm']);
+
+// Stripe webhook — authoritative payment confirmation (no CSRF; signature-verified).
+Route::post('/stripe/webhook', [PaymentController::class, 'webhook']);

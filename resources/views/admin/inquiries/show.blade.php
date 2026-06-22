@@ -20,7 +20,7 @@
             detailBase: '{{ route('admin.inquiries.show', '__ID__') }}',
             calendarEmbed: '{{ route('admin.calendar.embed') }}',
         },
-    })" class="w-full pt-1 pb-24 sm:pb-8">
+    })" @quote-save.window="dirty && save()" class="w-full pt-1 pb-24 sm:pb-8">
 
     {{-- Header: back link + a single Save button (desktop) that appears only when there are unsaved edits --}}
     <div class="sticky top-0 z-30 -mt-1 mb-4 py-2 bg-gray-100/90 backdrop-blur flex items-center justify-between gap-3">
@@ -136,7 +136,7 @@
         <div class="space-y-5">
 
             {{-- Card 1: Customer --}}
-            <div id="sec-customer" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
+            <div id="sec-customer" class="card-light border-l-2 p-5 scroll-mt-20" :class="sectionDone.customer ? 'border-emerald-400' : 'border-[#F8C820]'">
                 <div class="flex flex-col gap-3">
                     <div class="flex items-start justify-between gap-4">
                         <div class="min-w-0 flex-1">
@@ -147,14 +147,20 @@
                             <span x-show="urgency === 'urgent'" x-cloak class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300"><x-icon name="alert" class="w-3 h-3"/> Urgent</span>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(status)" x-text="statusLabel(status)"></span>
                             <div class="flex items-center gap-1.5 flex-shrink-0">
-                                <button type="button" @click="isEditingCustomer = !isEditingCustomer" class="p-1.5 rounded hover:bg-gray-200 text-amber-600 transition-colors" title="Edit customer fields"><x-icon name="pencil" class="w-4 h-4"/></button>
+                                <button type="button" @click="isEditingCustomer = !isEditingCustomer; collapsed.customer = false" class="p-1.5 rounded hover:bg-gray-200 text-amber-600 transition-colors" title="Edit customer fields"><x-icon name="pencil" class="w-4 h-4"/></button>
                                 <button type="button" @click="togglePreferredContact()" class="p-1.5 rounded-full border border-gray-300 hover:border-amber-400 text-amber-600 hover:text-amber-700 transition-all active:scale-95" title="Toggle preferred contact">
                                     <x-icon name="phone" class="w-4 h-4" x-show="preferredContactMethod === 'phone'"/>
                                     <x-icon name="mail" class="w-4 h-4" x-show="preferredContactMethod === 'email'" x-cloak/>
                                 </button>
+                                {{-- Section-complete check + collapse toggle, to the right of the preference icon --}}
+                                <x-icon name="check-circle" class="w-5 h-5 text-emerald-500 shrink-0" x-show="sectionDone.customer" x-cloak/>
+                                <button type="button" @click="toggleSection('customer')" class="p-1.5 text-gray-400 hover:text-gray-600 shrink-0" x-show="isMobile" x-cloak title="Collapse / expand section">
+                                    <x-icon name="chevron-down" class="w-5 h-5 transition-transform" ::class="!collapsed.customer && 'rotate-180'"/>
+                                </button>
                             </div>
                         </div>
                     </div>
+                    <div x-show="sectionOpen('customer')" x-cloak class="flex flex-col gap-3">
 
                     <div x-show="isEditingCustomer" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">First Name</label><input type="text" x-model="firstName" class="input-light text-sm py-1.5 w-full" placeholder="First"></div>
@@ -242,13 +248,19 @@
                             </div>
                         </div>
                     </template>
+                    </div>
                 </div>
             </div>
 
             {{-- Card 2: Job Details --}}
             <div id="sec-job" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
-                <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Job Details</div><div class="h-px flex-1 bg-gray-200"></div></div>
-                <div class="space-y-3">
+                <button type="button" @click="toggleSection('job')" class="w-full flex items-center gap-3 mb-4 text-left">
+                    <div class="text-lg font-semibold transition-colors" :class="sectionDone.job ? 'text-emerald-600' : 'text-amber-700'">Job Details</div>
+                    <x-icon name="check-circle" class="w-5 h-5 text-emerald-500 shrink-0" x-show="sectionDone.job" x-cloak/>
+                    <div class="h-px flex-1" :class="sectionDone.job ? 'bg-emerald-200' : 'bg-gray-200'"></div>
+                    <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.job && 'rotate-180'" x-show="isMobile" x-cloak/>
+                </button>
+                <div x-show="sectionOpen('job')" x-cloak class="space-y-3">
                     {{-- Job type pill (Service is the default) --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Job Type</label>
@@ -308,14 +320,16 @@
                         </div>
                     </div>
 
-                    {{-- Requested rental duration (equipment mode) --}}
+                    {{-- Rental duration (equipment mode) — how long the customer keeps the equipment --}}
                     <div x-show="isEquipment" x-cloak>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Requested Rental Duration</label>
-                        <div class="flex gap-2 max-w-xs">
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Rental Duration</label>
+                        <div class="flex items-center gap-2 flex-wrap">
                             <input type="number" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
-                            <select x-model="equipmentRentalUnit" class="input-light text-sm py-2 flex-1">
-                                <option value="">Unit</option><option value="hours">Hours</option><option value="days">Days</option>
-                            </select>
+                            {{-- Hours / Days pill toggle (Hours is the default) --}}
+                            <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+                                <button type="button" @click="equipmentRentalUnit = 'hours'" class="px-4 py-1.5 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-white text-gray-600 hover:bg-gray-50' : 'bg-amber-500 text-white'">Hours</button>
+                                <button type="button" @click="equipmentRentalUnit = 'days'" class="px-4 py-1.5 border-l border-gray-300 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Days</button>
+                            </div>
                         </div>
                     </div>
 
@@ -423,6 +437,11 @@
                         </div>
                     </div>
 
+                    {{-- Rental agreement (equipment rentals only) — condensed generate/send + signed view --}}
+                    <template x-if="isEquipment">
+                        @include('partials.admin.rental-agreement-panel')
+                    </template>
+
                 </div>
             </div>
 
@@ -432,17 +451,17 @@
             <div class="space-y-5">
             {{-- Card: Visit Date & Time --}}
             <div id="sec-visit" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
-                <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-amber-700">Visit Date &amp; Time</div><div class="h-px flex-1 bg-gray-200"></div></div>
-                <div class="space-y-3">
+                <button type="button" @click="toggleSection('visit')" class="w-full flex items-center gap-3 mb-4 text-left">
+                    <div class="text-lg font-semibold transition-colors" :class="sectionDone.visit ? 'text-emerald-600' : 'text-amber-700'">Visit Date &amp; Time</div>
+                    <x-icon name="check-circle" class="w-5 h-5 text-emerald-500 shrink-0" x-show="sectionDone.visit" x-cloak/>
+                    <div class="h-px flex-1" :class="sectionDone.visit ? 'bg-emerald-200' : 'bg-gray-200'"></div>
+                    <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.visit && 'rotate-180'" x-show="isMobile" x-cloak/>
+                </button>
+                <div x-show="sectionOpen('visit')" x-cloak class="space-y-3">
                     {{-- Assigned employee --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Assigned To</label>
-                        <select x-model="assignedEmployeeId" class="input-light text-sm py-2 w-full">
-                            <option value="">Unassigned</option>
-                            @foreach($employees as $emp)
-                                <option value="{{ $emp['id'] }}">{{ $emp['label'] }}</option>
-                            @endforeach
-                        </select>
+                        @include('partials.admin.assignee-picker', ['model' => 'assignedEmployeeIds'])
                         @if(count($employees) <= 1)
                             <p class="text-[10px] text-gray-400 mt-1">No employee accounts yet — create one in Account Management, or assign yourself.</p>
                         @endif
@@ -479,7 +498,7 @@
                         </template>
 
                         <div class="mt-3">
-                            <div class="text-sm font-medium text-gray-700 mb-1.5">Duration</div>
+                            <div class="text-sm font-medium text-gray-700 mb-1.5">Visit Duration <span class="font-normal text-xs text-gray-400">— employee's time on site</span></div>
                             <div class="flex items-center gap-2">
                                 <button type="button" @click="stepDuration(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">&minus;</button>
                                 <input type="number" x-model="expectedDurationValue" class="input-light text-sm py-2 flex-1 min-w-0 text-center px-1" placeholder="—">
@@ -492,7 +511,7 @@
 
                     {{-- Visit day schedule — moved directly under the visit duration --}}
                     @include('partials.admin.day-schedule-panel', [
-                        'dateExpr' => 'confirmedDateTime', 'schedule' => 'daySchedule',
+                        'dateExpr' => 'confirmedDateTime', 'columns' => 'dayScheduleColumns',
                         'conflict' => 'dayConflictCount', 'other' => 'dayOtherCount',
                         'modal' => 'showCalendarModal', 'selfLabel' => 'This visit',
                     ])
@@ -551,17 +570,12 @@
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Assigned To</div>
-                                <select x-model="pickupAssignedEmployeeId" class="input-light text-sm py-2 w-full">
-                                    <option value="">Unassigned</option>
-                                    @foreach($employees as $emp)
-                                        <option value="{{ $emp['id'] }}">{{ $emp['label'] }}</option>
-                                    @endforeach
-                                </select>
+                                @include('partials.admin.assignee-picker', ['model' => 'pickupAssignedEmployeeIds'])
                             </div>
 
                             {{-- Pickup day schedule --}}
                             @include('partials.admin.day-schedule-panel', [
-                                'dateExpr' => 'pickupDateTime', 'schedule' => 'pickupDaySchedule',
+                                'dateExpr' => 'pickupDateTime', 'columns' => 'pickupDayScheduleColumns',
                                 'conflict' => 'pickupDayConflictCount', 'other' => 'pickupDayOtherCount',
                                 'modal' => 'showPickupCalendarModal', 'selfLabel' => 'This pickup',
                                 'iconColor' => 'text-cyan-600',
@@ -636,8 +650,13 @@
 
             {{-- Card 3: Payment --}}
             <div id="sec-payment" class="card-light border-l-2 border-[#F8C820] p-5 scroll-mt-20">
-                <div class="flex items-center gap-3 mb-4"><div class="text-lg font-semibold text-emerald-600">Payment</div><div class="h-px flex-1 bg-gray-200"></div></div>
-                <div class="space-y-3">
+                <button type="button" @click="toggleSection('payment')" class="w-full flex items-center gap-3 mb-4 text-left">
+                    <div class="text-lg font-semibold transition-colors" :class="sectionDone.payment ? 'text-emerald-600' : 'text-amber-700'">Payment</div>
+                    <x-icon name="check-circle" class="w-5 h-5 text-emerald-500 shrink-0" x-show="sectionDone.payment" x-cloak/>
+                    <div class="h-px flex-1" :class="sectionDone.payment ? 'bg-emerald-200' : 'bg-gray-200'"></div>
+                    <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.payment && 'rotate-180'" x-show="isMobile" x-cloak/>
+                </button>
+                <div x-show="sectionOpen('payment')" x-cloak class="space-y-3">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Quoted Price
@@ -684,14 +703,12 @@
             </div>
             </div>{{-- /column 2 --}}
 
-        {{-- Column 3: status timeline, rental agreement, history --}}
+        {{-- Column 3: status timeline, notes, history --}}
         <div class="space-y-4 xl:sticky xl:top-2">
                 {{-- Timeline hidden on mobile — the floating bottom bar shows/sets status there --}}
                 <div class="hidden sm:block">
                     @include('partials.admin.status-timeline')
                 </div>
-
-                @include('partials.admin.rental-agreement-panel')
 
                 {{-- Notes & comments (internal + customer-visible) --}}
                 <div class="bg-white border border-gray-200 rounded-xl p-4">

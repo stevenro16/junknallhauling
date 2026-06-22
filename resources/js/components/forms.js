@@ -543,8 +543,14 @@ Alpine.data('paymentForm', (token) => ({
     error: '',
     submitting: false,
     paid: false,
+    confirming: false,   // returned from Stripe; verifying the payment
+    confirmNote: '',
 
     init() {
+        const params = new URLSearchParams(window.location.search);
+        const returned = params.get('status');
+        const sessionId = params.get('session_id');
+
         fetch(window.apiUrl(`/api/payment/${this.token}`))
             .then(async (res) => {
                 const json = await res.json();
@@ -553,9 +559,33 @@ Alpine.data('paymentForm', (token) => ({
                     throw new Error(json.error || 'Failed to load payment');
                 }
                 this.data = json;
+                // Coming back from Stripe Checkout — verify and reflect the result.
+                if (returned === 'success' && sessionId) {
+                    this.confirming = true;
+                    this.confirmReturn(sessionId);
+                }
             })
             .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
             .finally(() => { this.loading = false; });
+    },
+
+    // Poll the confirm endpoint after returning from Stripe. The webhook is the
+    // authoritative backstop, so on timeout we show a reassuring "processing"
+    // message rather than re-offering the Pay button (avoids a double charge).
+    async confirmReturn(sessionId, attempt = 0) {
+        try {
+            const res = await fetch(window.apiUrl(`/api/payment/${this.token}/confirm`), {
+                method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify({ session_id: sessionId }),
+            });
+            const json = await res.json();
+            if (json.paid) { this.paid = true; this.confirming = false; return; }
+        } catch { /* retry below */ }
+
+        if (attempt < 3) {
+            setTimeout(() => this.confirmReturn(sessionId, attempt + 1), 2000);
+        } else {
+            this.confirmNote = 'Your payment is processing — a receipt will follow shortly. You can close this page.';
+        }
     },
 
     get inquiry() { return this.data?.inquiry ?? null; },
@@ -592,10 +622,11 @@ Alpine.data('paymentForm', (token) => ({
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Payment could not be completed.');
-            this.paid = true;
+            // Stripe configured → redirect to the hosted checkout. Placeholder → done.
+            if (json.checkout_url) { window.location.href = json.checkout_url; return; }
+            if (json.success) { this.paid = true; }
         } catch (e) {
             this.error = e.message || 'Something went wrong. Please try again or call us.';
-        } finally {
             this.submitting = false;
         }
     },

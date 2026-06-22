@@ -93,6 +93,44 @@
         </dl>
     </div>
 
+    {{-- Travel & arrival — drive time from the field tech's current location to the job --}}
+    @if($inquiry->address)
+        <div class="mt-4 card-light p-5" x-data="etaEstimator({
+                estimateUrl: '{{ route($routeBase.'.eta', $inquiry->id) }}',
+                name: @js($inquiry->name),
+                phone: @js($inquiry->phone),
+                email: @js($inquiry->email),
+                preferred: @js($inquiry->preferred_contact_method),
+                businessName: @js(config('business.name')),
+            })">
+            <div class="text-sm font-semibold text-gray-800 mb-1">Travel &amp; Arrival</div>
+            <p class="text-xs text-gray-500 mb-3">Calculate drive time from where you are now, then text/email the customer your ETA.</p>
+
+            <button type="button" @click="calculate()" :disabled="loading" class="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2 disabled:opacity-50">
+                <x-icon name="map-pin" class="w-4 h-4"/>
+                <span x-text="loading ? 'Locating…' : (calculated ? 'Recalculate from my location' : 'Calculate drive time')"></span>
+            </button>
+
+            <div x-show="calculated" x-cloak class="mt-3 space-y-3">
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                    <div><span class="text-gray-500">Distance:</span> <span class="font-medium text-gray-800" x-text="distanceMi != null ? distanceMi + ' mi' : '—'"></span></div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-gray-500">Drive time:</span>
+                        <input type="number" min="0" x-model.number="travelMin" class="input-light text-sm py-1 w-16 text-center"><span class="text-gray-500">min</span>
+                    </div>
+                </div>
+                <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                    Estimated arrival <span class="font-semibold" x-text="etaLabel || '—'"></span>
+                </div>
+                <button type="button" @click="communicate()" class="btn-primary text-sm py-2 px-4 inline-flex items-center gap-2">
+                    <x-icon name="send" class="w-4 h-4"/> Send ETA to customer
+                </button>
+            </div>
+
+            <p x-show="error" x-cloak class="text-xs text-red-600 mt-2" x-text="error"></p>
+        </div>
+    @endif
+
     {{-- Visit log: arrival & departure --}}
     <div class="mt-4 card-light p-5">
         <div class="text-sm font-semibold text-gray-800 mb-3">Visit Log</div>
@@ -116,31 +154,58 @@
         </div>
     </div>
 
-    {{-- Customer signature — capturing it marks the job Service Performed (ready to bill).
-         Signing happens on a full-screen pad; a saved signature can be re-done. --}}
-    @if($inquiry->service_signature || in_array($inquiry->status, ['scheduled', 'service_performed', 'completed'], true))
+    {{-- Field actions — each requires a customer signature on a full-screen pad.
+         Services show "Mark Service Performed"; equipment shows Delivered / Picked Up. --}}
+    @php($isEquipment = $inquiry->service_type === 'equipment' || $inquiry->equipment_type)
+    @php($signatures = $inquiry->signatures ?? [])
+    @if(in_array($inquiry->status, ['scheduled', 'equipment_delivered', 'equipment_picked_up', 'service_performed', 'completed'], true))
         <div class="mt-4 card-light p-5" x-data="serviceSignature({ signUrl: '{{ route($routeBase.'.sign', $inquiry->id) }}' })">
-            <div class="text-sm font-semibold text-gray-800 mb-1">Customer Signature</div>
-            @if($inquiry->service_signature)
-                <p class="text-xs text-emerald-600 mb-2">&check; Signed{{ $inquiry->service_signed_at ? ' '.$inquiry->service_signed_at->format('D, M j · g:i A') : '' }}</p>
-                <img src="{{ $inquiry->service_signature }}" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-40">
-                <div class="mt-3">
-                    <button type="button" @click="openPad()" class="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2">
-                        <x-icon name="pencil" class="w-4 h-4"/> Re-sign
-                    </button>
+            <div class="text-sm font-semibold text-gray-800 mb-1">Field Actions</div>
+            <p class="text-xs text-gray-500 mb-3">Each action captures the customer's signature on a full-screen pad.</p>
+
+            <div class="flex flex-wrap gap-2">
+                @if($isEquipment)
+                    @unless(in_array($inquiry->status, ['equipment_delivered', 'equipment_picked_up', 'completed'], true))
+                        <button type="button" @click="openFor('equipment_delivered', 'Equipment Delivered')" class="btn-primary text-sm py-2.5 px-4 inline-flex items-center gap-2"><x-icon name="truck" class="w-4 h-4"/> Equipment Delivered</button>
+                    @endunless
+                    @if($inquiry->status === 'equipment_delivered')
+                        <button type="button" @click="openFor('equipment_picked_up', 'Equipment Picked Up')" class="btn-primary text-sm py-2.5 px-4 inline-flex items-center gap-2"><x-icon name="truck" class="w-4 h-4"/> Equipment Picked Up</button>
+                    @endif
+                    @if($inquiry->status === 'equipment_picked_up')
+                        <span class="inline-flex items-center gap-1.5 text-sm text-emerald-700"><x-icon name="check-circle" class="w-4 h-4"/> Equipment picked up</span>
+                    @endif
+                @else
+                    @unless(in_array($inquiry->status, ['service_performed', 'completed'], true))
+                        <button type="button" @click="openFor('service_performed', 'Service Performed')" class="btn-primary text-sm py-2.5 px-4 inline-flex items-center gap-2"><x-icon name="check" class="w-4 h-4"/> Mark Service Performed</button>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 text-sm text-emerald-700"><x-icon name="check-circle" class="w-4 h-4"/> Service performed</span>
+                    @endunless
+                @endif
+            </div>
+
+            {{-- Captured signatures — one per action --}}
+            @if(count($signatures))
+                <div class="mt-4 space-y-3">
+                    @foreach($signatures as $key => $sig)
+                        @php($sigLabel = ucwords(str_replace('_', ' ', $key)))
+                        <div>
+                            <div class="text-xs font-medium text-gray-700 flex items-center gap-1.5 flex-wrap">
+                                <x-icon name="check-circle" class="w-3.5 h-3.5 text-emerald-500 shrink-0"/>
+                                <span>{{ $sigLabel }}</span>
+                                <span class="text-gray-400 font-normal">{{ \Carbon\Carbon::parse($sig['signed_at'])->format('D, M j · g:i A') }}</span>
+                                <button type="button" @click="openFor('{{ $key }}', '{{ $sigLabel }}')" class="text-amber-600 hover:text-amber-700">Re-sign</button>
+                            </div>
+                            <img src="{{ $sig['signature'] }}" alt="{{ $sigLabel }} signature" class="mt-1 border border-gray-200 rounded-lg bg-white max-h-28">
+                        </div>
+                    @endforeach
                 </div>
-            @else
-                <p class="text-xs text-gray-500 mb-3">Have the customer sign to confirm the service was performed.</p>
-                <button type="button" @click="openPad()" class="btn-primary py-2.5 px-5 text-sm inline-flex items-center gap-2">
-                    <x-icon name="pencil" class="w-4 h-4"/> Open signature pad
-                </button>
             @endif
 
-            {{-- Full-screen signing pad (lots of room for the customer; can clear & redo) --}}
+            {{-- Full-screen signing pad --}}
             <div x-show="open" x-cloak class="fixed inset-0 z-[120] bg-white flex flex-col" @keydown.escape.window="close()">
                 <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
                     <div>
-                        <div class="text-sm font-semibold text-gray-800">{{ $inquiry->name ?: 'Customer' }} — sign below</div>
+                        <div class="text-sm font-semibold text-gray-800">{{ $inquiry->name ?: 'Customer' }} — sign for <span x-text="targetLabel"></span></div>
                         <div class="text-xs text-gray-500">{{ $inquiry->ref }}</div>
                     </div>
                     <button type="button" @click="close()" class="text-gray-400 hover:text-gray-700" aria-label="Cancel"><x-icon name="x" class="w-6 h-6"/></button>
@@ -164,19 +229,7 @@
     {{-- Payment — admin Field View only: generate / send the payment link --}}
     @if($adminField)
         <div class="mt-4">
-            @include('partials.admin.payment-link-panel', ['syncContact' => false])
-        </div>
-    @endif
-
-    {{-- Status action — sits under the payment link; mark the service performed --}}
-    @if($inquiry->status === 'scheduled')
-        <div class="mt-4 card-light p-5">
-            <div class="text-sm font-semibold text-gray-800 mb-3">Update status</div>
-            <form method="POST" action="{{ route($routeBase.'.status', $inquiry->id) }}">
-                @csrf
-                <input type="hidden" name="status" value="service_performed">
-                <button type="submit" class="w-full btn-primary py-3 text-sm">Mark Service Performed</button>
-            </form>
+            @include('partials.admin.payment-link-panel', ['syncContact' => false, 'field' => true])
         </div>
     @endif
 

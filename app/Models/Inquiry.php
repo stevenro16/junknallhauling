@@ -30,7 +30,22 @@ class Inquiry extends Model
             'address_verified' => 'boolean',
             'date_time_verified' => 'boolean',
             'contact_verified' => 'boolean',
+            'assigned_employee_ids' => 'array',
+            'pickup_assigned_employee_ids' => 'array',
+            'signatures' => 'array',
         ];
+    }
+
+    /** Assignee ids for a visit/pickup — the JSON array, falling back to the legacy single column. */
+    public function assigneeIds(string $type): array
+    {
+        $arr = $type === 'pickup' ? $this->pickup_assigned_employee_ids : $this->assigned_employee_ids;
+        if (is_array($arr) && count($arr)) {
+            return array_values($arr);
+        }
+        $single = $type === 'pickup' ? $this->pickup_assigned_employee_id : $this->assigned_employee_id;
+
+        return $single ? [$single] : [];
     }
 
     protected static function booted(): void

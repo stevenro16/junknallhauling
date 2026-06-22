@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // Stripe — online card payments on the public /pay/{token} page. When the
+    // secret is unset, the pay page falls back to its (non-charging) placeholder.
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
 ];
