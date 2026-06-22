@@ -28,6 +28,7 @@
         cardSets: @js($initialCardSets),
         cardMax: @js($cardMax),
         icons: @js($iconChoices),
+        adminTools: @js(\App\Models\SiteContent::list('admin_mobile_tools')),
     })"
     @input="ready && (dirty = true)" @change="ready && (dirty = true)" @trix-change="ready && (dirty = true)"
     class="w-full space-y-6 pb-4">
@@ -42,7 +43,24 @@
             <div class="space-y-6">
                 @foreach($fields as $key => $field)
 
-                    @if($field['type'] === 'cards')
+                    @if($key === 'admin_mobile_tools')
+                        {{-- Mobile bottom-toolbar quick buttons (checkbox set; stored as a list) --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ $field['label'] }}</label>
+                            <p class="text-xs text-gray-500 mb-3">Pick the tools shown in the bottom toolbar when using the admin on a phone.</p>
+                            <input type="hidden" data-cms-key="{{ $key }}" data-cms-type="list" :value="adminTools.join('\n')">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                @foreach(config('admin_tools', []) as $tk => $tool)
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 cursor-pointer hover:border-amber-300 transition-colors" :class="adminTools.includes('{{ $tk }}') && 'border-amber-400 bg-amber-50/60'">
+                                        <input type="checkbox" value="{{ $tk }}" x-model="adminTools" class="w-4 h-4 accent-amber-500">
+                                        <x-icon name="{{ $tool['icon'] }}" class="w-4 h-4 text-gray-500 shrink-0"/>
+                                        <span class="text-sm text-gray-700 truncate">{{ $tool['label'] }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                    @elseif($field['type'] === 'cards')
                         {{-- Service card manager with live preview (one set per cards field) --}}
                         <div>
                             <div class="flex items-center justify-between mb-1.5">

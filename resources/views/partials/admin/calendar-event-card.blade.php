@@ -2,7 +2,7 @@
      $evStyleExpr (the :style expression) + $linkTarget. Used by both the single
      timeline and the per-employee columns. --}}
 @php($linkTarget = $linkTarget ?? '_self')
-<a :href="detailUrl(ev.inquiry.id)" target="{{ $linkTarget }}" :style="{!! $evStyleExpr !!}" class="rounded-lg border transition-all overflow-hidden px-2 py-1 flex flex-col" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
+<a :href="detailUrl(ev.inquiry.id)" target="{{ $linkTarget }}" @click.stop :style="{!! $evStyleExpr !!}" class="rounded-lg border transition-all overflow-hidden px-2 py-1 flex flex-col" :class="[eventClasses(ev.inquiry.status), ev.inquiry.type === 'pickup' ? 'border-dashed' : '']">
     {{-- Text content: clips top-down; reserves bottom space for the always-visible assignee --}}
     <div class="flex-1 min-h-0 overflow-hidden flex flex-col" :class="ev.inquiry.assigned_employee && 'pb-3.5'">
         <div class="shrink-0 flex items-start justify-between gap-1 mt-0.5">

@@ -3,7 +3,7 @@
 @section('title', 'Calendar — '.config('business.name'))
 
 @section('admin-content')
-<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.inquiries.show', '__ID__') }}', initialView: 'day' })">
+<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.field.job', '__ID__') }}', editBase: '{{ route('admin.inquiries.show', '__ID__') }}', quickQuoteUrl: '{{ route('admin.calendar.quick-quote') }}', initialView: 'day' })">
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -30,8 +30,10 @@
     {{-- Employee quick-filter (multi-select; 2+ → per-employee columns in Day view) --}}
     @include('partials.admin.calendar-assignee-filter')
 
-    {{-- Day view --}}
-    @include('partials.admin.calendar-day')
+    <p x-show="viewMode === 'day'" x-cloak class="text-center text-xs text-gray-400 mb-2">Tip: click an empty time slot to start a quote at that time<span x-show="selectedAssignees.length"> for the selected employee</span>.</p>
+
+    {{-- Day view (click an empty slot to create a quote) --}}
+    @include('partials.admin.calendar-day', ['createMode' => true])
 
     {{-- Multi-day (3-day / 5-day): columns on desktop, stacked agenda on mobile --}}
     <div x-show="viewMode === '3day' || viewMode === '5day'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -71,6 +73,26 @@
             <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full" :class="dotClass('{{ $s }}')"></div><span>{{ $lbl }}</span></div>
         @endforeach
         <div class="ml-auto text-gray-500"><span x-text="totalOnCalendar"></span> total on calendar</div>
+    </div>
+
+    {{-- New-quote prompt (from clicking an empty calendar slot) --}}
+    <div x-show="showNewQuote" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+         @click.self="showNewQuote = false" @keydown.escape.window="showNewQuote = false">
+        <div class="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-xl p-6 relative">
+            <button type="button" @click="showNewQuote = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><x-icon name="x" class="w-5 h-5"/></button>
+            <h3 class="text-lg font-semibold text-gray-800 mb-1">New Quote</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                <template x-if="newQuote.employeeName"><span>For <span class="font-semibold text-amber-700" x-text="newQuote.employeeName"></span> · </span></template>
+                <span x-text="newQuoteDateLabel"></span> at <span class="font-semibold" x-text="newQuoteTimeLabel"></span>
+            </p>
+            <label class="block text-sm text-gray-700 mb-1.5">Cell phone number <span class="text-red-500">*</span></label>
+            <input type="tel" x-ref="newQuotePhone" x-model="newQuote.phone" @keydown.enter="submitNewQuote()" placeholder="(909) 555-1234" class="input-light">
+            <p x-show="newQuote.error" x-text="newQuote.error" x-cloak class="text-red-500 text-sm mt-2"></p>
+            <div class="flex gap-3 pt-4">
+                <button type="button" @click="showNewQuote = false" class="flex-1 px-4 py-2.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100">Cancel</button>
+                <button type="button" @click="submitNewQuote()" :disabled="newQuote.loading" class="btn-primary flex-1 py-2.5 text-sm"><span x-text="newQuote.loading ? 'Creating…' : 'Create Quote'"></span></button>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

@@ -33,7 +33,7 @@
 
     {{-- Mobile: floating status bar pinned to the bottom (tap to change status) +
          a Save button that appears when there are unsaved edits --}}
-    <div class="sm:hidden fixed inset-x-0 bottom-0 z-40" @click.outside="showStatusSheet = false; showQuickNav = false; showOtherActions = false">
+    <div class="sm:hidden fixed inset-x-0 bottom-14 z-40" @click.outside="showStatusSheet = false; showQuickNav = false; showOtherActions = false">
         {{-- other-actions menu (opens upward): Equipment Delivered / Left Voicemail / Cancel --}}
         <div x-show="showOtherActions" x-cloak x-transition.opacity.duration.150ms
              class="mx-3 mb-2 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">

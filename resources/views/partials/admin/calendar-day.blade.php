@@ -28,8 +28,9 @@
                     </div>
                 </template>
             </div>
-            <div class="flex-1 relative {{ ($pickMode ?? false) ? 'cursor-crosshair' : '' }}"
-                 @if($pickMode ?? false) x-ref="timeline" @click="pickTimeAt($event)" @pointermove.window="onDrag($event)" @pointerup.window="endDrag()" @pointercancel.window="endDrag()" @endif>
+            <div class="flex-1 relative {{ (($pickMode ?? false) || ($createMode ?? false)) ? 'cursor-crosshair' : '' }}"
+                 @if($pickMode ?? false) x-ref="timeline" @click="pickTimeAt($event)" @pointermove.window="onDrag($event)" @pointerup.window="endDrag()" @pointercancel.window="endDrag()" @endif
+                 @if($createMode ?? false) @click="startNewQuoteAt($event, columnMode ? '' : (selectedAssignees.length === 1 ? selectedAssignees[0] : ''))" @endif>
                 <div class="absolute inset-0 grid grid-rows-[repeat(17,4rem)]">
                     <template x-for="hour in HOURS" :key="hour"><div class="relative border-b border-gray-200/60"><div class="absolute inset-x-0 top-1/2 border-b border-gray-100"></div></div></template>
                 </div>
@@ -62,7 +63,8 @@
                 {{-- Per-employee columns: 2+ employees selected --}}
                 <div x-show="columnMode" x-cloak class="absolute inset-0 flex">
                     <template x-for="col in dayAssigneeColumns" :key="col.id">
-                        <div class="flex-1 min-w-0 relative border-l border-gray-100">
+                        <div class="flex-1 min-w-0 relative border-l border-gray-100 {{ ($createMode ?? false) ? 'cursor-crosshair' : '' }}"
+                             @if($createMode ?? false) @click.stop="startNewQuoteAt($event, col.isUnassigned ? '' : col.id)" @endif>
                             <template x-for="ev in col.events" :key="ev.inquiry.event_id">
                                 @include('partials.admin.calendar-event-card', $cardData)
                             </template>

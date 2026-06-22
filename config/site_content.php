@@ -95,4 +95,14 @@ return [
         ],
     ],
 
+    // ---- Admin mobile toolbar -------------------------------------------
+    // Which admin tools appear as quick buttons in the mobile bottom toolbar
+    // (keys from config/admin_tools.php). Edited via checkboxes, stored as a list.
+    'admin_mobile_tools' => [
+        'group'   => 'Admin — Mobile Toolbar',
+        'label'   => 'Quick buttons (mobile bottom toolbar)',
+        'type'    => 'list',
+        'default' => ['calendar', 'inquiries'],
+    ],
+
 ];

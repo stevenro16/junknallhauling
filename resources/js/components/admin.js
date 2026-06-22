@@ -1365,6 +1365,9 @@ Alpine.data('calendar', (cfg = {}) => ({
     employees: cfg.employees || [],          // {id, label} — for the quick-filter buttons
     selectedAssignees: [],                   // multi-select filter; >1 → per-employee columns
     embed: !!cfg.embed,                      // scheduling popup — hides the Unassigned column
+    // Click-to-create (main calendar): clicking an empty slot opens a new-quote prompt.
+    showNewQuote: false,
+    newQuote: { date: '', minutes: 0, employeeId: '', employeeName: '', phone: '', error: '', loading: false },
     // drag state
     dragMode: null, _grabOffsetMin: 0, _justDragged: false, _durationChanged: false,
 
@@ -1480,6 +1483,51 @@ Alpine.data('calendar', (cfg = {}) => ({
 
     formatHour(h) { if (h === 0) return '12 AM'; if (h < 12) return `${h} AM`; if (h === 12) return '12 PM'; return `${h - 12} PM`; },
     detailUrl(id) { return this.detailBase.replace('__ID__', id); },
+
+    // Click an empty calendar slot → prompt to create a quote at that time (and
+    // employee, when clicked inside a person's column).
+    startNewQuoteAt(event, employeeId) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        let m = DAY_START_HOUR * 60 + ((event.clientY - rect.top) / HOUR_PX) * 60;
+        m = Math.round(m / 30) * 30;
+        m = Math.max(DAY_START_HOUR * 60, Math.min(DAY_END_HOUR * 60 - 60, m));
+        this.newQuote = {
+            date: this.localKey(this.currentDate),
+            minutes: m,
+            employeeId: employeeId || '',
+            employeeName: employeeId ? (this.employees.find((e) => e.id === employeeId)?.label || 'Employee') : '',
+            phone: '', error: '', loading: false,
+        };
+        this.showNewQuote = true;
+        this.$nextTick(() => { try { this.$refs.newQuotePhone.focus(); } catch { /* not rendered */ } });
+    },
+    get newQuoteTimeLabel() {
+        const m = this.newQuote.minutes, h = Math.floor(m / 60), mm = m % 60;
+        return `${h % 12 === 0 ? 12 : h % 12}:${String(mm).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+    },
+    get newQuoteDateLabel() {
+        return new Date(this.newQuote.date + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+    },
+    async submitNewQuote() {
+        if (!this.newQuote.phone.trim()) { this.newQuote.error = 'A phone number is required.'; return; }
+        this.newQuote.loading = true;
+        this.newQuote.error = '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const time = `${pad(Math.floor(this.newQuote.minutes / 60))}:${pad(this.newQuote.minutes % 60)}`;
+        try {
+            const res = await fetch(cfg.quickQuoteUrl, {
+                method: 'POST', headers: window.jsonHeaders(true),
+                body: JSON.stringify({ phone: this.newQuote.phone, datetime: `${this.newQuote.date}T${time}`, employee_id: this.newQuote.employeeId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Could not create the quote.');
+            // A brand-new quote opens the full editor (fill in service/customer), not the field sheet.
+            window.location.href = (cfg.editBase || this.detailBase).replace('__ID__', data.inquiry.id);
+        } catch (e) {
+            this.newQuote.error = e.message || 'Could not create the quote.';
+            this.newQuote.loading = false;
+        }
+    },
 
     eventClasses(s) {
         return ({
@@ -1670,6 +1718,7 @@ Alpine.data('siteContent', (cfg = {}) => ({
     cfg,
     icons: cfg.icons || [],
     cardMax: cfg.cardMax || {},
+    adminTools: cfg.adminTools || [],   // selected mobile-toolbar tool keys
     cardSets: {}, // { fieldKey: [cards] } — populated in init()
     saving: false,
     saved: false,

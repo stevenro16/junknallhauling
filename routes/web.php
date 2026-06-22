@@ -90,6 +90,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 
             Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
+            Route::post('/calendar/quick-quote', [CalendarController::class, 'quickQuote'])->name('calendar.quick-quote');
             Route::get('/calendar/embed', [CalendarController::class, 'embed'])->name('calendar.embed');
             Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
             Route::get('/eod-report', [EodReportController::class, 'index'])->name('eod-report');

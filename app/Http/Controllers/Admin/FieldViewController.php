@@ -65,8 +65,8 @@ class FieldViewController extends Controller
             'comments' => $inquiry->comments()->orderBy('created_at')->get()
                 ->map(fn (InquiryComment $c) => EmployeeCalendarController::commentPayload($c))->values(),
             'routeBase' => 'admin.field',
-            'backRoute' => 'admin.field',
-            'backLabel' => 'Back to field view',
+            'backRoute' => 'admin.calendar',
+            'backLabel' => 'Back to calendar',
             'adminField' => true,
             'paymentLinks' => $inquiry->paymentLinks()->orderByDesc('created_at')->get()
                 ->map(fn ($p) => InquiryApiController::paymentLinkPayload($p))->values(),

@@ -18,6 +18,37 @@ class CalendarController extends Controller
         ]);
     }
 
+    /** Quick-create a quote from a clicked calendar slot (phone required; pre-fills the
+     *  visit date/time + assignee). The admin lands on the editor to fill in the rest. */
+    public function quickQuote(Request $request)
+    {
+        $phone = trim((string) $request->input('phone'));
+        if ($phone === '') {
+            return response()->json(['error' => 'A phone number is required.'], 422);
+        }
+
+        $data = [
+            'phone' => $phone, 'name' => '', 'email' => '', 'service_type' => 'other', 'zip_code' => '',
+            'status' => 'scheduled',
+        ];
+
+        $datetime = (string) $request->input('datetime');
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $datetime)) {
+            $data['confirmed_date_time'] = $datetime;
+            $data['expected_duration_minutes'] = 120;
+        }
+
+        $employeeId = trim((string) $request->input('employee_id'));
+        if ($employeeId !== '') {
+            $data['assigned_employee_ids'] = [$employeeId];
+            $data['assigned_employee_id'] = $employeeId;
+        }
+
+        $inquiry = Inquiry::create($data);
+
+        return response()->json(['inquiry' => ['id' => $inquiry->id]], 201);
+    }
+
     /** Compact, bare day view for embedding in the quote page's calendar popup. */
     public function embed(Request $request)
     {

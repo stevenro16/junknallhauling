@@ -45,10 +45,13 @@
                 @include('partials.admin.sidebar', ['collapsible' => false, 'mobile' => true])
             </div>
         </div>
-        <div class="flex-1 overflow-auto p-4 lg:p-6 print:overflow-visible print:p-0">
+        <div class="flex-1 overflow-auto px-4 pt-4 lg:px-6 lg:pt-6 print:overflow-visible print:p-0 {{ session('admin_role') === 'admin' ? 'pb-24 lg:pb-6' : 'pb-4' }}">
             @yield('admin-content')
         </div>
     </div>
+
+    {{-- Mobile bottom toolbar (admin quick-jump; configurable in Site Content) --}}
+    @include('partials.admin.mobile-toolbar')
 
     {{-- Change Password Modal --}}
     <div x-show="showPwd" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" @click.self="showPwd = false">
