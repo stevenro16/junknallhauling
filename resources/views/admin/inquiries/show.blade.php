@@ -28,7 +28,7 @@
         <div class="flex items-center gap-3 min-w-0">
             <span x-show="saveError" x-cloak class="text-xs text-red-600 font-medium text-right" x-text="saveError"></span>
             <span x-show="dirty && !saveError" x-cloak class="hidden sm:inline text-xs text-amber-600 font-medium">Unsaved changes</span>
-            <button type="button" x-show="dirty" x-cloak @click="save()" :disabled="saving" class="hidden sm:inline-flex btn-primary text-sm py-2 px-5"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
+            <button type="button" x-show="dirty" x-cloak @click="saveChanges()" :disabled="saving" class="hidden sm:inline-flex btn-primary text-sm py-2 px-5"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
         </div>
     </div>
 
@@ -121,7 +121,7 @@
                 <span class="flex-1 text-left text-sm font-semibold text-gray-800 truncate" x-text="statusLabel(status)"></span>
                 <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="!showStatusSheet && 'rotate-180'"/>
             </button>
-            <button x-show="dirty" x-cloak type="button" @click="save()" :disabled="saving" class="btn-primary py-2.5 px-5 text-sm shrink-0"><span x-text="saving ? '…' : 'Save'"></span></button>
+            <button x-show="dirty" x-cloak type="button" @click="saveChanges()" :disabled="saving" class="btn-primary py-2.5 px-5 text-sm shrink-0"><span x-text="saving ? '…' : 'Save'"></span></button>
             <button type="button" @click="showQuickNav = !showQuickNav; showStatusSheet = false; showOtherActions = false"
                     class="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-colors"
                     :class="showQuickNav ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-300 bg-gray-50 text-gray-600 active:bg-gray-100'"

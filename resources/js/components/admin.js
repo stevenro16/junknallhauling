@@ -871,8 +871,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
     },
 
-    async save(overrides = {}) {
-        // Block the save and explain what's missing (required fields are starred).
+    // The "Save Changes" button: enforce required fields (starred), explain what's
+    // missing, then persist. Quick status actions (cancel, voicemail, etc.) call
+    // save() directly and are never blocked by completeness.
+    saveChanges() {
         const missing = this.missingToSave;
         if (missing.length) {
             this.jobError = !this.jobSelected;
@@ -881,6 +883,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             return;
         }
         this.saveError = '';
+        return this.save();
+    },
+
+    async save(overrides = {}) {
         this.saving = true;
         try {
             const res = await fetch(this.urls.update, { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this.buildBody(overrides)) });
