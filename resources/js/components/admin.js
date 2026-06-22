@@ -164,7 +164,7 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
         try {
             const res = await fetch(this.cfg.createUrl, {
                 method: 'POST', headers: window.jsonHeaders(true),
-                body: JSON.stringify({ phone: this.nq.phone, name: this.nq.name, email: this.nq.email, zip_code: this.nq.zip }),
+                body: JSON.stringify({ phone: this.nq.phone }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to create quote');

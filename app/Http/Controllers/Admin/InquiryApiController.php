@@ -55,17 +55,13 @@ class InquiryApiController extends Controller
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        // Customer + job definition carried into the new quote.
+        // Only the customer's details carry over — the new quote's service/rental,
+        // pricing, scheduling and notes start fresh.
         $copy = $source->only([
-            'name', 'phone', 'email',
-            'service_type', 'equipment_type', 'equipment_rental_duration', 'equipment_rental_unit',
-            'description', 'address', 'zip_code', 'latitude', 'longitude',
+            'name', 'phone', 'email', 'address', 'zip_code', 'latitude', 'longitude',
             'preferred_contact_method', 'preferred_day', 'preferred_time',
-            'initial_estimated_quote', 'quoted_price', 'expected_duration_minutes',
-            'admin_notes', 'photo_base64', 'photo_mime',
         ]);
-
-        // Fresh lifecycle (ref + id auto-generated; scheduling/payment/signature reset).
+        $copy['service_type'] = 'other';   // job details are chosen on the new quote
         $copy['status'] = 'new';
 
         $inquiry = Inquiry::create($copy);

@@ -185,8 +185,8 @@
                                     <a :href="detailUrl(m.id)" class="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-lg border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-100 active:scale-[0.98] transition" title="Open work order">
                                         <x-icon name="eye" class="w-4 h-4"/> View
                                     </a>
-                                    <button type="button" @click="cloneQuote(m)" :disabled="nq.loading" class="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 active:scale-[0.98] transition disabled:opacity-60" title="Create a new quote with all of this quote's information">
-                                        <x-icon name="plus" class="w-4 h-4"/> Clone
+                                    <button type="button" @click="cloneQuote(m)" :disabled="nq.loading" class="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 active:scale-[0.98] transition disabled:opacity-60" title="Start a new quote with this customer's details (service & pricing start fresh)">
+                                        <x-icon name="plus" class="w-4 h-4"/> Use customer
                                     </button>
                                 </div>
                             </div>
@@ -194,15 +194,7 @@
                     </div>
                 </div>
 
-                {{-- Create as new customer --}}
-                <div class="pt-2 border-t border-gray-200">
-                    <div class="text-xs uppercase tracking-widest text-gray-500 mb-2">Or create as new customer</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <input type="text" x-model="nq.name" placeholder="Name" class="input-light">
-                        <input type="email" x-model="nq.email" placeholder="Email" class="input-light">
-                        <input type="text" x-model="nq.zip" placeholder="Zip" class="input-light">
-                    </div>
-                </div>
+                <p class="text-xs text-gray-500">A new quote needs only a phone number — the rest is filled in on the quote.</p>
 
                 <p x-show="nq.error" x-text="nq.error" class="text-red-500 text-sm" x-cloak></p>
 
