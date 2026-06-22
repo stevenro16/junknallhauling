@@ -137,6 +137,14 @@ class InquiryApiController extends Controller
             }
         }
 
+        // These columns are NOT NULL — a blank value from the form arrives as null
+        // (email is optional for admins), so store an empty string instead of failing.
+        foreach (['name', 'phone', 'email', 'service_type'] as $req) {
+            if (array_key_exists($req, $updates) && $updates[$req] === null) {
+                $updates[$req] = '';
+            }
+        }
+
         $inquiry->update($updates);
 
         if (array_key_exists('status', $b) && $oldStatus !== $b['status']) {
