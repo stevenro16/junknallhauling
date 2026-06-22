@@ -262,7 +262,9 @@ dump).
   `/home/<cpanel-user>/public_html/junknallhauling → /home/<cpanel-user>/repositories/junknallhauling/public`
 
 ### There is no Node on the server
-Build assets **locally** and upload them. `npm`/`node` are not installed on the host.
+`npm`/`node` are not installed on the host, so **`public/build/` is committed to git**
+(the one Laravel-default ignore we deliberately removed). Build locally (`npm run build`),
+commit the result, and the server gets the assets on `git pull` — no manual upload.
 
 ### First-time setup (the confirmed-working recipe)
 ```bash
@@ -294,17 +296,13 @@ ln -s /home/<cpanel-user>/repositories/junknallhauling/public /home/<cpanel-user
 php artisan config:clear   # (or config:cache once .env is final)
 ```
 
-Front-end assets (local machine → server):
-```powershell
-# locally
-npm run build
-# upload public/build/  ->  /home/<cpanel-user>/repositories/junknallhauling/public/build/
-#   (final path must be public/build/manifest.json, not .../build/build/...)
-```
+Front-end assets are **committed** (`public/build/`), so `git pull` delivers them — just
+remember to `npm run build` locally and commit before pushing when JS/CSS/Blade-asset
+refs change.
 
 ### Redeploy (code/asset change)
-1. Update code on the server (`git pull` in the repo, or FTP the changed files).
-2. If JS/CSS/Blade-asset refs changed: `npm run build` **locally**, upload `public/build/`.
+1. If JS/CSS/Blade-asset refs changed: `npm run build` **locally** and commit `public/build/`.
+2. `git pull` on the server (brings code **and** the built assets).
 3. On the server:
    ```bash
    cd /home/<cpanel-user>/repositories/junknallhauling

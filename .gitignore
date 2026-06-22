@@ -18,7 +18,7 @@
 /database/*.sqlite3
 /database/sqlite-to-mysql.sql
 /node_modules
-/public/build
+# public/build is committed (no Node on the server — assets ship via git)
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
