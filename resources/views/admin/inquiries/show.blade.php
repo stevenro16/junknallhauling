@@ -24,10 +24,11 @@
 
     {{-- Header: back link + a single Save button (desktop) that appears only when there are unsaved edits --}}
     <div class="sticky top-0 z-30 -mt-1 mb-4 py-2 bg-gray-100/90 backdrop-blur flex items-center justify-between gap-3">
-        <a href="{{ route('admin.dashboard') }}" class="text-sm text-amber-600 hover:text-amber-700 transition-colors">&larr; Back to list</a>
-        <div x-show="dirty" x-cloak class="hidden sm:flex items-center gap-3">
-            <span class="text-xs text-amber-600 font-medium">Unsaved changes</span>
-            <button type="button" @click="save()" :disabled="saving" class="btn-primary text-sm py-2 px-5"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
+        <a href="{{ route('admin.dashboard') }}" class="text-sm text-amber-600 hover:text-amber-700 transition-colors shrink-0">&larr; Back to list</a>
+        <div class="flex items-center gap-3 min-w-0">
+            <span x-show="saveError" x-cloak class="text-xs text-red-600 font-medium text-right" x-text="saveError"></span>
+            <span x-show="dirty && !saveError" x-cloak class="hidden sm:inline text-xs text-amber-600 font-medium">Unsaved changes</span>
+            <button type="button" x-show="dirty" x-cloak @click="save()" :disabled="saving" class="hidden sm:inline-flex btn-primary text-sm py-2 px-5"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
         </div>
     </div>
 
@@ -168,7 +169,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="tel" x-model="phone" class="input-light text-sm py-1.5 w-full" placeholder="Phone number"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label><input type="tel" x-model="phone" @input="saveError = ''" class="input-light text-sm py-1.5 w-full" placeholder="Phone number"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
                     </div>
 
@@ -279,7 +280,7 @@
                         <div>
                             {{-- Service picker (from the service catalog) --}}
                             <div x-show="!isEquipment">
-                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed <span class="text-red-500">*</span></label>
                                 {{-- x-init re-syncs the value after x-for renders the options (x-model
                                      alone binds before they exist, dropping the saved selection). --}}
                                 <select x-model="serviceType" @change="onServiceChange()" x-init="$nextTick(() => { $el.value = serviceType })" class="input-light text-sm py-2 w-full">
@@ -291,8 +292,8 @@
                             </div>
                             {{-- Equipment picker (from the equipment catalog) --}}
                             <div x-show="isEquipment" x-cloak>
-                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Equipment Needed</label>
-                                <select x-model="equipmentType" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Equipment Needed <span class="text-red-500">*</span></label>
+                                <select x-model="equipmentType" @change="jobError = false; saveError = ''" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
                                     <option value="">Select equipment type...</option>
                                     <template x-for="opt in equipmentOptions" :key="opt.id">
                                         <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' (~$' + opt.avg_cost_per_hour + '/hr)' : '')"></option>

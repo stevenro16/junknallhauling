@@ -231,6 +231,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // editable fields
     jobType: 'service', // 'service' | 'equipment' (pill toggle in Job Details)
     jobError: false,    // flagged when saving without a service/equipment chosen
+    saveError: '',      // why a save was blocked (missing required fields)
     adminNotes: '', status: 'new',
     assignedEmployeeIds: [], pickupAssignedEmployeeIds: [],
     address: '', confirmedDateTime: '', pickupDateTime: '',
@@ -410,7 +411,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         return this.isEquipment ? !!(this.equipmentType && this.equipmentType !== '__other__') : !!this.serviceType;
     },
 
-    onServiceChange() { this.jobError = false; this.applyServiceDefaultDuration(); },
+    onServiceChange() { this.jobError = false; this.saveError = ''; this.applyServiceDefaultDuration(); },
 
     // Seed the Visit "Duration" field from the selected service's default.
     applyServiceDefaultDuration() {
@@ -520,7 +521,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // --- Mobile quick-nav: section completeness + smooth scroll -------------
     get sectionDone() {
         return {
-            customer: !!(this.fullName && this.phone && this.email && this.address && this.customerZip),
+            customer: !!(this.fullName && this.phone && this.address && this.customerZip),
             job: !!this.address && (this.isEquipment
                 ? !!(this.equipmentType && this.equipmentType !== '__other__' && this.equipmentRentalDuration)
                 : !!this.serviceType),
@@ -858,17 +859,33 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         };
     },
 
+    // Fields required to save a quote (email is intentionally NOT required).
+    get missingToSave() {
+        const m = [];
+        if (!String(this.phone || '').trim()) m.push('a phone number');
+        if (!this.jobSelected) m.push(this.isEquipment ? 'an equipment type' : 'a service');
+        return m;
+    },
+    _joinAnd(arr) {
+        if (arr.length <= 1) return arr[0] || '';
+        return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+    },
+
     async save(overrides = {}) {
-        // Require a service or equipment selection before saving the quote.
-        if (!this.jobSelected) {
-            this.jobError = true;
-            this.scrollToSection('sec-job');
+        // Block the save and explain what's missing (required fields are starred).
+        const missing = this.missingToSave;
+        if (missing.length) {
+            this.jobError = !this.jobSelected;
+            this.saveError = 'Can’t save yet — please add ' + this._joinAnd(missing) + '.';
+            this.scrollToSection(!this.jobSelected ? 'sec-job' : 'sec-customer');
             return;
         }
+        this.saveError = '';
         this.saving = true;
         try {
             const res = await fetch(this.urls.update, { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this.buildBody(overrides)) });
             if (res.ok) { const d = await res.json(); if (d.inquiry) this.hydrate(d.inquiry); await this.reloadHistory(); }
+            else { this.error = 'Failed to save'; }
         } catch (e) { this.error = 'Failed to save'; }
         finally { this.saving = false; }
     },
