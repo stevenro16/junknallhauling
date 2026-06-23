@@ -1462,6 +1462,8 @@ Alpine.data('calendar', (cfg = {}) => ({
         if (cfg.initialView && ['month', 'week', 'day', '3day', '5day'].includes(cfg.initialView)) this.viewMode = cfg.initialView;
         // Embed opens pre-filtered to the quote's assignee(s) (comma-joined; toggleable).
         if (cfg.assignee) this.selectedAssignees = String(cfg.assignee).split(',').filter(Boolean);
+        // Main calendar defaults to showing just the current admin's own jobs.
+        else if (cfg.selfId && this.employees.some((e) => e.id === cfg.selfId)) this.selectedAssignees = [cfg.selfId];
         if (cfg.initialDate) {
             const d = new Date(cfg.initialDate + 'T00:00');
             if (!isNaN(d.getTime())) this.cur = d.getTime();

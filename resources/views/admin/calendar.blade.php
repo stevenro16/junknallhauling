@@ -3,7 +3,7 @@
 @section('title', 'Schedule — '.config('business.name'))
 
 @section('admin-content')
-<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.field.job', '__ID__') }}', editBase: '{{ route('admin.inquiries.show', '__ID__') }}', quickQuoteUrl: '{{ route('admin.calendar.quick-quote') }}', initialView: 'day' })">
+<div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.field.job', '__ID__') }}', editBase: '{{ route('admin.inquiries.show', '__ID__') }}', quickQuoteUrl: '{{ route('admin.calendar.quick-quote') }}', selfId: '{{ session('admin_id') }}', initialView: 'day' })">
     {{-- Header (condensed: title + current date on the left, controls on the right) --}}
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div class="min-w-0">
