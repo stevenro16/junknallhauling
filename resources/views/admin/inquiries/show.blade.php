@@ -481,7 +481,11 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <div class="text-sm font-medium text-gray-700 mb-1.5">Date</div>
-                                <input type="date" :value="datePart(confirmedDateTime)" @change="setConfirmedDate($event.target.value)" class="input-light text-sm py-2 w-full">
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" @click="stepConfirmedDate(-1)" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" title="Previous day" aria-label="Previous day"><x-icon name="chevron-left" class="w-4 h-4"/></button>
+                                    <input type="date" :value="datePart(confirmedDateTime)" @change="setConfirmedDate($event.target.value)" class="input-light text-sm py-2 flex-1 min-w-0">
+                                    <button type="button" @click="stepConfirmedDate(1)" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" title="Next day" aria-label="Next day"><x-icon name="chevron-right" class="w-4 h-4"/></button>
+                                </div>
                             </div>
                             <div>
                                 <div class="text-sm font-medium text-gray-700 mb-1.5">Time</div>

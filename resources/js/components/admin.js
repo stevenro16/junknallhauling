@@ -1046,6 +1046,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     // confirmed date/time split-field setters
     setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime); this.confirmedDateTime = v ? `${v}T${t}` : ''; },
+    // Nudge the visit date a day at a time (defaults to today when unset).
+    stepConfirmedDate(dir) {
+        const cur = this.datePart(this.confirmedDateTime);
+        const d = cur ? new Date(cur + 'T00:00') : new Date();
+        d.setDate(d.getDate() + dir);
+        const p = (n) => String(n).padStart(2, '0');
+        this.setConfirmedDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+    },
     setConfirmedTime(v) { const d = this.datePart(this.confirmedDateTime); if (!v) { this.confirmedDateTime = d ? `${d}T` : ''; return; } this.confirmedDateTime = d ? `${d}T${v}` : v; },
 
     // equipment pickup date/time split-field setters
