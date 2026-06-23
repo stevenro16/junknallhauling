@@ -62,6 +62,8 @@ class InquiryController extends Controller
                 ->map(fn ($a) => InquiryApiController::agreementPayload($a))->values(),
             'paymentLinks' => $inquiry->paymentLinks()->orderByDesc('created_at')->get()
                 ->map(fn ($p) => InquiryApiController::paymentLinkPayload($p))->values(),
+            'detailRequests' => $inquiry->detailRequests()->orderByDesc('created_at')->get()
+                ->map(fn ($d) => InquiryApiController::detailRequestPayload($d))->values(),
             // Lightweight list powering "previous customer addresses" + the
             // "pull customer info from a prior order" feature (matched on phone/email).
             'allInquiries' => Inquiry::orderByDesc('created_at')->get([

@@ -82,6 +82,11 @@ class Inquiry extends Model
         return $this->hasMany(PaymentLink::class, 'inquiry_id');
     }
 
+    public function detailRequests(): HasMany
+    {
+        return $this->hasMany(QuoteDetailRequest::class, 'inquiry_id');
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(InquiryComment::class, 'inquiry_id');

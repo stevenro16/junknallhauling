@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\IpController;
 use App\Http\Controllers\Api\LookupController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\QuoteDetailController;
 use App\Http\Controllers\Api\RentalAgreementController;
 use App\Http\Controllers\Api\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,9 @@ Route::get('/ip', [IpController::class, 'show']);
 
 Route::get('/rental-agreement/{token}', [RentalAgreementController::class, 'show']);
 Route::post('/rental-agreement/{token}', [RentalAgreementController::class, 'sign']);
+
+Route::get('/quote-details/{token}', [QuoteDetailController::class, 'show']);
+Route::post('/quote-details/{token}', [QuoteDetailController::class, 'submit']);
 
 Route::get('/payment/{token}', [PaymentController::class, 'show']);
 Route::post('/payment/{token}', [PaymentController::class, 'pay']);

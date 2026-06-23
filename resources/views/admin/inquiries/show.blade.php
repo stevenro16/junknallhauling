@@ -11,6 +11,7 @@
         employees: @js($employees),
         customerPickup: @js($customerPickup),
         scheduleEvents: @js($scheduleEvents),
+        detailRequests: @js($detailRequests),
         history: @js($history),
         urls: {
             update: '{{ route('admin.api.inquiries.update', $inquiry->id) }}',
@@ -20,6 +21,7 @@
             detailBase: '{{ route('admin.inquiries.show', '__ID__') }}',
             calendarEmbed: '{{ route('admin.calendar.embed') }}',
             dashboard: '{{ route('admin.dashboard') }}',
+            detailRequest: '{{ route('admin.api.inquiries.detail-request', $inquiry->id) }}',
         },
     })" @quote-save.window="dirty && save()"
     @pointermove.window="movePanelDrag($event)" @pointerup.window="endPanelDrag()" @pointercancel.window="endPanelDrag()"
@@ -134,6 +136,67 @@
         </div>
     </div>
 
+    {{-- Finalize Scheduling: full-quote review summary + one-tap approve (top of form) --}}
+    <div x-show="status === 'finalize_scheduling'" x-cloak class="mb-5 rounded-2xl border-2 border-pink-300 bg-pink-50/50 p-5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900 inline-flex items-center gap-2"><x-icon name="check-circle" class="w-5 h-5 text-pink-500"/> Final Review</h2>
+                <p class="text-sm text-gray-600">Review the full quote below, then approve to move it to Scheduled.</p>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border status-finalize_scheduling shrink-0">Finalize Scheduling</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm bg-white rounded-xl border border-gray-200 p-4">
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Customer</div>
+                <div class="font-semibold text-gray-900" x-text="fullName || '(no name)'"></div>
+                <div class="text-gray-600" x-text="phone"></div>
+                <div class="text-gray-600" x-show="email" x-cloak x-text="email"></div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Service Address</div>
+                <div class="text-gray-800" x-text="address || '—'"></div>
+                <div class="text-gray-500 text-xs" x-show="customerZip" x-cloak x-text="customerZip"></div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Job</div>
+                <div class="text-gray-800" x-text="isEquipment ? (equipmentType || 'Equipment rental') : getServiceLabel(serviceType)"></div>
+                <div class="text-gray-500 text-xs" x-show="isEquipment && equipmentRentalDuration" x-cloak x-text="equipmentRentalDuration + ' ' + equipmentRentalUnit + ' rental'"></div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Visit</div>
+                <div class="text-gray-800" x-text="visitWhenLabel || '—'"></div>
+                <div class="text-gray-500 text-xs inline-flex items-center gap-1"><x-icon name="user" class="w-3 h-3"/> <span x-text="employeeNames(assignedEmployeeIds) || 'Unassigned'"></span></div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Preferences</div>
+                <div class="text-gray-700 text-xs"><span class="text-gray-400">Day:</span> <span x-text="customerPreferredDay || 'Any'"></span></div>
+                <div class="text-gray-700 text-xs"><span class="text-gray-400">Time:</span> <span x-text="customerPreferredTime || 'Any'"></span></div>
+                <div class="text-gray-700 text-xs"><span class="text-gray-400">Contact:</span> <span x-text="preferredMethodLabel"></span></div>
+            </div>
+            <div>
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Quoted Price</div>
+                <div class="text-2xl font-black text-gray-900" x-text="quotedPrice ? '$' + Number(quotedPrice).toLocaleString() : '—'"></div>
+            </div>
+        </div>
+
+        {{-- Customer's confirmation (signature) when they submitted via the request-details link --}}
+        <template x-if="detailSubmission">
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+                <div class="text-xs text-emerald-700 inline-flex items-center gap-1"><x-icon name="check-circle" class="w-4 h-4"/> Customer confirmed date/time &amp; amount on <span x-text="detailFmt(detailSubmission.signed_at)"></span></div>
+                <template x-if="detailSubmission.signature_base64">
+                    <img :src="detailSubmission.signature_base64" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-16 max-w-full">
+                </template>
+            </div>
+        </template>
+
+        <div class="mt-4 flex justify-end">
+            <button type="button" @click="quickUpdateStatus('scheduled')" :disabled="saving" class="btn-primary py-2.5 px-5 inline-flex items-center gap-2 disabled:opacity-60">
+                <x-icon name="check" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'All Good, move to Scheduled'"></span>
+            </button>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
 
         {{-- Column 1: customer + job details --}}
@@ -171,8 +234,58 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label><input type="tel" x-model="phone" @input="saveError = ''" class="input-light text-sm py-1.5 w-full" placeholder="Phone number"></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label>
+                            <div class="flex items-center gap-2">
+                                <input type="tel" x-model="phone" @input="saveError = ''" class="input-light text-sm py-1.5 w-full" placeholder="Phone number">
+                                <button type="button" @click="requestDetails()" :disabled="!canRequestDetails || detailReq.loading"
+                                        class="btn-outline !px-3 !py-1.5 text-sm whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        :title="canRequestDetails ? 'Generate a one-time link for the customer to confirm their details' : 'Set a visit date/time and a quoted price first'">
+                                    <span x-text="detailReq.loading ? 'Creating…' : 'Request details'"></span>
+                                </button>
+                            </div>
+                        </div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
+                    </div>
+
+                    {{-- Request-details link + the customer's submitted confirmation (review) --}}
+                    <div x-show="detailReq.url || detailSubmission || detailReq.error" x-cloak class="rounded-xl border border-gray-200 bg-gray-50/70 p-3 space-y-2">
+                        {{-- Generated one-time link (until the customer submits) --}}
+                        <template x-if="detailReq.url && !detailSubmission">
+                            <div class="space-y-2">
+                                <div class="text-xs font-semibold text-gray-700">Customer detail-request link</div>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" readonly :value="detailReq.url" @focus="$event.target.select()" class="input-light text-xs py-1.5 flex-1">
+                                    <button type="button" @click="copyDetailLink()" class="btn-outline !px-3 !py-1.5 text-xs whitespace-nowrap shrink-0" x-text="detailReq.copied ? 'Copied!' : 'Copy'"></button>
+                                </div>
+                                <button type="button" @click="sendDetailLink()" class="text-xs font-semibold text-amber-600 hover:text-amber-700 inline-flex items-center gap-1">
+                                    <x-icon name="phone" class="w-3 h-3" x-show="preferredContactMethod !== 'email'"/>
+                                    <x-icon name="mail" class="w-3 h-3" x-show="preferredContactMethod === 'email'" x-cloak/>
+                                    <span x-text="preferredContactMethod === 'email' ? 'Email to customer' : 'Text to customer'"></span>
+                                </button>
+                                <p class="text-[11px] text-gray-500">One-time link — the customer confirms their details, the schedule &amp; amount, and signs. The quote then moves to <span class="font-medium text-pink-600">Finalize Scheduling</span> for your review.</p>
+                            </div>
+                        </template>
+
+                        {{-- Customer's submission, for the admin's final review --}}
+                        <template x-if="detailSubmission">
+                            <div class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2 text-sm font-semibold text-emerald-700">
+                                    <span class="inline-flex items-center gap-1"><x-icon name="check-circle" class="w-4 h-4"/> Customer confirmed details</span>
+                                    <span class="text-gray-400 font-normal text-xs" x-text="detailFmt(detailSubmission.signed_at)"></span>
+                                </div>
+                                <div class="flex flex-wrap gap-2 text-[11px]">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"><x-icon name="check" class="w-3 h-3"/> Date &amp; time confirmed</span>
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"><x-icon name="check" class="w-3 h-3"/> Amount confirmed</span>
+                                </div>
+                                <template x-if="detailSubmission.signature_base64">
+                                    <img :src="detailSubmission.signature_base64" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-24 max-w-full">
+                                </template>
+                                <p class="text-[11px] text-gray-500">Review the updated details below, then set the status to <span class="font-medium">Scheduled</span> when ready.</p>
+                            </div>
+                        </template>
+
+                        <p x-show="detailReq.error" x-text="detailReq.error" x-cloak class="text-red-500 text-xs"></p>
                     </div>
 
                     {{-- Urgency --}}

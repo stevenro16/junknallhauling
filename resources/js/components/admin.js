@@ -69,11 +69,11 @@ Alpine.data('adminShell', (cfg = {}) => ({
 // Shared status/format helpers used across admin components.
 // ---------------------------------------------------------------------------
 const STATUS_LABELS = {
-    new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted',
+    new: 'New', left_voicemail: 'Left Voicemail', reviewing: 'Reviewing', quoted: 'Quoted', finalize_scheduling: 'Finalize Scheduling',
     scheduled: 'Scheduled', equipment_delivered: 'Equipment Delivered', equipment_picked_up: 'Equipment Picked Up', service_performed: 'Service Performed', completed: 'Completed', cancelled: 'Cancelled',
 };
 const STATUS_CLASSES = {
-    new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted',
+    new: 'status-new', left_voicemail: 'status-reviewing', reviewing: 'status-reviewing', quoted: 'status-quoted', finalize_scheduling: 'status-finalize_scheduling',
     scheduled: 'status-scheduled', equipment_delivered: 'status-equipment_delivered', equipment_picked_up: 'status-equipment_picked_up', service_performed: 'status-service_performed', completed: 'status-completed', cancelled: 'status-cancelled',
 };
 const SERVICE_LABELS = {
@@ -106,8 +106,9 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
         // → Service Performed, falling back to Scheduled when the others are empty.
         this.filter = this.countNew ? 'new'
             : this.countReviewingQuoted ? 'reviewing_quoted'
-                : this.countServicePerformed ? 'service_performed'
-                    : 'scheduled';
+                : this.countFinalizeScheduling ? 'finalize_scheduling'
+                    : this.countServicePerformed ? 'service_performed'
+                        : 'scheduled';
     },
 
     get filtered() {
@@ -125,6 +126,7 @@ Alpine.data('inquiryDashboard', (cfg = {}) => ({
     _cutoff30() { const d = new Date(); d.setDate(d.getDate() - 30); return d; },
     get countNew() { return this.inquiries.filter((i) => i.status === 'new').length; },
     get countReviewingQuoted() { return this.inquiries.filter((i) => i.status === 'reviewing' || i.status === 'quoted').length; },
+    get countFinalizeScheduling() { return this.inquiries.filter((i) => i.status === 'finalize_scheduling').length; },
     get countScheduled() { return this.inquiries.filter((i) => i.status === 'scheduled').length; },
     get countServicePerformed() { return this.inquiries.filter((i) => i.status === 'service_performed').length; },
     get countFollowUp() { return this.inquiries.filter((i) => i.status === 'left_voicemail').length; },
@@ -218,6 +220,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     employees: cfg.employees || [], // {id, username} — for resolving the assigned-employee name
     customerPickup: cfg.customerPickup || null, // pickup the customer requested on a signed agreement
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
+    detailRequests: cfg.detailRequests || [], // customer "request details" links
+    detailReq: { url: '', loading: false, error: '', copied: false }, // active link + ui state
+    detailSubmission: null, // the customer's submitted details (signature + confirm flags), for review
     history: cfg.history || [],
     saving: false,
     baseline: '', // JSON snapshot of the saved form, for dirty detection
@@ -267,10 +272,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     showStatusSheet: false, // mobile status picker
     showQuickNav: false,    // mobile jump-to-section menu
     showOtherActions: false, // mobile other-actions menu (delivered / voicemail / cancel)
-    statusChoices: ['new', 'reviewing', 'quoted', 'scheduled', 'service_performed', 'completed', 'left_voicemail', 'cancelled'],
+    statusChoices: ['new', 'reviewing', 'quoted', 'finalize_scheduling', 'scheduled', 'service_performed', 'completed', 'left_voicemail', 'cancelled'],
 
     init() {
         this.hydrate(this.inquiry);
+        // Surface an existing "request details" link + the customer's submission (if any).
+        const usable = this.detailRequests.find((d) => d.usable);
+        if (usable) this.detailReq.url = usable.url;
+        this.detailSubmission = this.detailRequests.find((d) => d.signed_at) || null;
         // On mobile, collapse sections that are already complete (re-openable). The
         // collapse only takes effect on mobile (see sectionOpen); desktop shows all.
         const mq = window.matchMedia('(max-width: 639px)');
@@ -536,6 +545,50 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // --- Schedule the visit + optionally notify the customer ----------------
     get hasConfirmedSlot() { return !!(this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)); },
     get canSchedule() { return this.hasConfirmedSlot && ['new', 'reviewing', 'quoted', 'left_voicemail'].includes(this.status); },
+
+    // --- "Request details" link (customer self-service confirmation form) ----
+    // Needs a concrete slot + price so there's something for the customer to confirm.
+    get canRequestDetails() { return this.hasConfirmedSlot && this.quotedPrice !== '' && this.quotedPrice != null && Number(this.quotedPrice) > 0; },
+    async requestDetails() {
+        this.detailReq.error = '';
+        if (!this.canRequestDetails) {
+            this.detailReq.error = 'Set a visit date/time and a quoted price first.';
+            this.scrollToSection('sec-visit');
+            return;
+        }
+        if (this.dirty) { const ok = await this.save(); if (!ok) return; }   // server validates saved values
+        this.detailReq.loading = true;
+        try {
+            const res = await fetch(this.urls.detailRequest, { method: 'POST', headers: window.jsonHeaders(true) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Could not create the link.');
+            this.detailReq.url = data.detail_request.url;
+        } catch (e) {
+            this.detailReq.error = e.message || 'Could not create the link.';
+        } finally {
+            this.detailReq.loading = false;
+        }
+    },
+    async copyDetailLink() {
+        if (!this.detailReq.url) return;
+        try {
+            await navigator.clipboard.writeText(this.detailReq.url);
+            this.detailReq.copied = true;
+            setTimeout(() => { this.detailReq.copied = false; }, 2000);
+        } catch { this.detailReq.error = 'Copy failed — open the link and copy manually.'; }
+    },
+    sendDetailLink() {
+        if (!this.detailReq.url) return;
+        const msg = `Hi ${this.firstName || 'there'}, please confirm your service details here: ${this.detailReq.url}`;
+        if (this.preferredContactMethod === 'email') {
+            if (!this.email) { this.detailReq.error = 'No email on file for this customer.'; return; }
+            window.location.href = `mailto:${encodeURIComponent(this.email)}?subject=${encodeURIComponent('Confirm your service details')}&body=${encodeURIComponent(msg)}`;
+        } else {
+            if (!this.phone) { this.detailReq.error = 'No phone on file for this customer.'; return; }
+            window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
+        }
+    },
+    detailFmt(d) { return d ? new Date(d).toLocaleString() : ''; },
     get preferredMethodLabel() { return this.preferredContactMethod === 'email' ? 'email' : 'text message'; },
     get visitJobLabel() { return this.isEquipment ? (this.equipmentType || 'equipment rental') : (this.serviceLabel(this.serviceType) || 'service'); },
     get visitWhenLabel() {
@@ -821,7 +874,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         document.body.style.userSelect = '';
     },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', finalize_scheduling: 'bg-pink-500', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
 
     getServiceLabel(key) { return this.serviceLabel(key) || 'Not specified'; },
@@ -1632,7 +1685,7 @@ Alpine.data('calendar', (cfg = {}) => ({
         })[s] || 'bg-gray-100 hover:bg-gray-200 border-gray-300 hover:border-gray-400';
     },
     dotClass(s) {
-        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
+        return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', finalize_scheduling: 'bg-pink-500', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
     },
     statusLabel(s) { return ({ new: 'New', left_voicemail: 'Voicemail', reviewing: 'Reviewing', quoted: 'Quoted', scheduled: 'Scheduled', service_performed: 'Service Performed', completed: 'Completed' })[s] || s; },
     serviceLabel(s) { return (s || '').replace(/-/g, ' '); },
@@ -1808,12 +1861,25 @@ Alpine.data('siteContent', (cfg = {}) => ({
     icons: cfg.icons || [],
     cardMax: cfg.cardMax || {},
     adminTools: cfg.adminTools || [],   // selected mobile-toolbar tool keys
+    quoteFilters: cfg.quoteFilters || [],         // ordered quote-filter keys (priority)
+    quoteFilterLabels: cfg.quoteFilterLabels || {}, // key -> label, for the editor
     cardSets: {}, // { fieldKey: [cards] } — populated in init()
     saving: false,
     saved: false,
     dirty: false,
     ready: false, // gates dirty-tracking until after Trix finishes loading content
     error: '',
+
+    // --- Quote-filter priority editor (ordered, include/exclude) -------------
+    moveQuoteFilter(i, dir) {
+        const j = i + dir;
+        if (j < 0 || j >= this.quoteFilters.length) return;
+        [this.quoteFilters[i], this.quoteFilters[j]] = [this.quoteFilters[j], this.quoteFilters[i]];
+        this.dirty = true;
+    },
+    removeQuoteFilter(i) { this.quoteFilters.splice(i, 1); this.dirty = true; },
+    addQuoteFilter(key) { if (!this.quoteFilters.includes(key)) { this.quoteFilters.push(key); this.dirty = true; } },
+    get unusedQuoteFilters() { return Object.keys(this.quoteFilterLabels).filter((k) => !this.quoteFilters.includes(k)); },
 
     init() {
         const sets = this.cfg.cardSets || {};

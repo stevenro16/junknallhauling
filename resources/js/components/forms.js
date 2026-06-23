@@ -533,6 +533,205 @@ Alpine.data('agreementForm', (token) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// quoteDetailsForm — customer "request details" page (one-time tokenized link).
+// The customer completes their details, confirms the scheduled date/time + the
+// quoted amount, and signs. On submit the quote moves to "Finalize Scheduling".
+// The phone number is shown read-only and is never submitted.
+// ---------------------------------------------------------------------------
+Alpine.data('quoteDetailsForm', (token) => ({
+    token,
+    data: null,
+    loading: true,
+    error: '',
+    submitting: false,
+    submitted: false,
+    // signature pad (same behavior as agreementForm)
+    isDrawing: false,
+    hasSignature: false,
+    showSignaturePad: false,
+    signatureDataUrl: null,
+    _canvas: null, _bigDrawn: false,
+    invalidField: '', _flashT: null,
+    // editable fields
+    firstName: '', lastName: '', email: '', address: '', zipCode: '',
+    preferredDay: '', preferredTime: '', preferredContactMethod: 'phone',
+    confirmDatetime: false, confirmAmount: false,
+
+    init() {
+        fetch(window.apiUrl(`/api/quote-details/${this.token}`))
+            .then(async (res) => {
+                const json = await res.json();
+                if (!res.ok) {
+                    throw new Error(json.cancelled ? 'This link has been cancelled.' : (json.error || 'Failed to load'));
+                }
+                this.data = json;
+                const i = json.inquiry || {};
+                this.firstName = (i.name || '').split(' ')[0] || '';
+                this.lastName = (i.name || '').split(' ').slice(1).join(' ') || '';
+                this.email = i.email || '';
+                this.address = i.address || '';
+                this.zipCode = i.zip_code || '';
+                this.preferredDay = i.preferred_day || '';
+                this.preferredTime = i.preferred_time || '';
+                this.preferredContactMethod = i.preferred_contact_method === 'email' ? 'email' : 'phone';
+            })
+            .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
+            .finally(() => { this.loading = false; });
+    },
+
+    get inquiry() { return this.data?.inquiry ?? null; },
+    money(n) { return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+    confirmedDateTimeLong() {
+        const d = this.inquiry?.confirmed_date_time;
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? '—' : dt.toLocaleString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    },
+
+    // multi-select preferences (comma-joined; same format as the admin form)
+    togglePref(field, value) {
+        const set = new Set(String(this[field] || '').split(',').map((s) => s.trim()).filter(Boolean));
+        set.has(value) ? set.delete(value) : set.add(value);
+        const order = field.toLowerCase().includes('day')
+            ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+            : ['Morning (8am - 12pm)', 'Afternoon (12pm - 5pm)', 'Evening (5pm - 8pm)'];
+        const ordered = order.filter((v) => set.has(v));
+        const extras = [...set].filter((v) => !order.includes(v));
+        this[field] = [...ordered, ...extras].join(', ');
+    },
+    prefHas(field, value) { return String(this[field] || '').split(',').map((s) => s.trim()).includes(value); },
+
+    // --- canvas signature (works on the inline pad or the full-screen pad) ---
+    coordsOn(canvas, e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+    },
+    startDrawing(e) {
+        const canvas = e.currentTarget;
+        this._canvas = canvas;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+        this.isDrawing = true;
+        if (canvas === this.$refs.bigCanvas) {
+            this._bigDrawn = true;
+        } else {
+            this.hasSignature = true;
+            this.signatureDataUrl = null;
+        }
+        const { x, y } = this.coordsOn(canvas, e);
+        ctx.strokeStyle = '#1C1C1C';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    },
+    draw(e) {
+        if (!this.isDrawing || !this._canvas) return;
+        const ctx = this._canvas.getContext('2d', { willReadFrequently: true });
+        const { x, y } = this.coordsOn(this._canvas, e);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    },
+    endDrawing() { this.isDrawing = false; },
+    clearSignature() {
+        const c = this.$refs.canvas;
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        this.hasSignature = false;
+        this.signatureDataUrl = null;
+    },
+    getSignatureData() {
+        if (this.signatureDataUrl) return this.signatureDataUrl;
+        const c = this.$refs.canvas;
+        return (c && this.hasSignature) ? c.toDataURL('image/png') : null;
+    },
+    openSignaturePad() {
+        this.showSignaturePad = true;
+        this._bigDrawn = false;
+        this.$nextTick(() => {
+            const c = this.$refs.bigCanvas;
+            if (c) { const r = c.getBoundingClientRect(); c.width = Math.round(r.width); c.height = Math.round(r.height); c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+        });
+    },
+    clearBigPad() {
+        const c = this.$refs.bigCanvas;
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        this._bigDrawn = false;
+    },
+    useBigSignature() {
+        const c = this.$refs.bigCanvas;
+        if (c && this._bigDrawn) {
+            this.signatureDataUrl = c.toDataURL('image/png');
+            this.hasSignature = true;
+        }
+        this.showSignaturePad = false;
+    },
+
+    flag(ref, msg) {
+        this.error = msg;
+        this.invalidField = ref;
+        this.$nextTick(() => {
+            const el = this.$refs[ref];
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const f = el.matches?.('input,select,textarea') ? el : el.querySelector('input:not([type=hidden]),select,textarea');
+            if (f && f.focus) { try { f.focus({ preventScroll: true }); } catch (e) {} }
+        });
+        clearTimeout(this._flashT);
+        this._flashT = setTimeout(() => { this.invalidField = ''; }, 4000);
+        return false;
+    },
+    validate() {
+        if (!this.firstName.trim()) return this.flag('nameField', 'Please enter your first name.');
+        if (!this.address.trim()) return this.flag('addressField', 'Please enter your service address.');
+        if (!this.confirmDatetime || !this.confirmAmount) return this.flag('confirmField', 'Please confirm the scheduled date/time and the quoted amount.');
+        if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
+        this.error = '';
+        return true;
+    },
+
+    async submit() {
+        if (!this.validate()) return;
+        const signatureData = this.getSignatureData();
+        if (!signatureData) return this.flag('signatureField', 'Please add your signature.');
+
+        this.submitting = true;
+        this.error = '';
+        try {
+            const name = [this.firstName.trim(), this.lastName.trim()].filter(Boolean).join(' ');
+            const payload = {
+                form_data: {
+                    name,
+                    email: this.email.trim() || null,
+                    address: this.address.trim(),
+                    zip_code: this.zipCode.trim() || null,
+                    preferred_day: this.preferredDay || null,
+                    preferred_time: this.preferredTime || null,
+                    preferred_contact_method: this.preferredContactMethod,
+                    confirm_datetime: true,
+                    confirm_amount: true,
+                    signed_name: name,
+                    inquiry_snapshot: this.inquiry,
+                },
+                signature_base64: signatureData,
+            };
+            const res = await fetch(window.apiUrl(`/api/quote-details/${this.token}`), {
+                method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to submit details');
+            this.submitted = true;
+        } catch (e) {
+            this.error = e.message || 'Something went wrong. Please try again or call us.';
+        } finally {
+            this.submitting = false;
+        }
+    },
+}));
+
+// ---------------------------------------------------------------------------
 // Public payment page — loads the quote amount for a tokenized link and lets
 // the customer complete payment. Placeholder gateway: pay() records payment.
 // ---------------------------------------------------------------------------

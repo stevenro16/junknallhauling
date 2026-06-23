@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\PaymentLink;
+use App\Models\QuoteDetailRequest;
 use App\Models\RentalAgreement;
 use App\Services\DemoSeeder;
 use App\Services\GeocodeService;
@@ -272,6 +273,71 @@ class InquiryApiController extends Controller
             // Signature thumbnail (signed agreements only) for the admin panel.
             'signature_base64' => $a->signed_at ? $a->signature_base64 : null,
         ];
+    }
+
+    /**
+     * POST /admin/api/inquiries/{id}/detail-request
+     * Generate (or reuse) a one-time link the admin texts to the customer so they
+     * can fill in the remaining quote details + confirm the schedule and amount.
+     * Requires a visit date/time + a quoted price so there's something to confirm.
+     */
+    public function detailRequest(string $id): JsonResponse
+    {
+        $inquiry = Inquiry::find($id);
+        if (! $inquiry) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        $hasSlot = preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', (string) $inquiry->confirmed_date_time) === 1;
+        if (! $hasSlot || (float) $inquiry->quoted_price <= 0) {
+            return response()->json(['error' => 'Set a visit date/time and quoted price before requesting details.'], 422);
+        }
+
+        $request = $inquiry->detailRequests()
+            ->whereNull('signed_at')
+            ->whereNull('cancelled_at')
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(fn (QuoteDetailRequest $d) => $d->isUsable());
+
+        if (! $request) {
+            $request = $inquiry->detailRequests()->create([
+                'token' => (string) Str::uuid(),
+                'form_data' => [],
+            ]);
+            $inquiry->logAudit('detail_request_sent');
+        }
+
+        return response()->json(['detail_request' => self::detailRequestPayload($request)]);
+    }
+
+    public static function detailRequestPayload(QuoteDetailRequest $d): array
+    {
+        return [
+            'id' => $d->id,
+            'token' => $d->token,
+            'url' => route('quote-details.show', $d->token),
+            'signed_at' => $d->signed_at,
+            'cancelled_at' => $d->cancelled_at,
+            'created_at' => $d->created_at,
+            'usable' => $d->isUsable(),
+            // Submitted data + signature (signed requests only) for the admin review panel.
+            'form_data' => $d->signed_at ? $d->form_data : null,
+            'signature_base64' => $d->signed_at ? $d->signature_base64 : null,
+        ];
+    }
+
+    /** DELETE /admin/api/detail-request/{id} — remove a pending/used detail request. */
+    public function detailRequestDestroy(string $id): JsonResponse
+    {
+        $req = QuoteDetailRequest::find($id);
+        if (! $req) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        $req->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /**

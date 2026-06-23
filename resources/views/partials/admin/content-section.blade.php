@@ -29,6 +29,8 @@
         cardMax: @js($cardMax),
         icons: @js($iconChoices),
         adminTools: @js(\App\Models\SiteContent::list('admin_mobile_tools')),
+        quoteFilters: @js(\App\Models\SiteContent::list('quote_filters')),
+        quoteFilterLabels: @js(collect(config('quote_filters', []))->map(fn ($f) => $f['label'])),
     })"
     @input="ready && (dirty = true)" @change="ready && (dirty = true)" @trix-change="ready && (dirty = true)"
     class="w-full space-y-6 pb-4">
@@ -57,6 +59,40 @@
                                         <span class="text-sm text-gray-700 truncate">{{ $tool['label'] }}</span>
                                     </label>
                                 @endforeach
+                            </div>
+                        </div>
+
+                    @elseif($key === 'quote_filters')
+                        {{-- Quote filter cards: ordered priority list (reorder + include/exclude) --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ $field['label'] }}</label>
+                            <p class="text-xs text-gray-500 mb-3">Drag priority with the arrows — the top card shows first. Remove any you don't use, then add them back below.</p>
+                            <input type="hidden" data-cms-key="{{ $key }}" data-cms-type="list" :value="quoteFilters.join('\n')">
+
+                            {{-- Selected, in order --}}
+                            <div class="space-y-1.5">
+                                <template x-for="(fk, i) in quoteFilters" :key="fk">
+                                    <div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                                        <span class="text-xs font-mono text-gray-400 w-5 shrink-0" x-text="i + 1"></span>
+                                        <span class="text-sm text-gray-700 flex-1 truncate" x-text="quoteFilterLabels[fk] || fk"></span>
+                                        <button type="button" @click="moveQuoteFilter(i, -1)" :disabled="i === 0" class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move up"><x-icon name="chevron-down" class="w-4 h-4 rotate-180"/></button>
+                                        <button type="button" @click="moveQuoteFilter(i, 1)" :disabled="i === quoteFilters.length - 1" class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move down"><x-icon name="chevron-down" class="w-4 h-4"/></button>
+                                        <button type="button" @click="removeQuoteFilter(i)" class="p-1 text-red-400 hover:text-red-600" title="Remove"><x-icon name="x" class="w-4 h-4"/></button>
+                                    </div>
+                                </template>
+                                <p x-show="!quoteFilters.length" x-cloak class="text-xs text-gray-400 italic px-1">No filters selected — add some below.</p>
+                            </div>
+
+                            {{-- Add unused filters --}}
+                            <div x-show="unusedQuoteFilters.length" x-cloak class="mt-3">
+                                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-1.5">Add a filter</div>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="fk in unusedQuoteFilters" :key="fk">
+                                        <button type="button" @click="addQuoteFilter(fk)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-300 text-xs text-gray-700 hover:border-amber-400 hover:bg-amber-50">
+                                            <x-icon name="plus" class="w-3 h-3"/> <span x-text="quoteFilterLabels[fk] || fk"></span>
+                                        </button>
+                                    </template>
+                                </div>
                             </div>
                         </div>
 

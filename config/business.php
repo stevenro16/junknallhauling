@@ -35,6 +35,7 @@ return [
         'left_voicemail' => 'Left Voicemail',
         'reviewing' => 'Reviewing',
         'quoted' => 'Quoted',
+        'finalize_scheduling' => 'Finalize Scheduling',
         'scheduled' => 'Scheduled',
         'equipment_delivered' => 'Equipment Delivered',
         'equipment_picked_up' => 'Equipment Picked Up',

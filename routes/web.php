@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\ServiceCatalogController;
 use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\PaymentController;
+use App\Http\Controllers\Public\QuoteDetailController;
 use App\Http\Controllers\Public\RentalAgreementController;
 use App\Http\Controllers\Public\StatusController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,7 @@ Route::get('/contact', [ContactController::class, 'index'])->name('contact');
 Route::get('/status', [StatusController::class, 'index'])->name('status');
 
 Route::get('/rental-agreement/{token}', [RentalAgreementController::class, 'show'])->name('rental-agreement.show');
+Route::get('/quote-details/{token}', [QuoteDetailController::class, 'show'])->name('quote-details.show');
 Route::get('/pay/{token}', [PaymentController::class, 'show'])->name('payment.show');
 
 /*
@@ -118,6 +120,8 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
                 Route::delete('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'destroy'])->name('rental-agreement.destroy');
                 Route::post('/inquiries/{id}/payment-link', [InquiryApiController::class, 'paymentLink'])->name('inquiries.payment-link');
                 Route::delete('/payment-link/{id}', [PaymentLinkController::class, 'destroy'])->name('payment-link.destroy');
+                Route::post('/inquiries/{id}/detail-request', [InquiryApiController::class, 'detailRequest'])->name('inquiries.detail-request');
+                Route::delete('/detail-request/{id}', [InquiryApiController::class, 'detailRequestDestroy'])->name('detail-request.destroy');
 
                 // Service catalog
                 Route::get('/services', [ServiceCatalogController::class, 'index'])->name('services.index');

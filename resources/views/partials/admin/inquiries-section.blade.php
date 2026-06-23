@@ -23,17 +23,27 @@
         detailBase: '{{ route('admin.inquiries.show', ['id' => '__ID__']) }}',
     })">
 
+    {{-- Workqueue filter cards — order + which appear is set in Site Content
+         (config/quote_filters.php × the 'quote_filters' setting). --}}
+    @php
+        $filterRegistry = config('quote_filters', []);
+        $filterOrder = \App\Models\SiteContent::list('quote_filters');
+        $activeFilters = collect($filterOrder)->filter(fn ($k) => isset($filterRegistry[$k]))->values();
+        if ($activeFilters->isEmpty()) {
+            $activeFilters = collect(array_keys($filterRegistry));
+        }
+        $activeFilters = $activeFilters->map(fn ($k) => ['key' => $k] + $filterRegistry[$k])->all();
+        // Build the mobile-pill JS array literal in PHP. Use SINGLE-quoted JS strings —
+        // this string sits inside the double-quoted x-for="..." attribute, so double
+        // quotes would close the attribute early. count is a getter name, emitted unquoted.
+        $mobilePills = collect($activeFilters)->map(fn ($f) =>
+            "{ f: '".addslashes($f['key'])."', l: '".addslashes($f['label'])."', c: ".$f['count'].", color: '".addslashes($f['color'])."' }"
+        )->implode(', ');
+    @endphp
+
     {{-- Mobile: compact filter cards — label + count on one line, all visible (no scroll) --}}
     <div class="lg:hidden grid grid-cols-2 gap-2 mb-4">
-        <template x-for="p in [
-            { f: 'new', l: 'New', c: countNew, color: 'text-blue-600' },
-            { f: 'reviewing_quoted', l: 'Reviewing / Quoted', c: countReviewingQuoted, color: 'text-indigo-600' },
-            { f: 'scheduled', l: 'Scheduled', c: countScheduled, color: 'text-purple-600' },
-            { f: 'service_performed', l: 'Service Performed', c: countServicePerformed, color: 'text-teal-600' },
-            { f: 'equipment_delivered', l: 'Equipment Tracker', c: countEquipmentOut, color: 'text-cyan-600' },
-            { f: 'left_voicemail', l: 'Follow Up', c: countFollowUp, color: 'text-rose-600' },
-            { f: 'completed30', l: 'Completed (30d)', c: countCompleted30, color: 'text-green-700' },
-        ]" :key="p.f">
+        <template x-for="p in [{!! $mobilePills !!}]" :key="p.f">
             <button type="button" @click="setFilter(p.f)"
                     class="card-light flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors"
                     :class="filter === p.f ? 'ring-2 ring-amber-400 border-amber-400' : 'hover:border-[#EAB308]/40'">
@@ -44,35 +54,13 @@
     </div>
 
     {{-- Workqueue cards — click to filter the list below (desktop) --}}
-    <div class="hidden lg:grid lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
-        <button @click="setFilter('new')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'new' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">New</div>
-            <div class="text-3xl font-black text-blue-600 mt-1" x-text="countNew"></div>
-        </button>
-        <button @click="setFilter('reviewing_quoted')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'reviewing_quoted' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">Reviewing / Quoted</div>
-            <div class="text-3xl font-black text-indigo-600 mt-1" x-text="countReviewingQuoted"></div>
-        </button>
-        <button @click="setFilter('scheduled')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'scheduled' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">Scheduled</div>
-            <div class="text-3xl font-black text-purple-600 mt-1" x-text="countScheduled"></div>
-        </button>
-        <button @click="setFilter('service_performed')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'service_performed' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">Service Performed</div>
-            <div class="text-3xl font-black text-teal-600 mt-1" x-text="countServicePerformed"></div>
-        </button>
-        <button @click="setFilter('equipment_delivered')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'equipment_delivered' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500 inline-flex items-center gap-1"><x-icon name="truck" class="w-3.5 h-3.5"/> Equipment Tracker</div>
-            <div class="text-3xl font-black text-cyan-600 mt-1" x-text="countEquipmentOut"></div>
-        </button>
-        <button @click="setFilter('left_voicemail')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'left_voicemail' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">Follow Up</div>
-            <div class="text-3xl font-black text-rose-600 mt-1" x-text="countFollowUp"></div>
-        </button>
-        <button @click="setFilter('completed30')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'completed30' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
-            <div class="text-xs uppercase tracking-widest text-gray-500">Completed (30 days)</div>
-            <div class="text-3xl font-black text-green-700 mt-1" x-text="countCompleted30"></div>
-        </button>
+    <div class="hidden lg:grid lg:grid-cols-4 gap-4 mb-6">
+        @foreach($activeFilters as $f)
+            <button @click="setFilter('{{ $f['key'] }}')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === '{{ $f['key'] }}' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
+                <div class="text-xs uppercase tracking-widest text-gray-500 {{ isset($f['icon']) ? 'inline-flex items-center gap-1' : '' }}">@if(isset($f['icon']))<x-icon name="{{ $f['icon'] }}" class="w-3.5 h-3.5"/> @endif{{ $f['label'] }}</div>
+                <div class="text-3xl font-black {{ $f['color'] }} mt-1" x-text="{{ $f['count'] }}"></div>
+            </button>
+        @endforeach
     </div>
 
     {{-- Action bar — the quick-filter cards above are the navigation --}}
