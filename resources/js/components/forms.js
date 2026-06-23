@@ -399,6 +399,28 @@ Alpine.data('agreementForm', (token) => ({
 
     money(n) { return Number(n).toLocaleString(); },
 
+    // Full address — composed from the structured parts (street, city, state, zip),
+    // falling back to the stored combined address.
+    fullAddress() {
+        const i = this.inquiry;
+        if (!i) return '';
+        if (i.address_street || i.address_city) {
+            const tail = [i.address_state, i.zip_code].map((s) => (s || '').trim()).filter(Boolean).join(' ');
+            return [i.address_street, i.address_city, tail].map((s) => (s || '').trim()).filter(Boolean).join(', ');
+        }
+        return i.address || '';
+    },
+    // One structured address part for the separate fields (legacy records with no
+    // parts fall the whole combined address into Street).
+    addrPart(which) {
+        const i = this.inquiry;
+        if (!i) return '';
+        if (i.address_street || i.address_city) {
+            return ({ street: i.address_street, city: i.address_city, state: i.address_state, zip: i.zip_code }[which]) || '';
+        }
+        return which === 'street' ? (i.address || '') : '';
+    },
+
     // --- canvas signature (works on the inline pad or the full-screen pad) ---
     coordsOn(canvas, e) {
         const rect = canvas.getBoundingClientRect();
@@ -558,6 +580,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
     preferredDay: '', preferredTime: '', preferredContactMethod: 'phone',
     confirmDatetime: false, confirmAmount: false,
     photos: [], photoError: '',   // up to 2 customer photos (data URLs)
+    needsAgreement: false,        // equipment rental with no signed agreement on file
 
     init() {
         fetch(window.apiUrl(`/api/quote-details/${this.token}`))
@@ -578,6 +601,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
                 this.preferredDay = i.preferred_day || '';
                 this.preferredTime = i.preferred_time || '';
                 this.preferredContactMethod = i.preferred_contact_method === 'email' ? 'email' : 'phone';
+                this.needsAgreement = !!json.needs_agreement;
             })
             .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
             .finally(() => { this.loading = false; });
@@ -759,6 +783,8 @@ Alpine.data('quoteDetailsForm', (token) => ({
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to submit details');
+            // Equipment rental needing an agreement → go straight to it to complete.
+            if (json.agreement_url) { window.location.href = json.agreement_url; return; }
             this.submitted = true;
         } catch (e) {
             this.error = e.message || 'Something went wrong. Please try again or call us.';

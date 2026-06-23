@@ -161,11 +161,17 @@
                         </div>
                     </div>
 
+                    {{-- Equipment rental with no signed rental agreement on file --}}
+                    <div x-show="needsAgreement" x-cloak class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex items-start gap-2">
+                        <x-icon name="alert" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"/>
+                        <p class="text-sm text-amber-800"><span class="font-bold">No rental agreement on file.</span> After you submit, we'll take you to the rental agreement to review and sign.</p>
+                    </div>
+
                     <p x-show="error" x-text="error" class="text-red-600 text-sm" x-cloak></p>
 
                     <button type="submit" :disabled="submitting"
                             class="w-full btn-primary py-3.5 text-base disabled:opacity-60">
-                        <span x-text="submitting ? 'Submitting…' : 'Confirm & Submit Details'"></span>
+                        <span x-text="submitting ? 'Submitting…' : (needsAgreement ? 'Submit & Complete Rental Agreement' : 'Confirm & Submit Details')"></span>
                     </button>
 
                     <p class="text-center text-[10px] text-gray-400">This link can only be used once. After submitting you will receive confirmation.</p>

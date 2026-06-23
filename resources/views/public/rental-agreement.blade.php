@@ -62,8 +62,22 @@
                                 <input type="email" class="input-dark w-full" :value="inquiry?.email" required>
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Address <span class="text-red-500">*</span></label>
-                                <input type="text" class="input-dark w-full" :value="inquiry?.address || ''" required>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Street Address <span class="text-red-500">*</span></label>
+                                <input type="text" class="input-dark w-full" :value="addrPart('street')" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City <span class="text-red-500">*</span></label>
+                                <input type="text" class="input-dark w-full" :value="addrPart('city')" required>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                    <input type="text" class="input-dark w-full" :value="addrPart('state')">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Zip <span class="text-red-500">*</span></label>
+                                    <input type="text" class="input-dark w-full" :value="addrPart('zip')" required>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -86,7 +100,7 @@
                             </div>
                             <div>
                                 <div class="text-gray-500 text-xs uppercase tracking-wider mb-0.5">Pickup Address</div>
-                                <div class="font-medium text-gray-900" x-text="inquiry?.address || '—'"></div>
+                                <div class="font-medium text-gray-900" x-text="fullAddress() || '—'"></div>
                             </div>
                         </div>
                         <div>
@@ -197,7 +211,7 @@
 
                     <button type="submit" :disabled="submitting"
                             class="w-full btn-primary py-3.5 text-base disabled:opacity-60">
-                        <span x-text="submitting ? 'Submitting Agreement...' : 'Sign & Submit Dumpster Rental Contract Agreement'"></span>
+                        <span x-text="submitting ? 'Submitting…' : 'Submit Agreement'"></span>
                     </button>
 
                     <p class="text-center text-[10px] text-gray-400">This link can only be used once. After signing you will receive confirmation.</p>

@@ -53,6 +53,10 @@ class RentalAgreementController extends Controller
                 'confirmed_date_time' => $inquiry->confirmed_date_time,
                 'pickup_date_time' => $inquiry->pickup_date_time,
                 'address' => $inquiry->address,
+                'address_street' => $inquiry->address_street,
+                'address_city' => $inquiry->address_city,
+                'address_state' => $inquiry->address_state,
+                'zip_code' => $inquiry->zip_code,
                 'admin_notes' => $inquiry->admin_notes,
             ],
         ]);

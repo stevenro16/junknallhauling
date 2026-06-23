@@ -121,6 +121,22 @@ class QuoteDetailRequestTest extends TestCase
         $this->postJson("/api/quote-details/{$token}", $payload)->assertStatus(410);
     }
 
+    public function test_equipment_submit_returns_rental_agreement_url_when_none_on_file(): void
+    {
+        $inq = $this->inquiry(['service_type' => 'equipment', 'equipment_type' => 'Boom Lift']);
+        $token = $this->makeToken($inq);
+
+        $this->getJson("/api/quote-details/{$token}")->assertOk()->assertJsonPath('needs_agreement', true);
+
+        $res = $this->postJson("/api/quote-details/{$token}", [
+            'form_data' => ['name' => 'Jane', 'address_street' => '123 Main St', 'address_city' => 'Yucaipa', 'confirm_datetime' => true, 'confirm_amount' => true],
+            'signature_base64' => 'data:image/png;base64,iVBORw0KGgo=',
+        ])->assertOk();
+
+        $this->assertStringContainsString('/rental-agreement/', (string) $res->json('agreement_url'));
+        $this->assertSame(1, $inq->rentalAgreements()->count());
+    }
+
     public function test_admin_update_stores_address_parts_and_composed_address(): void
     {
         $inq = $this->inquiry();
