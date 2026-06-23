@@ -2084,9 +2084,20 @@ Alpine.data('paymentSender', (cfg = {}) => ({
     recording: false,
     paidMethod: cfg.paidMethod || '',
     paidAt: cfg.paidAt || '',
+    quoted: cfg.quoted ?? null,   // saved quoted price; null/0 ⇒ let them enter it in-field
+    amountInput: '',              // in-field amount when nothing was quoted yet
 
     get contactLabel() {
         return (this.preferred === 'email' ? 'Email' : 'Text') + ' payment link';
+    },
+
+    // Is there a usable amount already saved on the quote?
+    get hasAmount() { return this.quoted != null && this.quoted !== '' && Number(this.quoted) > 0; },
+    // The amount to charge: the saved price, or the one typed in the field.
+    _amount() {
+        if (this.hasAmount) return Number(this.quoted);
+        const v = parseFloat(this.amountInput);
+        return (!isNaN(v) && v > 0) ? v : null;
     },
 
     init() {
@@ -2108,14 +2119,19 @@ Alpine.data('paymentSender', (cfg = {}) => ({
     // Record an in-person payment (cash/check/card/Venmo/…) and mark the job paid.
     async recordPaid() {
         if (!this.method) { this.error = 'Pick how the customer paid.'; return; }
+        const amt = this._amount();
+        if (amt === null) { this.error = 'Enter the amount due.'; return; }
         this.recording = true;
         this.error = '';
         try {
-            const res = await fetch(this.cfg.recordUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ payment_method: this.method }) });
+            const body = { payment_method: this.method };
+            if (!this.hasAmount) body.amount = amt;   // also save the amount they entered
+            const res = await fetch(this.cfg.recordUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify(body) });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Could not record the payment.');
             this.paidMethod = data.payment_method;
             this.paidAt = data.payment_date;
+            if (data.quoted_price != null) this.quoted = data.quoted_price;
             this.method = '';
         } catch (e) {
             this.error = e.message || 'Could not record the payment.';
@@ -2125,16 +2141,20 @@ Alpine.data('paymentSender', (cfg = {}) => ({
     },
 
     async send() {
+        // In the field, allow generating the link off an amount entered here.
+        if (this.field && !this.hasAmount && this._amount() === null) { this.error = 'Enter the amount due first.'; return; }
         this.sending = true;
         this.error = '';
         this.copied = false;
         try {
-            const res = await fetch(this.cfg.createUrl, { method: 'POST', headers: window.jsonHeaders(true) });
+            const body = (this.field && !this.hasAmount) ? { amount: this._amount() } : {};
+            const res = await fetch(this.cfg.createUrl, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify(body) });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Could not generate the payment link.');
             const l = data.payment_link;
             this.link = l.url;
             this.amount = l.amount;
+            if (!this.hasAmount && l.amount != null) this.quoted = l.amount;
             const i = this.links.findIndex((x) => x.id === l.id);
             if (i === -1) this.links.unshift(l);
             else this.links[i] = l;

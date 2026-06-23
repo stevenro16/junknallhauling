@@ -102,6 +102,30 @@ class FieldViewTest extends TestCase
         $this->assertNotNull($link->fresh()->paid_at);
     }
 
+    public function test_field_payment_can_set_amount_when_none_was_quoted(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();   // no quoted_price
+
+        $this->sessionFor($admin)->postJson("/admin/field/job/{$inq->id}/payment", [
+            'payment_method' => 'Cash', 'amount' => 175.5,
+        ])->assertOk()->assertJsonPath('quoted_price', 175.5);
+
+        $this->assertEquals(175.5, $inq->fresh()->quoted_price);
+    }
+
+    public function test_field_payment_link_can_set_amount_when_none_was_quoted(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();   // no quoted_price
+
+        $this->sessionFor($admin)->postJson("/admin/api/inquiries/{$inq->id}/payment-link", ['amount' => 200])
+            ->assertOk()
+            ->assertJsonPath('payment_link.amount', 200);
+
+        $this->assertEquals(200, $inq->fresh()->quoted_price);
+    }
+
     public function test_field_payment_requires_a_method(): void
     {
         $admin = $this->admin();

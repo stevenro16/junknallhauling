@@ -133,10 +133,18 @@ class FieldViewController extends Controller
             return response()->json(['error' => 'Select how the customer paid.'], 422);
         }
 
-        $inquiry->update([
+        $update = [
             'payment_method' => $method,
             'payment_date' => now()->format('Y-m-d\TH:i'),
-        ]);
+        ];
+
+        // No price was quoted yet — let the field record the amount they collected.
+        $amount = $request->input('amount');
+        if ((float) $inquiry->quoted_price <= 0 && is_numeric($amount) && (float) $amount > 0) {
+            $update['quoted_price'] = (float) $amount;
+        }
+
+        $inquiry->update($update);
 
         // Settle any still-open payment link so it doesn't linger as "awaiting payment".
         $inquiry->paymentLinks()->whereNull('paid_at')->whereNull('cancelled_at')
@@ -147,6 +155,7 @@ class FieldViewController extends Controller
         return response()->json([
             'payment_method' => $inquiry->payment_method,
             'payment_date' => $inquiry->payment_date,
+            'quoted_price' => $inquiry->quoted_price,
         ]);
     }
 

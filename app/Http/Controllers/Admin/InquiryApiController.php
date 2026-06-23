@@ -280,7 +280,7 @@ class InquiryApiController extends Controller
      * usable (unpaid, not cancelled, not expired) link is reused — its amount is
      * refreshed to the current quote in case it changed.
      */
-    public function paymentLink(string $id): JsonResponse
+    public function paymentLink(Request $request, string $id): JsonResponse
     {
         $inquiry = Inquiry::find($id);
         if (! $inquiry) {
@@ -288,6 +288,11 @@ class InquiryApiController extends Controller
         }
 
         $amount = $inquiry->quoted_price;
+        // Field View may pass an amount when nothing was quoted yet — save it as the price.
+        if (($amount === null || (float) $amount <= 0) && is_numeric($request->input('amount')) && (float) $request->input('amount') > 0) {
+            $inquiry->update(['quoted_price' => (float) $request->input('amount')]);
+            $amount = $inquiry->quoted_price;
+        }
         if ($amount === null || (float) $amount <= 0) {
             return response()->json(['error' => 'Set a quoted price before sending a payment link.'], 422);
         }

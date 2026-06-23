@@ -12,6 +12,7 @@
         recordUrl: '{{ ($field ?? false) ? route('admin.field.payment', $inquiry->id) : '' }}',
         paidMethod: @js($inquiry->payment_method),
         paidAt: @js($inquiry->payment_date),
+        quoted: @js($inquiry->quoted_price),
     })"
     @if($syncContact ?? true) x-effect="preferred = preferredContactMethod" @endif
     class="bg-white border border-gray-200 rounded-xl shadow-sm border-l-4 border-l-emerald-500 p-5">
@@ -28,7 +29,16 @@
         <div class="rounded-lg border border-gray-200 p-3 mb-3">
             <div class="flex items-center justify-between gap-2 mb-2">
                 <div class="text-sm font-semibold text-gray-700">Amount due</div>
-                <div class="text-sm font-bold text-emerald-600">@if($inquiry->quoted_price){{ '$'.number_format((float) $inquiry->quoted_price, 2) }}@else<span class="text-gray-400 font-medium">Not set</span>@endif</div>
+                <div x-show="hasAmount" x-cloak class="text-sm font-bold text-emerald-600">$<span x-text="money(quoted)"></span></div>
+            </div>
+
+            {{-- No price was quoted — let them enter it right here --}}
+            <div x-show="!hasAmount" x-cloak class="mb-2">
+                <label class="block text-xs text-gray-500 mb-1">Enter the amount due</label>
+                <div class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                    <input type="number" inputmode="decimal" min="0" step="0.01" x-model="amountInput" @input="error = ''" placeholder="0.00" class="input-light text-sm py-1.5 pl-6 w-full">
+                </div>
             </div>
 
             {{-- Already recorded as paid --}}
