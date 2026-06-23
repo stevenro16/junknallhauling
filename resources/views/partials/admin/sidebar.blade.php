@@ -18,7 +18,7 @@
         $settingsItems = [];
     } else {
         $main = [
-            ['key' => 'calendar', 'label' => 'Calendar', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
+            ['key' => 'calendar', 'label' => 'Schedule', 'icon' => 'calendar', 'href' => route('admin.calendar'), 'active' => $onCalendar],
             ['key' => 'inquiries', 'label' => 'Quotes', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'inquiries']), 'active' => $current === 'inquiries'],
             ['key' => 'customers', 'label' => 'Customers', 'icon' => 'user', 'href' => route('admin.customers'), 'active' => $onCustomers],
             ['key' => 'eod', 'label' => 'EOD Report', 'icon' => 'clock', 'href' => route('admin.eod-report'), 'active' => $onEod],

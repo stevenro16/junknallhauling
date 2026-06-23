@@ -238,7 +238,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     urgency: 'routine',
-    isEditingCustomer: false,
+    isEditingCustomer: true,   // customer fields are always editable (no read-only toggle)
     isMobile: false,
     // Per-section collapse (mobile only). Completed sections start collapsed; the
     // header stays tappable to reopen. Desktop always shows everything.
@@ -271,11 +271,6 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     init() {
         this.hydrate(this.inquiry);
-        // A brand-new quote arrives with no customer info (just a phone, if that) →
-        // open the customer fields for editing so it's one less click for the admin.
-        if (!this.firstName && !this.lastName && !this.email && !this.address) {
-            this.isEditingCustomer = true;
-        }
         // On mobile, collapse sections that are already complete (re-openable). The
         // collapse only takes effect on mobile (see sectionOpen); desktop shows all.
         const mq = window.matchMedia('(max-width: 639px)');
@@ -656,7 +651,9 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             label: end.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
         };
     },
-    get showEstimatedPickup() { return !this.showCustomerPickup && !!this.estimatedPickup; },
+    // Show the visit-derived recommendation whenever it's computable — even alongside
+    // a customer-requested pickup — so it stays in sync as the visit date/time changes.
+    get showEstimatedPickup() { return !!this.estimatedPickup; },
     applyEstimatedPickup() {
         const e = this.estimatedPickup;
         if (e) this.pickupDateTime = `${e.date}T${e.time24}`;
@@ -717,9 +714,16 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         if (cur) {
             rows.push({ id: this.inquiry.id, ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeNames(this.pickupAssignedEmployeeIds), assignee_ids: [...this.pickupAssignedEmployeeIds], start: cur.start, end: cur.end, isSelf: true, conflict: false });
         }
+        // Surface this rental's own drop-off (delivery) visit when it lands on the same
+        // day, so the gap between drop-off and pickup is visible. It rides in the pickup's
+        // column(s) as a reference marker — not draggable, not a link.
+        const vis = this.currentVisitWindow;
+        if (vis && this.datePart(this.confirmedDateTime) === key) {
+            rows.push({ id: this.inquiry.id + '-delivery', ref: this.inquiry.ref, name: this.inquiry.name, status: this.status, service_type: this.serviceType, address: this.address, assigned_employee: this.employeeNames(this.assignedEmployeeIds), assignee_ids: [...this.pickupAssignedEmployeeIds], start: vis.start, end: vis.end, isSelf: false, isDelivery: true, conflict: false });
+        }
         return rows.sort((a, b) => a.start - b.start);
     },
-    get pickupDayOtherCount() { return this.pickupDaySchedule.filter((e) => !e.isSelf).length; },
+    get pickupDayOtherCount() { return this.pickupDaySchedule.filter((e) => !e.isSelf && !e.isDelivery).length; },
     get pickupDayConflictCount() { return this.pickupDaySchedule.filter((e) => e.conflict).length; },
 
     // Group a day-schedule list into one column per assignee (the job's assignees
@@ -766,6 +770,48 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const e = ev.end.getHours() * 60 + ev.end.getMinutes();
         const h = (Math.min(e, this.panelEndHour * 60) - Math.max(s, this.panelStartHour * 60)) * this.panelHourPx / 60;
         return Math.max(14, h);
+    },
+
+    // Click an empty slot on the preview timeline to drop the visit/pickup there
+    // (sets the time; assigns the clicked employee if none is set yet).
+    minuteToTime(min) {
+        const m = Math.max(this.panelStartHour * 60, Math.min(this.panelEndHour * 60 - 15, min));
+        return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    },
+    placeVisitAt(e, col, kind) {
+        // Ignore the drag-release "click" and clicks that land on an existing event card.
+        if (this.panelDragged || e.target.closest('a')) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const min = this.panelStartHour * 60 + Math.round((e.clientY - rect.top) / this.panelHourPx * 60 / 15) * 15;
+        const field = kind === 'pickup' ? 'pickupAssignedEmployeeIds' : 'assignedEmployeeIds';
+        if (!col.isUnassigned && this[field].length === 0) this[field] = [col.id];
+        if (kind === 'pickup') this.setPickupTime(this.minuteToTime(min)); else this.setConfirmedTime(this.minuteToTime(min));
+    },
+
+    // Drag "This visit"/"This pickup" up or down the preview timeline to reschedule
+    // its start time (snaps to 15-min steps; the date and duration are unchanged).
+    panelDrag: null,
+    panelDragged: false,
+    startPanelDrag(ev, kind, e) {
+        if (!ev.isSelf || (e.button != null && e.button !== 0)) return;
+        const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
+        this.panelDrag = { kind, pointerId: e.pointerId, startClientY: e.clientY, origStartMin: startMin, moved: false };
+        document.body.style.userSelect = 'none';
+    },
+    movePanelDrag(e) {
+        const d = this.panelDrag;
+        if (!d || e.pointerId !== d.pointerId) return;
+        const deltaMin = Math.round((e.clientY - d.startClientY) / this.panelHourPx * 60 / 15) * 15;
+        if (deltaMin !== 0) d.moved = true;
+        const v = this.minuteToTime(d.origStartMin + deltaMin);
+        if (d.kind === 'pickup') this.setPickupTime(v); else this.setConfirmedTime(v);
+    },
+    endPanelDrag() {
+        if (!this.panelDrag) return;
+        // Suppress the click the browser fires after a real drag so it doesn't re-place the visit.
+        if (this.panelDrag.moved) { this.panelDragged = true; setTimeout(() => { this.panelDragged = false; }, 0); }
+        this.panelDrag = null;
+        document.body.style.userSelect = '';
     },
     dotClass(s) {
         return ({ new: 'bg-blue-400', left_voicemail: 'bg-violet-400', reviewing: 'bg-amber-400', quoted: 'bg-indigo-400', scheduled: 'bg-[#F8C820]', equipment_delivered: 'bg-cyan-500', equipment_picked_up: 'bg-sky-500', service_performed: 'bg-teal-400', completed: 'bg-emerald-400' })[s] || 'bg-gray-400';
@@ -888,12 +934,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     async save(overrides = {}) {
         this.saving = true;
+        let ok = false;
         try {
             const res = await fetch(this.urls.update, { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this.buildBody(overrides)) });
-            if (res.ok) { const d = await res.json(); if (d.inquiry) this.hydrate(d.inquiry); await this.reloadHistory(); }
+            if (res.ok) { const d = await res.json(); if (d.inquiry) this.hydrate(d.inquiry); await this.reloadHistory(); ok = true; }
             else { this.error = 'Failed to save'; }
         } catch (e) { this.error = 'Failed to save'; }
         finally { this.saving = false; }
+        return ok;
     },
 
     async reloadHistory() {
@@ -927,9 +975,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     async handleConfirmCancel() {
         this.status = 'cancelled';
-        await this.save({ status: 'cancelled' });
+        const ok = await this.save({ status: 'cancelled' });
+        if (!ok) { this.showCancelConfirm = false; return; }   // surface the error
         await this.logAudit('Cancelled quote');
-        this.showCancelConfirm = false;
+        window.location.href = this.urls.dashboard;             // back to the quote list
     },
 
     async togglePreferredContact() {

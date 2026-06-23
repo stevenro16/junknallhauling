@@ -46,17 +46,21 @@
             </div>
             {{-- Columns --}}
             <template x-for="col in {{ $columns }}" :key="col.id">
-                <div class="flex-1 min-w-0 relative border-l border-gray-100">
+                <div class="flex-1 min-w-0 relative border-l border-gray-100 cursor-pointer"
+                     @click="placeVisitAt($event, col, '{{ $kind ?? 'visit' }}')"
+                     title="Click to set this {{ $kind ?? 'visit' }}'s time">
                     <template x-for="h in panelHours" :key="h">
                         <div class="absolute left-0 right-0 border-t border-gray-100" :style="`top:${(h - panelStartHour) * panelHourPx}px`"></div>
                     </template>
                     <template x-for="ev in col.rows" :key="ev.id + '-' + ev.start.getTime()">
-                        <a :href="ev.isSelf ? null : detailUrl(ev.id)" :title="(ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : (ev.name || '')) + ' · ' + clock(ev.start) + '–' + clock(ev.end)"
-                           class="absolute rounded border px-1 py-0.5 overflow-hidden block leading-tight"
-                           :style="`top:${panelTop(ev)}px;height:${panelHeight(ev)}px;left:2px;right:2px`"
-                           :class="ev.isSelf ? 'border-[#F8C820]/70 bg-[#F8C820]/20' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white hover:bg-amber-50')">
+                        <a :href="(ev.isSelf || ev.isDelivery) ? null : detailUrl(ev.id)" :target="(ev.isSelf || ev.isDelivery) ? null : '_blank'" :rel="(ev.isSelf || ev.isDelivery) ? null : 'noopener'"
+                           :title="(ev.isSelf ? 'Drag to reschedule' : ev.isDelivery ? 'Drop-off visit' : (ev.name || '') + ' (opens in a new tab)') + ' · ' + clock(ev.start) + '–' + clock(ev.end)"
+                           @pointerdown="ev.isSelf && startPanelDrag(ev, '{{ $kind ?? 'visit' }}', $event)"
+                           class="absolute rounded border px-1 py-0.5 overflow-hidden block leading-tight select-none"
+                           :style="`top:${panelTop(ev)}px;height:${panelHeight(ev)}px;left:2px;right:2px` + (ev.isSelf ? ';cursor:grab;touch-action:none' : '')"
+                           :class="ev.isSelf ? 'border-[#F8C820]/70 bg-[#F8C820]/20' : ev.isDelivery ? 'border-cyan-400 bg-cyan-100/80 text-cyan-900' : (ev.conflict ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white hover:bg-amber-50')">
                             <div class="font-mono text-[8px] text-gray-500 truncate" x-text="clock(ev.start)"></div>
-                            <div class="text-[9px] font-medium text-gray-800 truncate" x-text="ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : (ev.name || '(no name)')"></div>
+                            <div class="text-[9px] font-medium text-gray-800 truncate" x-text="ev.isSelf ? '{{ $selfLabel ?? 'This visit' }}' : ev.isDelivery ? 'Drop-off visit' : (ev.name || '(no name)')"></div>
                         </a>
                     </template>
                 </div>

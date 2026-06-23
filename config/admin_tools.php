@@ -4,7 +4,7 @@
 // `section` tools open the dashboard with ?section=…; others use their own route.
 return [
     'inquiries' => ['label' => 'Quotes', 'icon' => 'file-text', 'route' => 'admin.dashboard', 'section' => 'inquiries'],
-    'calendar' => ['label' => 'Calendar', 'icon' => 'calendar', 'route' => 'admin.calendar', 'path' => 'admin/calendar'],
+    'calendar' => ['label' => 'Schedule', 'icon' => 'calendar', 'route' => 'admin.calendar', 'path' => 'admin/calendar'],
     'customers' => ['label' => 'Customers', 'icon' => 'user', 'route' => 'admin.customers', 'path' => 'admin/customers'],
     'eod' => ['label' => 'EOD', 'icon' => 'clock', 'route' => 'admin.eod-report', 'path' => 'admin/eod-report'],
     'stats' => ['label' => 'Analytics', 'icon' => 'bar-chart', 'route' => 'admin.dashboard', 'section' => 'stats'],

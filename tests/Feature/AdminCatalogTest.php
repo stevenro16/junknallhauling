@@ -80,7 +80,7 @@ class AdminCatalogTest extends TestCase
 
     public function test_calendar_page_renders(): void
     {
-        $this->actingAdmin()->get('/admin/calendar')->assertOk()->assertSee('Pickup Calendar');
+        $this->actingAdmin()->get('/admin/calendar')->assertOk()->assertSee('Schedule');
     }
 
     public function test_catalog_requires_auth(): void

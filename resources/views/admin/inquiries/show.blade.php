@@ -19,8 +19,11 @@
             addressSuggest: '{{ route('admin.api.address.suggest') }}',
             detailBase: '{{ route('admin.inquiries.show', '__ID__') }}',
             calendarEmbed: '{{ route('admin.calendar.embed') }}',
+            dashboard: '{{ route('admin.dashboard') }}',
         },
-    })" @quote-save.window="dirty && save()" class="w-full pt-1 pb-24 sm:pb-8">
+    })" @quote-save.window="dirty && save()"
+    @pointermove.window="movePanelDrag($event)" @pointerup.window="endPanelDrag()" @pointercancel.window="endPanelDrag()"
+    class="w-full pt-1 pb-24 sm:pb-8">
 
     {{-- Header: back link + a single Save button (desktop) that appears only when there are unsaved edits --}}
     <div class="sticky top-0 z-30 -mt-1 mb-4 py-2 bg-gray-100/90 backdrop-blur flex items-center justify-between gap-3">
@@ -148,7 +151,6 @@
                             <span x-show="urgency === 'urgent'" x-cloak class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300"><x-icon name="alert" class="w-3 h-3"/> Urgent</span>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" :class="statusClass(status)" x-text="statusLabel(status)"></span>
                             <div class="flex items-center gap-1.5 flex-shrink-0">
-                                <button type="button" @click="isEditingCustomer = !isEditingCustomer; collapsed.customer = false" class="p-1.5 rounded hover:bg-gray-200 text-amber-600 transition-colors" title="Edit customer fields"><x-icon name="pencil" class="w-4 h-4"/></button>
                                 <button type="button" @click="togglePreferredContact()" class="p-1.5 rounded-full border border-gray-300 hover:border-amber-400 text-amber-600 hover:text-amber-700 transition-all active:scale-95" title="Toggle preferred contact">
                                     <x-icon name="phone" class="w-4 h-4" x-show="preferredContactMethod === 'phone'"/>
                                     <x-icon name="mail" class="w-4 h-4" x-show="preferredContactMethod === 'email'" x-cloak/>
@@ -200,28 +202,34 @@
                     </template>
 
                     <template x-if="isEditingCustomer">
-                        <div class="space-y-4">
-                            <div class="sm:max-w-[180px]"><label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label><input type="text" x-model="customerZip" class="input-light text-sm py-1.5 w-full" placeholder="Zip code"></div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="d in [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday']]" :key="d[1]">
-                                        <button type="button" @click="togglePref('customerPreferredDay', d[1])"
-                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-                                                :class="prefHas('customerPreferredDay', d[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
-                                                x-text="d[0]"></button>
-                                    </template>
+                        <div x-data="{ open: false }" class="rounded-xl border border-gray-200">
+                            <button type="button" @click="open = !open" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left">
+                                <span class="text-sm font-semibold text-gray-700">Additional Details</span>
+                                <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="open && 'rotate-180'"/>
+                            </button>
+                            <div x-show="open" x-cloak class="space-y-4 px-3 pb-3 pt-3 border-t border-gray-200">
+                                <div class="sm:max-w-[180px]"><label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label><input type="text" x-model="customerZip" class="input-light text-sm py-1.5 w-full" placeholder="Zip code"></div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="d in [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday']]" :key="d[1]">
+                                            <button type="button" @click="togglePref('customerPreferredDay', d[1])"
+                                                    class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                                                    :class="prefHas('customerPreferredDay', d[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
+                                                    x-text="d[0]"></button>
+                                        </template>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="t in [['Morning','Morning (8am - 12pm)'],['Afternoon','Afternoon (12pm - 5pm)'],['Evening','Evening (5pm - 8pm)']]" :key="t[1]">
-                                        <button type="button" @click="togglePref('customerPreferredTime', t[1])"
-                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-                                                :class="prefHas('customerPreferredTime', t[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
-                                                x-text="t[0]"></button>
-                                    </template>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="t in [['Morning','Morning (8am - 12pm)'],['Afternoon','Afternoon (12pm - 5pm)'],['Evening','Evening (5pm - 8pm)']]" :key="t[1]">
+                                            <button type="button" @click="togglePref('customerPreferredTime', t[1])"
+                                                    class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                                                    :class="prefHas('customerPreferredTime', t[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
+                                                    x-text="t[0]"></button>
+                                        </template>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -515,6 +523,7 @@
                         'dateExpr' => 'confirmedDateTime', 'columns' => 'dayScheduleColumns',
                         'conflict' => 'dayConflictCount', 'other' => 'dayOtherCount',
                         'modal' => 'showCalendarModal', 'selfLabel' => 'This visit',
+                        'kind' => 'visit',
                     ])
 
                     {{-- Equipment Pickup (equipment rentals) — own date/time + duration + day calendar --}}
@@ -579,7 +588,7 @@
                                 'dateExpr' => 'pickupDateTime', 'columns' => 'pickupDayScheduleColumns',
                                 'conflict' => 'pickupDayConflictCount', 'other' => 'pickupDayOtherCount',
                                 'modal' => 'showPickupCalendarModal', 'selfLabel' => 'This pickup',
-                                'iconColor' => 'text-cyan-600',
+                                'iconColor' => 'text-cyan-600', 'kind' => 'pickup',
                             ])
                         </div>
                     </template>

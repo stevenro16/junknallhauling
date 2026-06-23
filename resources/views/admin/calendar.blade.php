@@ -1,30 +1,25 @@
 @extends('layouts.admin')
 
-@section('title', 'Calendar — '.config('business.name'))
+@section('title', 'Schedule — '.config('business.name'))
 
 @section('admin-content')
 <div class="max-w-7xl mx-auto" x-data="calendar({ events: @js($events), employees: @js($employees), detailBase: '{{ route('admin.field.job', '__ID__') }}', editBase: '{{ route('admin.inquiries.show', '__ID__') }}', quickQuoteUrl: '{{ route('admin.calendar.quick-quote') }}', initialView: 'day' })">
-    {{-- Header --}}
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h2 class="text-2xl font-semibold">Pickup Calendar</h2>
-            <p class="text-sm text-gray-500">Scheduled jobs by date</p>
+    {{-- Header (condensed: title + current date on the left, controls on the right) --}}
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div class="min-w-0">
+            <h2 class="text-xl font-bold leading-tight">Schedule</h2>
+            <div class="text-sm text-gray-600"><span class="font-semibold" x-text="headerLabel"></span><span class="text-gray-400"> · <span x-text="totalOnCalendar"></span> on calendar</span></div>
         </div>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div class="flex flex-wrap items-center gap-2">
             <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
                 <template x-for="m in [{v:'day',l:'Day'},{v:'3day',l:'3 Day'},{v:'5day',l:'5 Day'}]" :key="m.v">
                     <button @click="viewMode = m.v" class="px-3 sm:px-4 py-1.5 transition-colors whitespace-nowrap" :class="viewMode === m.v ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'" x-text="m.l"></button>
                 </template>
             </div>
-            <button @click="today()" class="btn-outline text-sm px-4 py-2">Today</button>
-            <button @click="prev()" class="btn-outline p-2" aria-label="Previous"><x-icon name="chevron-left" class="w-5 h-5"/></button>
-            <button @click="next()" class="btn-outline p-2" aria-label="Next"><x-icon name="chevron-right" class="w-5 h-5"/></button>
+            <button @click="today()" class="btn-outline text-sm px-3 py-1.5">Today</button>
+            <button @click="prev()" class="btn-outline p-1.5" aria-label="Previous"><x-icon name="chevron-left" class="w-5 h-5"/></button>
+            <button @click="next()" class="btn-outline p-1.5" aria-label="Next"><x-icon name="chevron-right" class="w-5 h-5"/></button>
         </div>
-    </div>
-
-    <div class="text-center mb-6">
-        <h2 class="text-xl sm:text-3xl font-black" x-text="headerLabel"></h2>
-        <p class="text-sm text-gray-500 mt-1"><span x-text="totalOnCalendar"></span> active pickups on calendar</p>
     </div>
 
     {{-- Employee quick-filter (multi-select; 2+ → per-employee columns in Day view) --}}
