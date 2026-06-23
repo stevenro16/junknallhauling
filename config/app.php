@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Single-location business in the Inland Empire (CA) — run the app in Pacific
+    // time so server-side now()/today() (EOD report day, payment stamps, etc.) match
+    // the wall-clock times admins enter. Overridable via APP_TIMEZONE.
+    'timezone' => env('APP_TIMEZONE', 'America/Los_Angeles'),
 
     /*
     |--------------------------------------------------------------------------
