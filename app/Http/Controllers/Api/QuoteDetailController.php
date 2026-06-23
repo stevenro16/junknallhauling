@@ -55,6 +55,8 @@ class QuoteDetailController extends Controller
                 'preferred_time' => $inquiry->preferred_time,
                 'service_type' => $inquiry->service_type,
                 'equipment_type' => $inquiry->equipment_type,
+                'equipment_rental_duration' => $inquiry->equipment_rental_duration,
+                'equipment_rental_unit' => $inquiry->equipment_rental_unit,
                 'confirmed_date_time' => $inquiry->confirmed_date_time,
                 'quoted_price' => $inquiry->quoted_price,
             ],
@@ -82,6 +84,9 @@ class QuoteDetailController extends Controller
             || trim((string) ($form['address_street'] ?? '')) === ''
             || trim((string) ($form['address_city'] ?? '')) === '') {
             return response()->json(['error' => 'Name, street and city are required.'], 422);
+        }
+        if (($form['preferred_contact_method'] ?? '') === 'email' && trim((string) ($form['email'] ?? '')) === '') {
+            return response()->json(['error' => 'An email is required when email is the preferred contact method.'], 422);
         }
 
         $req = QuoteDetailRequest::where('token', $token)->first();

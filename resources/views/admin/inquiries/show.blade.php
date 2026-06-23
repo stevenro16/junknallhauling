@@ -170,12 +170,6 @@
                 <div class="text-gray-500 text-xs inline-flex items-center gap-1"><x-icon name="user" class="w-3 h-3"/> <span x-text="employeeNames(assignedEmployeeIds) || 'Unassigned'"></span></div>
             </div>
             <div>
-                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Preferences</div>
-                <div class="text-gray-700 text-xs"><span class="text-gray-400">Day:</span> <span x-text="customerPreferredDay || 'Any'"></span></div>
-                <div class="text-gray-700 text-xs"><span class="text-gray-400">Time:</span> <span x-text="customerPreferredTime || 'Any'"></span></div>
-                <div class="text-gray-700 text-xs"><span class="text-gray-400">Contact:</span> <span x-text="preferredMethodLabel"></span></div>
-            </div>
-            <div>
                 <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-0.5">Quoted Price</div>
                 <div class="text-2xl font-black text-gray-900" x-text="quotedPrice ? '$' + Number(quotedPrice).toLocaleString() : '—'"></div>
             </div>
@@ -188,6 +182,20 @@
                 <template x-if="detailSubmission.signature_base64">
                     <img :src="detailSubmission.signature_base64" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-16 max-w-full">
                 </template>
+            </div>
+        </template>
+
+        {{-- Customer-submitted photos — thumbnails open full screen --}}
+        <template x-if="inquiry.photos && inquiry.photos.length">
+            <div class="mt-3">
+                <div class="text-[11px] uppercase tracking-widest text-gray-400 mb-1">Customer photos</div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="(p, i) in inquiry.photos" :key="i">
+                        <button type="button" @click="lightboxPhoto = p" class="block overflow-hidden rounded-lg border border-gray-300 hover:border-[#F8C820] transition-colors" title="Click to view full screen">
+                            <img :src="p" alt="Customer photo" class="w-20 h-20 object-cover">
+                        </button>
+                    </template>
+                </div>
             </div>
         </template>
 
@@ -227,6 +235,7 @@
                             </div>
                         </div>
                     </div>
+                    <div x-show="!sectionOpen('customer')" x-cloak class="text-sm text-gray-500 truncate" x-text="sectionSummary.customer"></div>
                     <div x-show="sectionOpen('customer')" x-cloak class="flex flex-col gap-3">
 
                     {{-- Phone first (with the Request details action) --}}
@@ -382,6 +391,7 @@
                     <div class="h-px flex-1" :class="sectionDone.job ? 'bg-emerald-200' : 'bg-gray-200'"></div>
                     <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.job && 'rotate-180'" x-show="isMobile" x-cloak/>
                 </button>
+                <div x-show="!sectionOpen('job')" x-cloak class="-mt-2 mb-1 text-sm text-gray-500 truncate" x-text="sectionSummary.job"></div>
                 <div x-show="sectionOpen('job')" x-cloak class="space-y-3">
                     {{-- Job type pill (Service is the default) --}}
                     <div>
@@ -598,6 +608,7 @@
                     <div class="h-px flex-1" :class="sectionDone.visit ? 'bg-emerald-200' : 'bg-gray-200'"></div>
                     <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.visit && 'rotate-180'" x-show="isMobile" x-cloak/>
                 </button>
+                <div x-show="!sectionOpen('visit')" x-cloak class="-mt-2 mb-1 text-sm text-gray-500 truncate" x-text="sectionSummary.visit"></div>
                 <div x-show="sectionOpen('visit')" x-cloak class="space-y-3">
                     {{-- Assigned employee --}}
                     <div>
@@ -695,7 +706,11 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Date</div>
-                                    <input type="date" :value="datePart(pickupDateTime)" @change="setPickupDate($event.target.value)" class="input-light text-sm py-2 w-full">
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" @click="stepPickupDate(-1)" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" title="Previous day" aria-label="Previous day"><x-icon name="chevron-left" class="w-4 h-4"/></button>
+                                        <input type="date" :value="datePart(pickupDateTime)" @change="setPickupDate($event.target.value)" class="input-light text-sm py-2 flex-1 min-w-0">
+                                        <button type="button" @click="stepPickupDate(1)" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" title="Next day" aria-label="Next day"><x-icon name="chevron-right" class="w-4 h-4"/></button>
+                                    </div>
                                 </div>
                                 <div>
                                     <div class="text-sm font-medium text-gray-700 mb-1.5">Pickup Time</div>
@@ -802,6 +817,7 @@
                     <div class="h-px flex-1" :class="sectionDone.payment ? 'bg-emerald-200' : 'bg-gray-200'"></div>
                     <x-icon name="chevron-down" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" ::class="!collapsed.payment && 'rotate-180'" x-show="isMobile" x-cloak/>
                 </button>
+                <div x-show="!sectionOpen('payment')" x-cloak class="-mt-2 mb-1 text-sm text-gray-500 truncate" x-text="sectionSummary.payment"></div>
                 <div x-show="sectionOpen('payment')" x-cloak class="space-y-3">
                     <div class="grid grid-cols-2 gap-4">
                         <div>

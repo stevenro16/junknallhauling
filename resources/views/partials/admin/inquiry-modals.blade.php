@@ -1,3 +1,10 @@
+{{-- Customer photo lightbox (Final Review thumbnails) — click outside / Esc to close --}}
+<div x-show="lightboxPhoto" x-cloak @keydown.escape.window="lightboxPhoto = ''" @click="lightboxPhoto = ''"
+     class="fixed inset-0 bg-black/85 flex items-center justify-center z-[120] p-4">
+    <button type="button" @click="lightboxPhoto = ''" class="absolute top-4 right-4 text-gray-300 hover:text-white p-2" aria-label="Close"><x-icon name="x" class="w-7 h-7"/></button>
+    <img :src="lightboxPhoto" alt="Customer photo" class="max-w-full max-h-[90vh] rounded-2xl border border-gray-300 shadow-2xl object-contain bg-gray-900" @click.stop>
+</div>
+
 {{-- Photo full-size --}}
 <div x-show="showPhotoModal" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4" @click="showPhotoModal = false">
     <div class="max-w-[95vw] max-h-[90vh] overflow-auto" @click.stop>

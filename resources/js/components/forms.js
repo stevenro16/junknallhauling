@@ -585,6 +585,17 @@ Alpine.data('quoteDetailsForm', (token) => ({
 
     get inquiry() { return this.data?.inquiry ?? null; },
     money(n) { return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+    // What the quote is for — the service, or the equipment + rental duration.
+    forLabel() {
+        const i = this.inquiry;
+        if (!i) return '';
+        if (i.equipment_type) {
+            const dur = (i.equipment_rental_duration && i.equipment_rental_unit) ? ` — ${i.equipment_rental_duration} ${i.equipment_rental_unit}` : '';
+            return i.equipment_type + dur;
+        }
+        const labels = { 'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental', equipment: 'Equipment Rental', other: 'Other' };
+        return labels[i.service_type] || (i.service_type || '').replace(/-/g, ' ');
+    },
     confirmedDateTimeLong() {
         const d = this.inquiry?.confirmed_date_time;
         if (!d) return '—';
@@ -708,6 +719,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
         if (!this.lastName.trim()) return this.flag('nameField', 'Please enter your last name.');
         if (!this.addressStreet.trim() || !this.addressCity.trim()) return this.flag('addressField', 'Please enter your street address and city.');
         if (!this.zipCode.trim()) return this.flag('addressField', 'Please enter your zip code.');
+        if (this.preferredContactMethod === 'email' && !this.email.trim()) return this.flag('emailField', 'Please enter your email — you chose email as your contact method.');
         if (!this.confirmDatetime || !this.confirmAmount) return this.flag('confirmField', 'Please confirm the scheduled date/time and the quoted amount.');
         if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
         this.error = '';

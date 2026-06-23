@@ -58,8 +58,8 @@
                                 <input type="tel" :value="inquiry?.phone" disabled class="input-dark w-full bg-gray-100 text-gray-500 cursor-not-allowed">
                                 <p class="text-[10px] text-gray-400 mt-1">To change your number, please call us.</p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <div x-ref="emailField" :class="invalidField === 'emailField' && 'ring-2 ring-red-400 rounded-lg p-2 -m-2'">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email <span x-show="preferredContactMethod === 'email'" x-cloak class="text-red-500">*</span></label>
                                 <input type="email" x-model="email" class="input-dark w-full" placeholder="you@example.com">
                             </div>
                             <div class="md:col-span-2" x-ref="addressField" :class="invalidField === 'addressField' && 'ring-2 ring-red-400 rounded-lg p-2 -m-2'">
@@ -83,39 +83,12 @@
                         </div>
                     </div>
 
-                    {{-- Preferences --}}
+                    {{-- Preferred contact method (email becomes required when chosen) --}}
                     <div>
-                        <h2 class="font-semibold text-lg mb-3 text-gray-800">Your Preferences</h2>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="d in [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday']]" :key="d[1]">
-                                        <button type="button" @click="togglePref('preferredDay', d[1])"
-                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-                                                :class="prefHas('preferredDay', d[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
-                                                x-text="d[0]"></button>
-                                    </template>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="t in [['Morning','Morning (8am - 12pm)'],['Afternoon','Afternoon (12pm - 5pm)'],['Evening','Evening (5pm - 8pm)']]" :key="t[1]">
-                                        <button type="button" @click="togglePref('preferredTime', t[1])"
-                                                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-                                                :class="prefHas('preferredTime', t[1]) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
-                                                x-text="t[0]"></button>
-                                    </template>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Contact Method</label>
-                                <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
-                                    <button type="button" @click="preferredContactMethod = 'phone'" class="px-4 py-1.5 transition-colors" :class="preferredContactMethod === 'phone' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Text / Call</button>
-                                    <button type="button" @click="preferredContactMethod = 'email'" class="px-4 py-1.5 border-l border-gray-300 transition-colors" :class="preferredContactMethod === 'email' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Email</button>
-                                </div>
-                            </div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Contact Method</label>
+                        <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+                            <button type="button" @click="preferredContactMethod = 'phone'" class="px-4 py-1.5 transition-colors" :class="preferredContactMethod === 'phone' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Text / Call</button>
+                            <button type="button" @click="preferredContactMethod = 'email'" class="px-4 py-1.5 border-l border-gray-300 transition-colors" :class="preferredContactMethod === 'email' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">Email</button>
                         </div>
                     </div>
 
@@ -156,6 +129,7 @@
                             <span class="text-sm text-gray-700">
                                 I confirm the quoted amount:
                                 <span class="block font-semibold text-lg text-gray-900" x-text="inquiry?.quoted_price ? '$' + money(inquiry.quoted_price) : '—'"></span>
+                                <span x-show="forLabel()" x-cloak class="block text-xs text-gray-500">For: <span class="font-medium text-gray-700" x-text="forLabel()"></span></span>
                             </span>
                         </label>
 

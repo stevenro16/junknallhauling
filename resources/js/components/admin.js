@@ -236,6 +236,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     detailRequests: cfg.detailRequests || [], // customer "request details" links
     detailReq: { url: '', loading: false, error: '', copied: false }, // active link + ui state
     detailSubmission: null, // the customer's submitted details (signature + confirm flags), for review
+    lightboxPhoto: '',      // full-screen photo viewer (customer photos)
     history: cfg.history || [],
     saving: false,
     baseline: '', // JSON snapshot of the saved form, for dirty detection
@@ -563,6 +564,24 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
                 : !!this.serviceType),
             visit: this.hasConfirmedSlot && this.assignedEmployeeIds.length > 0,   // unassigned ⇒ not complete
             payment: !!(this.quotedPrice !== '' && this.quotedPrice != null && (this.paymentMethod && (this.paymentMethod !== 'Other' || this.paymentMethodOther.trim()))),
+        };
+    },
+    // Condensed one-line summaries shown in a section header while it's collapsed.
+    get sectionSummary() {
+        const join = (parts) => parts.map((p) => (p == null ? '' : String(p).trim())).filter(Boolean).join(' · ');
+        const price = (this.quotedPrice !== '' && this.quotedPrice != null) ? '$' + Number(this.quotedPrice).toLocaleString() : '';
+        const duration = this.expectedDurationValue ? `${this.expectedDurationValue} ${this.expectedDurationUnit}` : '';
+        // Equipment rentals: include the scheduled pickup date/time when set.
+        let pickup = '';
+        if (this.isEquipment && this.datePart(this.pickupDateTime) && this.timePart(this.pickupDateTime)) {
+            const pd = new Date(this.pickupDateTime);
+            if (!isNaN(pd.getTime())) pickup = 'Pickup: ' + pd.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+        return {
+            customer: join([this.fullName || '(no name)', this.phone, this.email]),
+            job: join([this.isEquipment ? (this.equipmentType || 'Equipment rental') : this.getServiceLabel(this.serviceType), this.address]),
+            visit: join([this.visitWhenLabel || 'Not scheduled', duration, this.employeeNames(this.assignedEmployeeIds), pickup]),
+            payment: join([price || 'No price set', this.paymentMethod === 'Other' ? this.paymentMethodOther : this.paymentMethod]),
         };
     },
     scrollToSection(id) {
@@ -1135,24 +1154,47 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         if (t.length === 2) return Object.values(US_STATE_ABBR).includes(t.toUpperCase());
         return !!US_STATE_ABBR[t];
     },
-    // On exit of the Street field: if it holds a full "street, city, state zip"
-    // string (e.g. pasted or auto-filled), split it into the right fields.
+    // Split a full address held in the Street field into the right fields. Handles
+    // comma-separated ("123 Main St, Yucaipa, CA 92399") and space/period-separated
+    // ("31610 Florida St. Redlands Ca. 92373"). A plain street is left untouched.
     parseStreetAddress() {
         let raw = (this.addressStreet || '').trim();
-        if (!raw.includes(',')) return;                          // a plain street — leave it
-        raw = raw.replace(/,?\s*(United States|USA)\s*$/i, '').trim();
-        const segs = raw.split(',').map((s) => s.trim()).filter(Boolean);
-        if (segs.length < 2) return;
-        const street = segs.shift();
-        // Peel a trailing "state zip" segment when present.
-        let region = '';
-        const last = segs[segs.length - 1] || '';
-        if (/\d{5}/.test(last) || this._looksLikeState(last)) region = segs.pop();
-        const city = segs.join(', ');
-        const zip = (region.match(/\b(\d{5})(?:-\d{4})?\b/) || [])[1] || '';
-        const state = this._stateAbbr(region.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim());
+        if (!raw) return;
+        raw = raw.replace(/,?\s*(United States|USA)\.?\s*$/i, '').trim();
 
-        this.addressStreet = street;
+        // Peel a trailing ZIP.
+        let zip = '';
+        const zm = raw.match(/(\d{5})(?:-\d{4})?\s*$/);
+        if (zm) { zip = zm[1]; raw = raw.slice(0, zm.index); }
+        raw = raw.replace(/[,\s]+$/, '').trim();
+
+        if (raw.includes(',')) {
+            // Comma-separated: street, city[, …], state.
+            const segs = raw.split(',').map((s) => s.trim()).filter(Boolean);
+            let state = '';
+            if (segs.length && this._looksLikeState(segs[segs.length - 1])) state = this._stateAbbr(segs.pop().replace(/\.$/, ''));
+            const street = segs.shift() || '';
+            const city = segs.join(', ');
+            if (street) this.addressStreet = street;
+            if (city) this.addressCity = city;
+            if (state) this.addressState = state;
+            if (zip) this.customerZip = zip;
+            return;
+        }
+
+        // No commas: peel a trailing state, then treat the last word as the city —
+        // but only when there's a ZIP or state (so a plain street isn't mis-split).
+        const tokens = raw.split(/\s+/).filter(Boolean);
+        let state = '';
+        if (tokens.length >= 2 && this._looksLikeState((tokens[tokens.length - 2] + ' ' + tokens[tokens.length - 1]).replace(/\.$/, ''))) {
+            state = this._stateAbbr((tokens.splice(-2, 2).join(' ')).replace(/\.$/, ''));
+        } else if (tokens.length && this._looksLikeState(tokens[tokens.length - 1].replace(/\.$/, ''))) {
+            state = this._stateAbbr(tokens.pop().replace(/\.$/, ''));
+        }
+        let city = '';
+        if ((zip || state) && tokens.length >= 2) city = tokens.pop().replace(/\.$/, '');
+        const street = tokens.join(' ');
+        if (street) this.addressStreet = street;
         if (city) this.addressCity = city;
         if (state) this.addressState = state;
         if (zip) this.customerZip = zip;
@@ -1201,6 +1243,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
 
     // equipment pickup date/time split-field setters
     setPickupDate(v) { const t = this.timePart(this.pickupDateTime); this.pickupDateTime = v ? `${v}T${t}` : ''; },
+    // Nudge the pickup date a day at a time (defaults to today when unset).
+    stepPickupDate(dir) {
+        const cur = this.datePart(this.pickupDateTime);
+        const d = cur ? new Date(cur + 'T00:00') : new Date();
+        d.setDate(d.getDate() + dir);
+        const p = (n) => String(n).padStart(2, '0');
+        this.setPickupDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+    },
     setPickupTime(v) { const d = this.datePart(this.pickupDateTime); if (!v) { this.pickupDateTime = d ? `${d}T` : ''; return; } this.pickupDateTime = d ? `${d}T${v}` : v; },
 
     // Pickup the customer requested on the agreement, only worth surfacing when we haven't scheduled one.
