@@ -556,9 +556,9 @@
                             <button type="button" @click="openInGoogleMaps()" :disabled="!address.trim()" class="btn-outline !px-3 !py-2" title="Open in Google Maps"><x-icon name="map" class="w-4 h-4"/></button>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                            <div class="col-span-2 sm:col-span-2"><label class="block text-xs text-gray-500 mb-1">City</label><input type="text" x-model="addressCity" placeholder="Yucaipa" class="input-light text-sm py-2 w-full"></div>
+                            <div class="col-span-2 sm:col-span-2"><label class="block text-xs text-gray-500 mb-1">City</label><input type="text" x-model="addressCity" placeholder="City" class="input-light text-sm py-2 w-full"></div>
                             <div><label class="block text-xs text-gray-500 mb-1">State</label><input type="text" x-model="addressState" placeholder="CA" class="input-light text-sm py-2 w-full"></div>
-                            <div><label class="block text-xs text-gray-500 mb-1">Zip</label><input type="text" x-model="customerZip" placeholder="92399" class="input-light text-sm py-2 w-full"></div>
+                            <div><label class="block text-xs text-gray-500 mb-1">Zip</label><input type="text" x-model="customerZip" placeholder="Zip code" class="input-light text-sm py-2 w-full"></div>
                         </div>
                         <template x-if="previousCustomerAddresses.length > 0">
                             <div class="mt-2">

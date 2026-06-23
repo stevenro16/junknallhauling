@@ -68,7 +68,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">City <span class="text-red-500">*</span></label>
-                                <input type="text" x-model="addressCity" class="input-dark w-full" placeholder="Yucaipa" required>
+                                <input type="text" x-model="addressCity" class="input-dark w-full" placeholder="City" required>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -77,7 +77,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Zip <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="zipCode" class="input-dark w-full" placeholder="92399" required>
+                                    <input type="text" x-model="zipCode" class="input-dark w-full" placeholder="Zip code" required>
                                 </div>
                             </div>
                         </div>
