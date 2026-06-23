@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Inquiry;
 use App\Models\QuoteDetailRequest;
 use App\Services\GeocodeService;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +46,9 @@ class QuoteDetailController extends Controller
                 'phone' => $inquiry->phone,           // shown read-only — cannot be changed
                 'email' => $inquiry->email,
                 'address' => $inquiry->address,
+                'address_street' => $inquiry->address_street,
+                'address_city' => $inquiry->address_city,
+                'address_state' => $inquiry->address_state ?: 'CA',
                 'zip_code' => $inquiry->zip_code,
                 'preferred_contact_method' => $inquiry->preferred_contact_method,
                 'preferred_day' => $inquiry->preferred_day,
@@ -74,8 +78,10 @@ class QuoteDetailController extends Controller
         if (($form['confirm_datetime'] ?? false) !== true || ($form['confirm_amount'] ?? false) !== true) {
             return response()->json(['error' => 'Please confirm the scheduled date/time and the quoted amount.'], 422);
         }
-        if (trim((string) ($form['name'] ?? '')) === '' || trim((string) ($form['address'] ?? '')) === '') {
-            return response()->json(['error' => 'Name and address are required.'], 422);
+        if (trim((string) ($form['name'] ?? '')) === ''
+            || trim((string) ($form['address_street'] ?? '')) === ''
+            || trim((string) ($form['address_city'] ?? '')) === '') {
+            return response()->json(['error' => 'Name, street and city are required.'], 422);
         }
 
         $req = QuoteDetailRequest::where('token', $token)->first();
@@ -95,17 +101,33 @@ class QuoteDetailController extends Controller
         }
 
         // Update the quote from the customer's submission — never the phone number.
+        $street = trim((string) ($form['address_street'] ?? ''));
+        $city = trim((string) ($form['address_city'] ?? ''));
+        $state = trim((string) ($form['address_state'] ?? '')) ?: 'CA';
+        $zip = trim((string) ($form['zip_code'] ?? ''));
+
         $updates = [
             'name' => trim((string) $form['name']),
             'email' => trim((string) ($form['email'] ?? '')),
-            'address' => trim((string) $form['address']),
-            'zip_code' => trim((string) ($form['zip_code'] ?? '')),
+            'address_street' => $street,
+            'address_city' => $city,
+            'address_state' => $state,
+            'zip_code' => $zip,
+            'address' => Inquiry::composeAddress($street, $city, $state, $zip),
             'preferred_contact_method' => in_array(($form['preferred_contact_method'] ?? ''), ['phone', 'email'], true)
                 ? $form['preferred_contact_method'] : $inquiry->preferred_contact_method,
             'preferred_day' => trim((string) ($form['preferred_day'] ?? '')) ?: null,
             'preferred_time' => trim((string) ($form['preferred_time'] ?? '')) ?: null,
             'status' => 'finalize_scheduling',
         ];
+
+        // Up to 2 customer photos (image data URLs, ≤5MB each ≈ 7MB base64).
+        $photos = array_values(array_filter((array) ($form['photos'] ?? []), function ($p) {
+            return is_string($p) && preg_match('#^data:image/[a-z.+-]+;base64,#i', $p) && strlen($p) <= 7_500_000;
+        }));
+        if ($photos) {
+            $updates['photos'] = array_slice($photos, 0, 2);
+        }
 
         $coords = $this->geocoder->geocode($updates['address']);
         if ($coords) {

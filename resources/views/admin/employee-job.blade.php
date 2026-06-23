@@ -90,6 +90,16 @@
                     <dd><a href="data:{{ $inquiry->photo_mime }};base64,{{ $inquiry->photo_base64 }}" target="_blank" rel="noopener"><img src="data:{{ $inquiry->photo_mime }};base64,{{ $inquiry->photo_base64 }}" alt="Customer-provided photo" class="max-h-64 rounded-lg border border-gray-200"></a></dd>
                 </div>
             @endif
+            @if(! empty($inquiry->photos))
+                <div class="py-2.5">
+                    <dt class="text-gray-500 mb-1">Customer Photos</dt>
+                    <dd class="flex flex-wrap gap-2">
+                        @foreach($inquiry->photos as $p)
+                            <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="Customer photo" class="max-h-40 rounded-lg border border-gray-200"></a>
+                        @endforeach
+                    </dd>
+                </div>
+            @endif
         </dl>
     </div>
 
@@ -135,7 +145,7 @@
     <div class="mt-4 card-light p-5">
         <div class="text-sm font-semibold text-gray-800 mb-3">Visit Log</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            @foreach(['arrival' => ['Arrival', $inquiry->arrived_at], 'departure' => ['Departure', $inquiry->departed_at]] as $which => $info)
+            @foreach(['arrival' => ['Arrival', $inquiry->arrived_at, $inquiry->arrival_photos ?? []], 'departure' => ['Departure', $inquiry->departed_at, $inquiry->departure_photos ?? []]] as $which => $info)
                 <div class="rounded-lg border border-gray-200 p-3">
                     <div class="text-xs uppercase tracking-wide text-gray-500">{{ $info[0] }}</div>
                     @if($info[1])
@@ -149,6 +159,30 @@
                             @csrf<button type="submit" class="w-full btn-outline py-2 text-sm">Record {{ strtolower($info[0]) }}</button>
                         </form>
                     @endif
+
+                    {{-- Photos for this stamp (capture or upload, multiple) --}}
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        @if(count($info[2]))
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                @foreach($info[2] as $idx => $p)
+                                    <div class="relative">
+                                        <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="{{ $info[0] }} photo" class="w-16 h-16 object-cover rounded border border-gray-200"></a>
+                                        <form method="POST" action="{{ route($routeBase.'.photo-remove', [$inquiry->id, $which]) }}" class="absolute -top-1.5 -right-1.5">
+                                            @csrf<input type="hidden" name="index" value="{{ $idx }}">
+                                            <button type="submit" class="w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white leading-none shadow hover:bg-red-600" title="Remove photo">&times;</button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                        <form method="POST" enctype="multipart/form-data" action="{{ route($routeBase.'.photo', [$inquiry->id, $which]) }}">
+                            @csrf
+                            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 cursor-pointer">
+                                <x-icon name="upload" class="w-3.5 h-3.5"/> Add photo
+                                <input type="file" name="photos[]" accept="image/*" capture="environment" multiple class="hidden" onchange="this.form.submit()">
+                            </label>
+                        </form>
+                    </div>
                 </div>
             @endforeach
         </div>

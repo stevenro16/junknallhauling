@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin;
 use App\Models\Inquiry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -124,6 +125,28 @@ class FieldViewTest extends TestCase
             ->assertJsonPath('payment_link.amount', 200);
 
         $this->assertEquals(200, $inq->fresh()->quoted_price);
+    }
+
+    public function test_field_view_captures_and_removes_arrival_photos(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();
+
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/photo/arrival", [
+            'photos' => [
+                UploadedFile::fake()->image('a.jpg'),
+                UploadedFile::fake()->image('b.jpg'),
+            ],
+        ])->assertRedirect(route('admin.field.job', $inq->id));
+
+        $this->assertCount(2, $inq->fresh()->arrival_photos);
+        $this->assertStringStartsWith('data:image/', $inq->fresh()->arrival_photos[0]);
+
+        // Remove the first one.
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/photo/arrival/remove", ['index' => 0])
+            ->assertRedirect(route('admin.field.job', $inq->id));
+        $this->assertCount(1, $inq->fresh()->arrival_photos);
+        $this->assertEmpty($inq->fresh()->departure_photos ?? []);
     }
 
     public function test_field_payment_requires_a_method(): void

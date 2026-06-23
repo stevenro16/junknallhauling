@@ -69,6 +69,10 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/my-schedule/job/{id}/status', [EmployeeCalendarController::class, 'updateStatus'])->name('my-schedule.status');
         Route::post('/my-schedule/job/{id}/time/{which}', [EmployeeCalendarController::class, 'recordTime'])
             ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.time');
+        Route::post('/my-schedule/job/{id}/photo/{which}', [EmployeeCalendarController::class, 'recordPhoto'])
+            ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.photo');
+        Route::post('/my-schedule/job/{id}/photo/{which}/remove', [EmployeeCalendarController::class, 'removePhoto'])
+            ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.photo-remove');
         Route::post('/my-schedule/job/{id}/sign', [EmployeeCalendarController::class, 'sign'])->name('my-schedule.sign');
         Route::post('/my-schedule/job/{id}/eta', [EmployeeCalendarController::class, 'eta'])->name('my-schedule.eta');
         Route::post('/my-schedule/job/{id}/comment', [EmployeeCalendarController::class, 'addComment'])->name('my-schedule.comment');
@@ -83,6 +87,10 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::post('/field/job/{id}/status', [FieldViewController::class, 'updateStatus'])->name('field.status');
             Route::post('/field/job/{id}/time/{which}', [FieldViewController::class, 'recordTime'])
                 ->whereIn('which', ['arrival', 'departure'])->name('field.time');
+            Route::post('/field/job/{id}/photo/{which}', [FieldViewController::class, 'recordPhoto'])
+                ->whereIn('which', ['arrival', 'departure'])->name('field.photo');
+            Route::post('/field/job/{id}/photo/{which}/remove', [FieldViewController::class, 'removePhoto'])
+                ->whereIn('which', ['arrival', 'departure'])->name('field.photo-remove');
             Route::post('/field/job/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
             Route::post('/field/job/{id}/eta', [FieldViewController::class, 'eta'])->name('field.eta');
             Route::post('/field/job/{id}/payment', [FieldViewController::class, 'recordPayment'])->name('field.payment');

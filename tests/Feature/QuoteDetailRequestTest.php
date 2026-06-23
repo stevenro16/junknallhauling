@@ -67,10 +67,11 @@ class QuoteDetailRequestTest extends TestCase
         $this->postJson("/api/quote-details/{$token}", [
             'form_data' => [
                 'name' => 'Jane Customer', 'email' => 'new@example.com',
-                'address' => '123 Main St, Yucaipa, CA', 'zip_code' => '92399',
+                'address_street' => '123 Main St', 'address_city' => 'Yucaipa', 'zip_code' => '92399',
                 'preferred_day' => 'Monday', 'preferred_time' => 'Morning (8am - 12pm)',
                 'preferred_contact_method' => 'email',
                 'confirm_datetime' => true, 'confirm_amount' => true,
+                'photos' => ['data:image/jpeg;base64,/9j/abc', 'not-an-image', 'data:image/png;base64,iVBORw0KGgo='],
             ],
             'signature_base64' => 'data:image/png;base64,iVBORw0KGgo=',
         ])->assertOk()->assertJsonPath('success', true);
@@ -79,9 +80,14 @@ class QuoteDetailRequestTest extends TestCase
         $this->assertSame('finalize_scheduling', $fresh->status);
         $this->assertSame('Jane Customer', $fresh->name);
         $this->assertSame('new@example.com', $fresh->email);
-        $this->assertSame('123 Main St, Yucaipa, CA', $fresh->address);
+        $this->assertSame('123 Main St', $fresh->address_street);
+        $this->assertSame('Yucaipa', $fresh->address_city);
+        $this->assertSame('CA', $fresh->address_state);            // defaults to CA
+        $this->assertSame('123 Main St, Yucaipa, CA 92399', $fresh->address);   // composed
         $this->assertSame('9095550000', $fresh->phone);   // phone never changes
         $this->assertSame('Monday', $fresh->preferred_day);
+        $this->assertCount(2, $fresh->photos);             // only valid image data URLs kept
+        $this->assertSame('data:image/jpeg;base64,/9j/abc', $fresh->photos[0]);
     }
 
     public function test_submit_requires_signature_and_both_confirmations(): void
@@ -107,12 +113,27 @@ class QuoteDetailRequestTest extends TestCase
         $token = $this->makeToken($inq);
 
         $payload = [
-            'form_data' => ['name' => 'Jane', 'address' => '123 Main St', 'confirm_datetime' => true, 'confirm_amount' => true],
+            'form_data' => ['name' => 'Jane', 'address_street' => '123 Main St', 'address_city' => 'Yucaipa', 'confirm_datetime' => true, 'confirm_amount' => true],
             'signature_base64' => 'data:image/png;base64,iVBORw0KGgo=',
         ];
 
         $this->postJson("/api/quote-details/{$token}", $payload)->assertOk();
         $this->postJson("/api/quote-details/{$token}", $payload)->assertStatus(410);
+    }
+
+    public function test_admin_update_stores_address_parts_and_composed_address(): void
+    {
+        $inq = $this->inquiry();
+
+        $this->adminSession()->patchJson("/admin/api/inquiries/{$inq->id}", [
+            'address_street' => '456 Oak Ave', 'address_city' => 'Redlands', 'address_state' => 'CA',
+            'address' => '456 Oak Ave, Redlands, CA 92373', 'zip_code' => '92373',
+        ])->assertOk();
+
+        $fresh = $inq->fresh();
+        $this->assertSame('456 Oak Ave', $fresh->address_street);
+        $this->assertSame('Redlands', $fresh->address_city);
+        $this->assertSame('456 Oak Ave, Redlands, CA 92373', $fresh->address);
     }
 
     /** Mint a usable link for an inquiry via the admin endpoint and return its token. */

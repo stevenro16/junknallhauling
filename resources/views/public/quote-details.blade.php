@@ -50,8 +50,8 @@
                                 <input type="text" x-model="firstName" class="input-dark w-full" required>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                <input type="text" x-model="lastName" class="input-dark w-full">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="lastName" class="input-dark w-full" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
@@ -63,12 +63,22 @@
                                 <input type="email" x-model="email" class="input-dark w-full" placeholder="you@example.com">
                             </div>
                             <div class="md:col-span-2" x-ref="addressField" :class="invalidField === 'addressField' && 'ring-2 ring-red-400 rounded-lg p-2 -m-2'">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Service Address <span class="text-red-500">*</span></label>
-                                <input type="text" x-model="address" class="input-dark w-full" placeholder="Street, City, State" required>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Street Address <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="addressStreet" class="input-dark w-full" placeholder="123 Main St" required>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-                                <input type="text" x-model="zipCode" class="input-dark w-full md:max-w-[180px]" placeholder="Zip">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="addressCity" class="input-dark w-full" placeholder="Yucaipa" required>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                    <input type="text" x-model="addressState" class="input-dark w-full" placeholder="CA">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Zip <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="zipCode" class="input-dark w-full" placeholder="92399" required>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -109,25 +119,47 @@
                         </div>
                     </div>
 
-                    {{-- Please confirm: scheduled date/time + quoted amount --}}
-                    <div x-ref="confirmField" class="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4" :class="invalidField === 'confirmField' && 'ring-2 ring-red-400'">
-                        <h2 class="font-semibold text-lg text-gray-800">Please Confirm</h2>
+                    {{-- Photos (optional, up to 2) --}}
+                    <div>
+                        <h2 class="font-semibold text-lg mb-1 text-gray-800">Photos <span class="text-sm font-normal text-gray-400">(optional)</span></h2>
+                        <p class="text-xs text-gray-500 mb-3">Add up to 2 photos of the items or area (5MB each) to help us prepare.</p>
+                        <div class="flex flex-wrap gap-3">
+                            <template x-for="(p, i) in photos" :key="i">
+                                <div class="relative">
+                                    <img :src="p.url" alt="Uploaded photo" class="w-24 h-24 object-cover rounded-lg border border-gray-200">
+                                    <button type="button" @click="removePhoto(i)" class="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600" title="Remove"><x-icon name="x" class="w-3.5 h-3.5"/></button>
+                                </div>
+                            </template>
+                            <label x-show="photos.length < 2" class="w-24 h-24 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 cursor-pointer hover:border-amber-400 hover:text-amber-500 transition-colors">
+                                <x-icon name="upload" class="w-5 h-5"/>
+                                <span class="text-[10px] font-medium">Add photo</span>
+                                <input type="file" accept="image/*" multiple class="hidden" @change="addPhotos($event)">
+                            </label>
+                        </div>
+                        <p x-show="photoError" x-text="photoError" x-cloak class="text-red-500 text-xs mt-2"></p>
+                    </div>
 
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" x-model="confirmDatetime" class="mt-1 w-4 h-4 accent-[#EAB308]">
+                    {{-- Please confirm: scheduled date/time + quoted amount (highlighted — important) --}}
+                    <div x-ref="confirmField" class="rounded-2xl border-2 border-emerald-400 bg-emerald-50 p-5 space-y-4 shadow-sm" :class="invalidField === 'confirmField' && 'ring-2 ring-red-400'">
+                        <h2 class="font-bold text-lg text-emerald-800 inline-flex items-center gap-2"><x-icon name="check-circle" class="w-5 h-5 text-emerald-600"/> Please Confirm</h2>
+
+                        <label class="flex items-start gap-3 cursor-pointer rounded-lg bg-white/70 border border-emerald-200 p-3">
+                            <input type="checkbox" x-model="confirmDatetime" class="mt-1 w-5 h-5 accent-emerald-600">
                             <span class="text-sm text-gray-700">
                                 I confirm the scheduled date &amp; time:
                                 <span class="block font-semibold text-gray-900" x-text="confirmedDateTimeLong()"></span>
                             </span>
                         </label>
 
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" x-model="confirmAmount" class="mt-1 w-4 h-4 accent-[#EAB308]">
+                        <label class="flex items-start gap-3 cursor-pointer rounded-lg bg-white/70 border border-emerald-200 p-3">
+                            <input type="checkbox" x-model="confirmAmount" class="mt-1 w-5 h-5 accent-emerald-600">
                             <span class="text-sm text-gray-700">
                                 I confirm the quoted amount:
                                 <span class="block font-semibold text-lg text-gray-900" x-text="inquiry?.quoted_price ? '$' + money(inquiry.quoted_price) : '—'"></span>
                             </span>
                         </label>
+
+                        <p class="text-xs font-medium text-emerald-800 pt-1">*Please call <a href="tel:{{ config('business.phoneRaw') }}" class="underline font-semibold">{{ config('business.phone') }}</a> if the date, time or quote are inaccurate.</p>
                     </div>
 
                     {{-- Signature --}}

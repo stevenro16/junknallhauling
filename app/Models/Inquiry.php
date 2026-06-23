@@ -33,7 +33,19 @@ class Inquiry extends Model
             'assigned_employee_ids' => 'array',
             'pickup_assigned_employee_ids' => 'array',
             'signatures' => 'array',
+            'photos' => 'array',
+            'arrival_photos' => 'array',
+            'departure_photos' => 'array',
         ];
+    }
+
+    /** Compose the full address string from its parts, e.g. "123 Main St, Yucaipa, CA 92399". */
+    public static function composeAddress(?string $street, ?string $city, ?string $state, ?string $zip): string
+    {
+        $tail = trim(implode(' ', array_filter([trim((string) $state), trim((string) $zip)])));
+        $parts = array_filter([trim((string) $street), trim((string) $city), $tail], fn ($p) => $p !== '');
+
+        return implode(', ', $parts);
     }
 
     /** Assignee ids for a visit/pickup — the JSON array, falling back to the legacy single column. */

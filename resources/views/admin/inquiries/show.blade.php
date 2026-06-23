@@ -11,6 +11,7 @@
         employees: @js($employees),
         customerPickup: @js($customerPickup),
         scheduleEvents: @js($scheduleEvents),
+        businessName: @js(config('business.name')),
         detailRequests: @js($detailRequests),
         history: @js($history),
         urls: {
@@ -228,24 +229,17 @@
                     </div>
                     <div x-show="sectionOpen('customer')" x-cloak class="flex flex-col gap-3">
 
-                    <div x-show="isEditingCustomer" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">First Name</label><input type="text" x-model="firstName" class="input-light text-sm py-1.5 w-full" placeholder="First"></div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label><input type="text" x-model="lastName" class="input-light text-sm py-1.5 w-full" placeholder="Last"></div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label>
-                            <div class="flex items-center gap-2">
-                                <input type="tel" x-model="phone" @input="saveError = ''" class="input-light text-sm py-1.5 w-full" placeholder="Phone number">
-                                <button type="button" @click="requestDetails()" :disabled="!canRequestDetails || detailReq.loading"
-                                        class="btn-outline !px-3 !py-1.5 text-sm whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        :title="canRequestDetails ? 'Generate a one-time link for the customer to confirm their details' : 'Set a visit date/time and a quoted price first'">
-                                    <span x-text="detailReq.loading ? 'Creating…' : 'Request details'"></span>
-                                </button>
-                            </div>
+                    {{-- Phone first (with the Request details action) --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label>
+                        <div class="flex items-center gap-2">
+                            <input type="tel" x-model="phone" @input="saveError = ''" class="input-light text-sm py-1.5 w-full" placeholder="Phone number">
+                            <button type="button" @click="requestDetails()" :disabled="!canRequestDetails || detailReq.loading"
+                                    class="btn-outline !px-3 !py-1.5 text-sm whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    :title="canRequestDetails ? 'Generate a one-time link for the customer to confirm their details' : 'Set a visit date/time and a quoted price first'">
+                                <span x-text="detailReq.loading ? 'Creating…' : 'Request details'"></span>
+                            </button>
                         </div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
                     </div>
 
                     {{-- Request-details link + the customer's submitted confirmation (review) --}}
@@ -288,6 +282,13 @@
                         <p x-show="detailReq.error" x-text="detailReq.error" x-cloak class="text-red-500 text-xs"></p>
                     </div>
 
+                    {{-- Name + email --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">First Name</label><input type="text" x-model="firstName" class="input-light text-sm py-1.5 w-full" placeholder="First"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label><input type="text" x-model="lastName" class="input-light text-sm py-1.5 w-full" placeholder="Last"></div>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" x-model="email" class="input-light text-sm py-1.5 w-full" placeholder="Email address"></div>
+
                     {{-- Urgency --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Urgency</label>
@@ -321,7 +322,6 @@
                                 <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="open && 'rotate-180'"/>
                             </button>
                             <div x-show="open" x-cloak class="space-y-4 px-3 pb-3 pt-3 border-t border-gray-200">
-                                <div class="sm:max-w-[180px]"><label class="block text-sm font-medium text-gray-700 mb-1">Zip Code</label><input type="text" x-model="customerZip" class="input-light text-sm py-1.5 w-full" placeholder="Zip code"></div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Day</label>
                                     <div class="flex flex-wrap gap-2">
@@ -432,6 +432,19 @@
                                     <div class="text-[10px] text-gray-500 mt-0.5">Photo — click to enlarge</div>
                                 </div>
                             </template>
+                            {{-- Customer-submitted photos (from the request-details link) --}}
+                            <template x-if="inquiry.photos && inquiry.photos.length">
+                                <div class="mt-2">
+                                    <div class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Customer photos</div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(p, i) in inquiry.photos" :key="i">
+                                            <a :href="p" target="_blank" rel="noopener" class="block overflow-hidden rounded-lg border border-gray-300 hover:border-[#F8C820] transition-colors" title="Open full size">
+                                                <img :src="p" alt="Customer photo" class="w-20 h-20 object-cover">
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                         <div>
                             <div class="text-sm font-medium text-gray-700 mb-1.5">Quote Description</div>
@@ -506,15 +519,16 @@
                         </template>
                     </div>
 
-                    {{-- Pickup address --}}
+                    {{-- Pickup address (structured: street + city / state / zip) --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Pickup Address</label>
                         <div class="flex gap-2">
                             <div class="relative flex-1" @click.outside="addrOpen = false">
-                                <input type="text" x-model="address" @input="onAddressInput()"
+                                <input type="text" x-model="addressStreet" @input="onAddressInput()"
                                        @focus="addrSuggestions.length && (addrOpen = true)"
+                                       @blur="parseStreetAddress()"
                                        @keydown.escape="addrOpen = false" autocomplete="off"
-                                       placeholder="123 Main St, Yucaipa..." class="input-light text-sm py-2 w-full">
+                                       placeholder="Street address — 123 Main St" class="input-light text-sm py-2 w-full">
                                 <div x-show="addrLoading" x-cloak class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
                                     <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/></svg>
                                 </div>
@@ -531,13 +545,18 @@
                             </div>
                             <button type="button" @click="openInGoogleMaps()" :disabled="!address.trim()" class="btn-outline !px-3 !py-2" title="Open in Google Maps"><x-icon name="map" class="w-4 h-4"/></button>
                         </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                            <div class="col-span-2 sm:col-span-2"><label class="block text-xs text-gray-500 mb-1">City</label><input type="text" x-model="addressCity" placeholder="Yucaipa" class="input-light text-sm py-2 w-full"></div>
+                            <div><label class="block text-xs text-gray-500 mb-1">State</label><input type="text" x-model="addressState" placeholder="CA" class="input-light text-sm py-2 w-full"></div>
+                            <div><label class="block text-xs text-gray-500 mb-1">Zip</label><input type="text" x-model="customerZip" placeholder="92399" class="input-light text-sm py-2 w-full"></div>
+                        </div>
                         <template x-if="previousCustomerAddresses.length > 0">
                             <div class="mt-2">
                                 <p class="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">Previous addresses</p>
                                 <div class="space-y-1">
                                     <template x-for="(inq, i) in previousCustomerAddresses" :key="i">
                                         <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors" :class="address.trim().toLowerCase() === inq.address.trim().toLowerCase() ? 'border-[#F8C820]/40 bg-[#F8C820]/5' : 'border-gray-200 bg-gray-50'">
-                                            <button type="button" @click="address = inq.address" :disabled="address.trim().toLowerCase() === inq.address.trim().toLowerCase()" class="shrink-0 w-5 h-5 flex items-center justify-center rounded-full border border-amber-400 text-amber-600 hover:bg-amber-50 disabled:opacity-30 transition-colors" title="Use this address"><x-icon name="plus" class="w-3 h-3"/></button>
+                                            <button type="button" @click="usePreviousAddress(inq)" :disabled="address.trim().toLowerCase() === inq.address.trim().toLowerCase()" class="shrink-0 w-5 h-5 flex items-center justify-center rounded-full border border-amber-400 text-amber-600 hover:bg-amber-50 disabled:opacity-30 transition-colors" title="Use this address"><x-icon name="plus" class="w-3 h-3"/></button>
                                             <span class="text-xs flex-1 truncate" :class="address.trim().toLowerCase() === inq.address.trim().toLowerCase() ? 'text-amber-700 font-medium' : 'text-gray-500'" x-text="inq.address"></span>
                                         </div>
                                     </template>

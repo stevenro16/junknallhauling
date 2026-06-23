@@ -43,20 +43,54 @@ class GeocodeService
 
                 return array_values(array_filter(array_map(function ($d) {
                     $a = $d['address'] ?? [];
-                    $line1 = trim(($a['house_number'] ?? '').' '.($a['road'] ?? ''));
+                    $street = trim(($a['house_number'] ?? '').' '.($a['road'] ?? ''));
                     $city = $a['city'] ?? $a['town'] ?? $a['village'] ?? $a['hamlet'] ?? $a['municipality'] ?? '';
-                    $region = trim(($a['state'] ?? '').' '.($a['postcode'] ?? ''));
-                    $parts = array_filter([$line1, $city, $region], fn ($p) => $p !== '');
-                    $value = $parts
+                    $state = self::stateAbbr((string) ($a['state'] ?? ''));
+                    $zip = (string) ($a['postcode'] ?? '');
+                    $parts = array_filter([$street, $city, trim($state.' '.$zip)], fn ($p) => $p !== '');
+                    $label = $parts
                         ? implode(', ', $parts)
                         : trim((string) preg_replace('/,?\s*United States$/', '', (string) ($d['display_name'] ?? '')));
 
-                    return $value === '' ? null : ['label' => $value, 'value' => $value];
+                    // Return the structured parts so the form can fill each field.
+                    return $label === '' ? null : [
+                        'label' => $label,
+                        'value' => $street !== '' ? $street : $label,   // Street field
+                        'street' => $street,
+                        'city' => (string) $city,
+                        'state' => $state,
+                        'zip' => $zip,
+                    ];
                 }, $data)));
             } catch (\Throwable) {
                 return [];
             }
         });
+    }
+
+    /** Map a full US state name to its 2-letter code (pass through if already short/unknown). */
+    private static function stateAbbr(string $state): string
+    {
+        $state = trim($state);
+        if ($state === '' || mb_strlen($state) <= 2) {
+            return strtoupper($state);
+        }
+
+        static $map = [
+            'alabama' => 'AL', 'alaska' => 'AK', 'arizona' => 'AZ', 'arkansas' => 'AR', 'california' => 'CA',
+            'colorado' => 'CO', 'connecticut' => 'CT', 'delaware' => 'DE', 'district of columbia' => 'DC',
+            'florida' => 'FL', 'georgia' => 'GA', 'hawaii' => 'HI', 'idaho' => 'ID', 'illinois' => 'IL',
+            'indiana' => 'IN', 'iowa' => 'IA', 'kansas' => 'KS', 'kentucky' => 'KY', 'louisiana' => 'LA',
+            'maine' => 'ME', 'maryland' => 'MD', 'massachusetts' => 'MA', 'michigan' => 'MI', 'minnesota' => 'MN',
+            'mississippi' => 'MS', 'missouri' => 'MO', 'montana' => 'MT', 'nebraska' => 'NE', 'nevada' => 'NV',
+            'new hampshire' => 'NH', 'new jersey' => 'NJ', 'new mexico' => 'NM', 'new york' => 'NY',
+            'north carolina' => 'NC', 'north dakota' => 'ND', 'ohio' => 'OH', 'oklahoma' => 'OK', 'oregon' => 'OR',
+            'pennsylvania' => 'PA', 'rhode island' => 'RI', 'south carolina' => 'SC', 'south dakota' => 'SD',
+            'tennessee' => 'TN', 'texas' => 'TX', 'utah' => 'UT', 'vermont' => 'VT', 'virginia' => 'VA',
+            'washington' => 'WA', 'west virginia' => 'WV', 'wisconsin' => 'WI', 'wyoming' => 'WY',
+        ];
+
+        return $map[mb_strtolower($state)] ?? $state;
     }
 
     /**

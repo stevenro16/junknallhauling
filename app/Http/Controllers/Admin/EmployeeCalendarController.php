@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\CapturesFieldPhotos;
 use App\Http\Controllers\Concerns\CapturesFieldSignature;
 use App\Http\Controllers\Concerns\EstimatesTravel;
 use App\Http\Controllers\Controller;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 
 class EmployeeCalendarController extends Controller
 {
+    use CapturesFieldPhotos;
     use CapturesFieldSignature;
     use EstimatesTravel;
 
@@ -119,6 +121,24 @@ class EmployeeCalendarController extends Controller
 
         $column = $which === 'arrival' ? 'arrived_at' : 'departed_at';
         $inquiry->update([$column => now()]);
+
+        return redirect()->route('admin.my-schedule.job', $inquiry->id)->with('jobSaved', true);
+    }
+
+    /** Add one or more photos to the arrival/departure log. */
+    public function recordPhoto(Request $request, string $id, string $which)
+    {
+        $inquiry = $this->ownedInquiry($request, $id);
+        $this->storeFieldPhotos($inquiry, $which, $request);
+
+        return redirect()->route('admin.my-schedule.job', $inquiry->id)->with('jobSaved', true);
+    }
+
+    /** Remove a photo from the arrival/departure log. */
+    public function removePhoto(Request $request, string $id, string $which)
+    {
+        $inquiry = $this->ownedInquiry($request, $id);
+        $this->removeFieldPhoto($inquiry, $which, (int) $request->input('index'));
 
         return redirect()->route('admin.my-schedule.job', $inquiry->id)->with('jobSaved', true);
     }

@@ -67,7 +67,7 @@ class InquiryController extends Controller
             // Lightweight list powering "previous customer addresses" + the
             // "pull customer info from a prior order" feature (matched on phone/email).
             'allInquiries' => Inquiry::orderByDesc('created_at')->get([
-                'id', 'ref', 'name', 'phone', 'email', 'address', 'zip_code',
+                'id', 'ref', 'name', 'phone', 'email', 'address', 'address_street', 'address_city', 'address_state', 'zip_code',
                 'preferred_contact_method', 'preferred_day', 'preferred_time', 'created_at',
             ]),
             // Confirmed visits for the in-form day-schedule panel (scheduling context).

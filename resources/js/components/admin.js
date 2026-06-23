@@ -80,6 +80,18 @@ const SERVICE_LABELS = {
     'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental',
     equipment: 'Equipment Rental', other: 'Other / Not Sure',
 };
+// Full US state name → 2-letter code (for parsing a pasted/auto-filled full address).
+const US_STATE_ABBR = {
+    alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+    connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC', florida: 'FL', georgia: 'GA',
+    hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY',
+    louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+    mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH',
+    'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND',
+    ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+    'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA',
+    washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY',
+};
 window.adminHelpers = {
     statusLabel: (s) => STATUS_LABELS[s] || 'New',
     statusClass: (s) => STATUS_CLASSES[s] || 'status-new',
@@ -220,6 +232,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     employees: cfg.employees || [], // {id, username} — for resolving the assigned-employee name
     customerPickup: cfg.customerPickup || null, // pickup the customer requested on a signed agreement
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
+    businessName: cfg.businessName || '',     // for the request-details text/email message
     detailRequests: cfg.detailRequests || [], // customer "request details" links
     detailReq: { url: '', loading: false, error: '', copied: false }, // active link + ui state
     detailSubmission: null, // the customer's submitted details (signature + confirm flags), for review
@@ -239,7 +252,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     saveError: '',      // why a save was blocked (missing required fields)
     adminNotes: '', status: 'new',
     assignedEmployeeIds: [], pickupAssignedEmployeeIds: [],
-    address: '', confirmedDateTime: '', pickupDateTime: '',
+    addressStreet: '', addressCity: '', addressState: 'CA',
+    confirmedDateTime: '', pickupDateTime: '',
     firstName: '', lastName: '',
     phone: '', email: '', preferredContactMethod: 'phone',
     urgency: 'routine',
@@ -335,7 +349,12 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.status = inq.status;
         this.assignedEmployeeIds = (inq.assigned_employee_ids && inq.assigned_employee_ids.length) ? [...inq.assigned_employee_ids] : (inq.assigned_employee_id ? [inq.assigned_employee_id] : []);
         this.pickupAssignedEmployeeIds = (inq.pickup_assigned_employee_ids && inq.pickup_assigned_employee_ids.length) ? [...inq.pickup_assigned_employee_ids] : (inq.pickup_assigned_employee_id ? [inq.pickup_assigned_employee_id] : []);
-        this.address = inq.address || '';
+        // Structured address parts. Back-compat: an old record with only a combined
+        // `address` (no parts) prefills Street so it's preserved and re-saves cleanly.
+        this.addressStreet = inq.address_street || '';
+        this.addressCity = inq.address_city || '';
+        this.addressState = inq.address_state || 'CA';
+        if (!this.addressStreet && !this.addressCity && inq.address) this.addressStreet = inq.address;
         this.confirmedDateTime = inq.confirmed_date_time || '';
         // No scheduled visit yet → pre-fill the date with the customer's next preferred
         // day (or tomorrow if none). Date only — no time, so it isn't treated/saved as a
@@ -395,6 +414,12 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     get isEquipment() { return this.jobType === 'equipment'; },
 
     get fullName() { return [this.firstName.trim(), this.lastName.trim()].filter(Boolean).join(' '); },
+
+    // Composed address from the structured parts — every `this.address` reader uses this.
+    get address() {
+        const tail = [this.addressState, this.customerZip].map((s) => (s || '').trim()).filter(Boolean).join(' ');
+        return [this.addressStreet, this.addressCity, tail].map((s) => (s || '').trim()).filter(Boolean).join(', ');
+    },
 
     // Pill toggle. Switching to Service ensures a valid catalog selection and
     // seeds the visit duration from that service's default.
@@ -474,7 +499,14 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         }
         if (m.phone && m.phone.trim()) this.phone = m.phone.trim();
         if (m.email && m.email.trim()) this.email = m.email.trim();
-        if (m.address && m.address.trim()) this.address = m.address.trim();
+        // Prefer the prior order's structured parts; fall back to its combined address.
+        if (m.address_street || m.address_city) {
+            this.addressStreet = (m.address_street || '').trim();
+            this.addressCity = (m.address_city || '').trim();
+            if (m.address_state) this.addressState = m.address_state;
+        } else if (m.address && m.address.trim()) {
+            this.addressStreet = m.address.trim();
+        }
         if (m.zip_code && String(m.zip_code).trim()) this.customerZip = String(m.zip_code).trim();
         if (m.preferred_contact_method) this.preferredContactMethod = m.preferred_contact_method;
         if (m.preferred_day && m.preferred_day.trim()) this.customerPreferredDay = m.preferred_day.trim();
@@ -525,8 +557,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // --- Mobile quick-nav: section completeness + smooth scroll -------------
     get sectionDone() {
         return {
-            customer: !!(this.fullName && this.phone && this.address && this.customerZip),
-            job: !!this.address && (this.isEquipment
+            customer: !!(this.fullName && this.phone && this.addressStreet && this.addressCity && this.customerZip),
+            job: !!(this.addressStreet && this.addressCity && this.customerZip) && (this.isEquipment
                 ? !!(this.equipmentType && this.equipmentType !== '__other__' && this.equipmentRentalDuration)
                 : !!this.serviceType),
             visit: this.hasConfirmedSlot && this.assignedEmployeeIds.length > 0,   // unassigned ⇒ not complete
@@ -563,6 +595,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Could not create the link.');
             this.detailReq.url = data.detail_request.url;
+            // Same one-tap flow as "Send ETA": open the messaging app with the link.
+            this.sendDetailLink();
         } catch (e) {
             this.detailReq.error = e.message || 'Could not create the link.';
         } finally {
@@ -577,9 +611,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             setTimeout(() => { this.detailReq.copied = false; }, 2000);
         } catch { this.detailReq.error = 'Copy failed — open the link and copy manually.'; }
     },
+    // Opens the device's messaging app with a pre-filled message (same workflow as Send ETA).
     sendDetailLink() {
         if (!this.detailReq.url) return;
-        const msg = `Hi ${this.firstName || 'there'}, please confirm your service details here: ${this.detailReq.url}`;
+        const msg = `Hi ${this.firstName || 'there'}, this is ${this.businessName}. Please confirm your service details and sign here: ${this.detailReq.url}`;
         if (this.preferredContactMethod === 'email') {
             if (!this.email) { this.detailReq.error = 'No email on file for this customer.'; return; }
             window.location.href = `mailto:${encodeURIComponent(this.email)}?subject=${encodeURIComponent('Confirm your service details')}&body=${encodeURIComponent(msg)}`;
@@ -939,7 +974,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             assigned_employee_ids: this.assignedEmployeeIds,
             service_type: isEq ? 'equipment' : (this.serviceType || null),
             admin_notes: this.adminNotes,
-            address: this.address || null,
+            address: this.address || null,   // composed from the parts below
+            address_street: this.addressStreet || null,
+            address_city: this.addressCity || null,
+            address_state: this.addressState || null,
             // Only a date+time counts as a scheduled visit — a pre-filled date alone is not saved.
             confirmed_date_time: (this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)) ? this.confirmedDateTime : null,
             // Equipment pickup (date+time + on-site duration) — only for equipment rentals.
@@ -1054,7 +1092,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // from /admin/api/address-suggest (OpenStreetMap, cached + rate-limited).
     onAddressInput() {
         clearTimeout(this._addrTimer);
-        const q = (this.address || '').trim();
+        const q = (this.addressStreet || '').trim();
         if (q.length < 3) { this.addrSuggestions = []; this.addrOpen = false; return; }
         this._addrTimer = setTimeout(() => this.fetchAddressSuggestions(q), 450);
     },
@@ -1076,9 +1114,61 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     },
 
     pickAddress(s) {
-        this.address = s.value;
+        // Parse the suggestion into the right fields (don't blank ones it didn't include).
+        this.addressStreet = s.street || s.value || '';
+        if (s.city) this.addressCity = s.city;
+        if (s.state) this.addressState = s.state;
+        if (s.zip) this.customerZip = s.zip;
         this.addrSuggestions = [];
         this.addrOpen = false;
+    },
+
+    _stateAbbr(s) {
+        s = (s || '').trim();
+        if (!s) return '';
+        if (s.length === 2) return s.toUpperCase();
+        return US_STATE_ABBR[s.toLowerCase()] || s;
+    },
+    _looksLikeState(text) {
+        const t = (text || '').replace(/\b\d{5}(?:-\d{4})?\b/, '').trim().toLowerCase();
+        if (!t) return false;
+        if (t.length === 2) return Object.values(US_STATE_ABBR).includes(t.toUpperCase());
+        return !!US_STATE_ABBR[t];
+    },
+    // On exit of the Street field: if it holds a full "street, city, state zip"
+    // string (e.g. pasted or auto-filled), split it into the right fields.
+    parseStreetAddress() {
+        let raw = (this.addressStreet || '').trim();
+        if (!raw.includes(',')) return;                          // a plain street — leave it
+        raw = raw.replace(/,?\s*(United States|USA)\s*$/i, '').trim();
+        const segs = raw.split(',').map((s) => s.trim()).filter(Boolean);
+        if (segs.length < 2) return;
+        const street = segs.shift();
+        // Peel a trailing "state zip" segment when present.
+        let region = '';
+        const last = segs[segs.length - 1] || '';
+        if (/\d{5}/.test(last) || this._looksLikeState(last)) region = segs.pop();
+        const city = segs.join(', ');
+        const zip = (region.match(/\b(\d{5})(?:-\d{4})?\b/) || [])[1] || '';
+        const state = this._stateAbbr(region.replace(/\b\d{5}(?:-\d{4})?\b/, '').trim());
+
+        this.addressStreet = street;
+        if (city) this.addressCity = city;
+        if (state) this.addressState = state;
+        if (zip) this.customerZip = zip;
+    },
+    // Apply a previous order's address (structured parts when available, else parse the combined string).
+    usePreviousAddress(inq) {
+        if (inq.address_street || inq.address_city) {
+            this.addressStreet = inq.address_street || '';
+            this.addressCity = inq.address_city || '';
+            this.addressState = inq.address_state || 'CA';
+            if (inq.zip_code) this.customerZip = String(inq.zip_code);
+        } else {
+            this.addressStreet = inq.address || '';
+            this.parseStreetAddress();   // splits it if it's a comma-separated full address
+            if (inq.zip_code && !this.customerZip) this.customerZip = String(inq.zip_code);
+        }
     },
 
     openInGoogleMaps() { if (this.address?.trim()) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.address)}`, '_blank'); },

@@ -553,9 +553,11 @@ Alpine.data('quoteDetailsForm', (token) => ({
     _canvas: null, _bigDrawn: false,
     invalidField: '', _flashT: null,
     // editable fields
-    firstName: '', lastName: '', email: '', address: '', zipCode: '',
+    firstName: '', lastName: '', email: '', zipCode: '',
+    addressStreet: '', addressCity: '', addressState: 'CA',
     preferredDay: '', preferredTime: '', preferredContactMethod: 'phone',
     confirmDatetime: false, confirmAmount: false,
+    photos: [], photoError: '',   // up to 2 customer photos (data URLs)
 
     init() {
         fetch(window.apiUrl(`/api/quote-details/${this.token}`))
@@ -569,7 +571,9 @@ Alpine.data('quoteDetailsForm', (token) => ({
                 this.firstName = (i.name || '').split(' ')[0] || '';
                 this.lastName = (i.name || '').split(' ').slice(1).join(' ') || '';
                 this.email = i.email || '';
-                this.address = i.address || '';
+                this.addressStreet = i.address_street || '';
+                this.addressCity = i.address_city || '';
+                this.addressState = i.address_state || 'CA';
                 this.zipCode = i.zip_code || '';
                 this.preferredDay = i.preferred_day || '';
                 this.preferredTime = i.preferred_time || '';
@@ -600,6 +604,22 @@ Alpine.data('quoteDetailsForm', (token) => ({
         this[field] = [...ordered, ...extras].join(', ');
     },
     prefHas(field, value) { return String(this[field] || '').split(',').map((s) => s.trim()).includes(value); },
+
+    // --- Photo upload (up to 2, 5MB each, images only) ---
+    addPhotos(event) {
+        this.photoError = '';
+        const files = Array.from(event.target.files || []);
+        for (const file of files) {
+            if (this.photos.length >= 2) { this.photoError = 'You can upload up to 2 photos.'; break; }
+            if (!file.type.startsWith('image/')) { this.photoError = 'Please upload image files only.'; continue; }
+            if (file.size > 5 * 1024 * 1024) { this.photoError = 'Each photo must be under 5MB.'; continue; }
+            const reader = new FileReader();
+            reader.onload = () => this.photos.push({ url: reader.result, name: file.name });
+            reader.readAsDataURL(file);
+        }
+        event.target.value = '';   // allow re-selecting the same file
+    },
+    removePhoto(i) { this.photos.splice(i, 1); this.photoError = ''; },
 
     // --- canvas signature (works on the inline pad or the full-screen pad) ---
     coordsOn(canvas, e) {
@@ -685,7 +705,9 @@ Alpine.data('quoteDetailsForm', (token) => ({
     },
     validate() {
         if (!this.firstName.trim()) return this.flag('nameField', 'Please enter your first name.');
-        if (!this.address.trim()) return this.flag('addressField', 'Please enter your service address.');
+        if (!this.lastName.trim()) return this.flag('nameField', 'Please enter your last name.');
+        if (!this.addressStreet.trim() || !this.addressCity.trim()) return this.flag('addressField', 'Please enter your street address and city.');
+        if (!this.zipCode.trim()) return this.flag('addressField', 'Please enter your zip code.');
         if (!this.confirmDatetime || !this.confirmAmount) return this.flag('confirmField', 'Please confirm the scheduled date/time and the quoted amount.');
         if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
         this.error = '';
@@ -705,7 +727,9 @@ Alpine.data('quoteDetailsForm', (token) => ({
                 form_data: {
                     name,
                     email: this.email.trim() || null,
-                    address: this.address.trim(),
+                    address_street: this.addressStreet.trim(),
+                    address_city: this.addressCity.trim(),
+                    address_state: (this.addressState.trim() || 'CA'),
                     zip_code: this.zipCode.trim() || null,
                     preferred_day: this.preferredDay || null,
                     preferred_time: this.preferredTime || null,
@@ -713,6 +737,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
                     confirm_datetime: true,
                     confirm_amount: true,
                     signed_name: name,
+                    photos: this.photos.map((p) => p.url),
                     inquiry_snapshot: this.inquiry,
                 },
                 signature_base64: signatureData,

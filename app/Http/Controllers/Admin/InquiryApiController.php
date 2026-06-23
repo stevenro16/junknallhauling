@@ -94,7 +94,8 @@ class InquiryApiController extends Controller
         $updates = [];
 
         $strings = [
-            'status', 'name', 'admin_notes', 'address', 'confirmed_date_time', 'pickup_date_time', 'equipment_type',
+            'status', 'name', 'admin_notes', 'address', 'address_street', 'address_city', 'address_state',
+            'confirmed_date_time', 'pickup_date_time', 'equipment_type',
             'equipment_rental_unit', 'phone', 'email', 'preferred_contact_method',
             'payment_method', 'payment_date', 'payment_notes', 'service_type',
             'zip_code', 'preferred_day', 'preferred_time', 'assigned_employee_id', 'pickup_assigned_employee_id', 'urgency',
