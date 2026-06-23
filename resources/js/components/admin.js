@@ -748,6 +748,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             return a.name.localeCompare(b.name);
         });
         if (filterIds && filterIds.length) cols = cols.filter((c) => filterIds.includes(c.id));
+        // Always show the timeline even on an empty day: seed empty lane(s) for the
+        // assigned employee(s), or a single Unassigned lane when none are assigned.
+        if (cols.length === 0) {
+            cols = (filterIds && filterIds.length)
+                ? filterIds.map((id) => ({ id, name: this.employeeName(id) || 'Employee', isUnassigned: false, hasSelf: false, rows: [] }))
+                : [{ id: '__unassigned__', name: 'Unassigned', isUnassigned: true, hasSelf: false, rows: [] }];
+        }
         return cols;
     },
     get dayScheduleColumns() { return this._assigneeColumns(this.daySchedule, this.assignedEmployeeIds); },
