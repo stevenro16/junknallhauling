@@ -1653,7 +1653,7 @@ Alpine.data('calendar', (cfg = {}) => ({
             .map((e) => {
             const start = new Date(e.confirmed_date_time);
             const end = new Date(start.getTime() + (e.expected_duration_minutes || 120) * 60000);
-            return { inquiry: e, start, end, key: start.toISOString().split('T')[0] };
+            return { inquiry: e, start, end, key: this.localKey(start) };
         });
     },
     eventsForKey(key) { return this.calendarEvents.filter((e) => e.key === key).sort((a, b) => a.start - b.start); },
@@ -1669,7 +1669,7 @@ Alpine.data('calendar', (cfg = {}) => ({
     // 2+ employees selected → split the day timeline into one column each (+ Unassigned).
     get columnMode() { return this.viewMode === 'day' && this.selectedAssignees.length > 1; },
     get dayAssigneeColumns() {
-        const key = this.currentDate.toISOString().split('T')[0];
+        const key = this.localKey(this.currentDate);
         const dayEvents = this.calendarEvents.filter((e) => e.key === key);
         const cols = this.selectedAssignees.map((id) => ({
             id, name: this.employees.find((x) => x.id === id)?.label || 'Employee', isUnassigned: false,
@@ -1734,7 +1734,7 @@ Alpine.data('calendar', (cfg = {}) => ({
     // drag/pick preview, when picking on this day) with a lane index and a column
     // count, so overlapping items get staggered side-by-side instead of stacking.
     _dayColumns() {
-        const key = this.currentDate.toISOString().split('T')[0];
+        const key = this.localKey(this.currentDate);
         const items = this.eventsForKey(key).map((e) => ({ ev: e, start: e.start, end: e.end, isPick: false }));
         if (this.pickOnThisDay) {
             const ps = new Date(this.currentDate);
@@ -1773,7 +1773,7 @@ Alpine.data('calendar', (cfg = {}) => ({
     },
 
     isToday(d) { return d && d.toDateString() === new Date().toDateString(); },
-    dayKey(d) { return d.toISOString().split('T')[0]; },
+    dayKey(d) { return this.localKey(d); },
 
     _step(dir) {
         const d = new Date(this.cur);
