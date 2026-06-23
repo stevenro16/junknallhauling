@@ -195,7 +195,7 @@
                                 <span class="text-gray-400 font-normal">{{ \Carbon\Carbon::parse($sig['signed_at'])->format('D, M j · g:i A') }}</span>
                                 <button type="button" @click="openFor('{{ $key }}', '{{ $sigLabel }}')" class="text-amber-600 hover:text-amber-700">Re-sign</button>
                             </div>
-                            <img src="{{ $sig['signature'] }}" alt="{{ $sigLabel }} signature" class="mt-1 border border-gray-200 rounded-lg bg-white max-h-28">
+                            <img src="{{ $sig['signature'] }}" alt="{{ $sigLabel }} signature" class="mt-1 border border-gray-200 rounded-lg bg-white max-h-28 max-w-full">
                         </div>
                     @endforeach
                 </div>

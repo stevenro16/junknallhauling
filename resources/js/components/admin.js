@@ -520,7 +520,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
             job: !!this.address && (this.isEquipment
                 ? !!(this.equipmentType && this.equipmentType !== '__other__' && this.equipmentRentalDuration)
                 : !!this.serviceType),
-            visit: this.hasConfirmedSlot,
+            visit: this.hasConfirmedSlot && this.assignedEmployeeIds.length > 0,   // unassigned ⇒ not complete
             payment: !!(this.quotedPrice !== '' && this.quotedPrice != null && (this.paymentMethod && (this.paymentMethod !== 'Other' || this.paymentMethodOther.trim()))),
         };
     },
@@ -2216,6 +2216,7 @@ Alpine.data('serviceSignature', (cfg = {}) => ({
     submitting: false,
     error: '',
     _canvas: null,
+    _onResize: null,
     targetStatus: 'service_performed',  // which field action this signature confirms
     targetLabel: 'Service Performed',
 
@@ -2227,20 +2228,36 @@ Alpine.data('serviceSignature', (cfg = {}) => ({
         this.open = true;
         this.error = '';
         this.hasSignature = false;
-        // Wait for the overlay to render so the canvas has its real size.
-        this.$nextTick(() => this.initPad());
+        // Keep the canvas backing store matched to its on-screen size if the device
+        // rotates or the overlay finishes laying out — a portrait buffer drawn in
+        // landscape (or vice-versa) is what squished the captured signature.
+        this._onResize = () => this.initPad();
+        window.addEventListener('resize', this._onResize);
+        window.addEventListener('orientationchange', this._onResize);
+        this.$nextTick(() => { this.initPad(); requestAnimationFrame(() => this.initPad()); });
     },
     openPad() { this.openFor('service_performed', 'Service Performed'); },
-    close() { this.open = false; },
+    close() {
+        this.open = false;
+        if (this._onResize) {
+            window.removeEventListener('resize', this._onResize);
+            window.removeEventListener('orientationchange', this._onResize);
+            this._onResize = null;
+        }
+    },
 
     initPad() {
         const c = this.$refs.canvas;
         if (!c) return;
-        // Match the backing store to the displayed size for crisp strokes.
+        // Backing store == displayed size (1:1) so strokes keep the pad's aspect ratio.
+        // Only resize on an actual change — resizing the canvas clears it.
         const r = c.getBoundingClientRect();
-        c.width = Math.round(r.width);
-        c.height = Math.round(r.height);
-        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        const w = Math.round(r.width), h = Math.round(r.height);
+        if (!w || !h || (c.width === w && c.height === h)) return;
+        c.width = w;
+        c.height = h;
+        c.getContext('2d').clearRect(0, 0, w, h);
+        this.hasSignature = false;
     },
 
     _coords(c, e) {
