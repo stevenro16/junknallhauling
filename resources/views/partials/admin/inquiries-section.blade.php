@@ -23,8 +23,28 @@
         detailBase: '{{ route('admin.inquiries.show', ['id' => '__ID__']) }}',
     })">
 
-    {{-- Workqueue cards — click to filter the list below --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
+    {{-- Mobile: compact filter cards — label + count on one line, all visible (no scroll) --}}
+    <div class="lg:hidden grid grid-cols-2 gap-2 mb-4">
+        <template x-for="p in [
+            { f: 'new', l: 'New', c: countNew, color: 'text-blue-600' },
+            { f: 'reviewing_quoted', l: 'Reviewing / Quoted', c: countReviewingQuoted, color: 'text-indigo-600' },
+            { f: 'scheduled', l: 'Scheduled', c: countScheduled, color: 'text-purple-600' },
+            { f: 'service_performed', l: 'Service Performed', c: countServicePerformed, color: 'text-teal-600' },
+            { f: 'equipment_delivered', l: 'Equipment Tracker', c: countEquipmentOut, color: 'text-cyan-600' },
+            { f: 'left_voicemail', l: 'Follow Up', c: countFollowUp, color: 'text-rose-600' },
+            { f: 'completed30', l: 'Completed (30d)', c: countCompleted30, color: 'text-green-700' },
+        ]" :key="p.f">
+            <button type="button" @click="setFilter(p.f)"
+                    class="card-light flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors"
+                    :class="filter === p.f ? 'ring-2 ring-amber-400 border-amber-400' : 'hover:border-[#EAB308]/40'">
+                <span class="text-[11px] uppercase tracking-wide text-gray-500 leading-tight min-w-0 truncate" x-text="p.l"></span>
+                <span class="text-lg font-black shrink-0" :class="p.color" x-text="p.c"></span>
+            </button>
+        </template>
+    </div>
+
+    {{-- Workqueue cards — click to filter the list below (desktop) --}}
+    <div class="hidden lg:grid lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
         <button @click="setFilter('new')" class="card-light p-4 text-left transition-colors hover:border-[#EAB308]/40" :class="filter === 'new' ? 'ring-2 ring-amber-400 border-amber-400' : ''">
             <div class="text-xs uppercase tracking-widest text-gray-500">New</div>
             <div class="text-3xl font-black text-blue-600 mt-1" x-text="countNew"></div>
