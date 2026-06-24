@@ -6,20 +6,21 @@
 @php($evStyleExpr = ($pickMode ?? false) ? "ev.style + ';pointer-events:none'" : 'ev.style')
 @php($cardData = ['evStyleExpr' => $evStyleExpr, 'linkTarget' => $linkTarget ?? '_self'])
 <div x-show="viewMode === 'day'" x-cloak class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-    {{-- Per-employee column headers (columns mode only) --}}
-    <div x-show="columnMode" x-cloak class="flex border-b border-gray-200 bg-gray-50">
-        <div class="w-16 shrink-0"></div>
-        <template x-for="col in dayAssigneeColumns" :key="col.id">
-            <div class="flex-1 min-w-0 px-2 py-2 text-center border-l border-gray-200">
-                <div class="text-xs font-semibold truncate inline-flex items-center gap-1 justify-center" :class="col.isUnassigned ? 'text-gray-400' : 'text-gray-700'">
-                    <x-icon name="user" class="w-3 h-3 shrink-0"/><span class="truncate" x-text="col.name"></span>
-                </div>
-                <div class="text-[10px] text-gray-400"><span x-text="col.events.length"></span> visit<span x-show="col.events.length !== 1">s</span></div>
-            </div>
-        </template>
-    </div>
-
     <div class="overflow-y-auto max-h-[75vh]">
+        {{-- Per-employee column headers (columns mode only). Kept inside the scroll
+             area (sticky) so they line up with the timeline columns below — outside
+             the scroll area the vertical scrollbar narrowed the body and misaligned them. --}}
+        <div x-show="columnMode" x-cloak class="sticky top-0 z-20 flex border-b border-gray-200 bg-gray-50">
+            <div class="w-16 shrink-0"></div>
+            <template x-for="col in dayAssigneeColumns" :key="col.id">
+                <div class="flex-1 min-w-0 px-2 py-2 text-center border-l border-gray-200">
+                    <div class="text-xs font-semibold truncate inline-flex items-center gap-1 justify-center" :class="col.isUnassigned ? 'text-gray-400' : 'text-gray-700'">
+                        <x-icon name="user" class="w-3 h-3 shrink-0"/><span class="truncate" x-text="col.name"></span>
+                    </div>
+                    <div class="text-[10px] text-gray-400"><span x-text="col.events.length"></span> visit<span x-show="col.events.length !== 1">s</span></div>
+                </div>
+            </template>
+        </div>
         <div class="flex h-[1088px]">
             <div class="w-16 shrink-0 grid grid-rows-[repeat(17,4rem)] bg-white border-r border-gray-200 z-10">
                 <template x-for="hour in HOURS" :key="hour">
