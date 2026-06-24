@@ -12,6 +12,7 @@
         customerPickup: @js($customerPickup),
         scheduleEvents: @js($scheduleEvents),
         businessName: @js(config('business.name')),
+        quickSchedule: @js(\App\Models\SiteContent::bool('quick_schedule')),
         detailRequests: @js($detailRequests),
         history: @js($history),
         urls: {
@@ -32,6 +33,9 @@
     <div class="sticky top-0 z-30 -mt-1 mb-4 py-2 bg-gray-100/90 backdrop-blur flex items-center justify-between gap-3">
         <a href="{{ route('admin.dashboard') }}" class="text-sm text-amber-600 hover:text-amber-700 transition-colors shrink-0">&larr; Back to list</a>
         <div class="flex items-center gap-3 min-w-0">
+            <a href="{{ route('admin.inquiries.report', $inquiry->id) }}" target="_blank" rel="noopener" class="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1.5 shrink-0" title="Open a printable detailed report (Save as PDF)">
+                <x-icon name="file-text" class="w-3.5 h-3.5"/> Detailed Report
+            </a>
             <span x-show="saveError" x-cloak class="text-xs text-red-600 font-medium text-right" x-text="saveError"></span>
             <span x-show="dirty && !saveError" x-cloak class="hidden sm:inline text-xs text-amber-600 font-medium">Unsaved changes</span>
             <button type="button" x-show="dirty" x-cloak @click="saveChanges()" :disabled="saving" class="hidden sm:inline-flex btn-primary text-sm py-2 px-5"><span x-text="saving ? 'Saving…' : 'Save Changes'"></span></button>
@@ -115,7 +119,7 @@
         {{-- Ready to complete → action anchored just above the status bar --}}
         <div x-show="readyToComplete" x-cloak class="mx-3 mb-2">
             <button type="button" @click="quickUpdateStatus('completed')" :disabled="saving" class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-2.5 text-sm transition-colors shadow-lg disabled:opacity-60">
-                <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Everything completed, Mark Completed?'"></span>
+                <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Payment collected, Mark Quote Completed?'"></span>
             </button>
         </div>
 
@@ -145,6 +149,100 @@
     </div>
 
     {{-- Finalize Scheduling: full-quote review summary + one-tap approve (top of form) --}}
+    {{-- Quick Schedule — expedited new-quote card (mobile); toggle lives in Site Content --}}
+    <div x-show="showQuickScheduleCard" x-cloak class="mb-4 rounded-2xl border-2 border-[#F8C820] bg-amber-50/50 p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="text-base font-bold text-gray-900 inline-flex items-center gap-1.5"><x-icon name="calendar" class="w-5 h-5 text-amber-500"/> Quick Schedule</div>
+            <span class="text-[10px] uppercase tracking-widest text-amber-600/80">Fast setup</span>
+        </div>
+
+        <div class="space-y-3">
+            {{-- 1. Phone --}}
+            <div>
+                <label class="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+                    <x-icon name="check-circle" class="w-4 h-4 text-emerald-500" x-show="!!phone" x-cloak/><span>1. Phone <span class="text-red-500">*</span></span>
+                </label>
+                <input type="tel" x-model="phone" @input="saveError = ''" placeholder="Phone number" class="input-light text-sm py-2 w-full">
+            </div>
+
+            {{-- 2. Visit date & time --}}
+            <div>
+                <label class="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+                    <x-icon name="check-circle" class="w-4 h-4 text-emerald-500" x-show="hasConfirmedSlot" x-cloak/><span>2. Visit date &amp; time <span class="text-red-500">*</span></span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center gap-1">
+                        <button type="button" @click="stepConfirmedDate(-1)" class="w-8 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" aria-label="Previous day"><x-icon name="chevron-left" class="w-4 h-4"/></button>
+                        <input type="date" :value="datePart(confirmedDateTime)" @change="setConfirmedDate($event.target.value)" class="input-light text-sm py-2 flex-1 min-w-0">
+                        <button type="button" @click="stepConfirmedDate(1)" class="w-8 h-9 shrink-0 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" aria-label="Next day"><x-icon name="chevron-right" class="w-4 h-4"/></button>
+                    </div>
+                    <select :value="timePart(confirmedDateTime)" @change="setConfirmedTime($event.target.value)" x-init="$nextTick(() => { $el.value = timePart(confirmedDateTime) })" class="input-light text-sm py-2">
+                        <option value="">Time…</option>
+                        <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
+                    </select>
+                </div>
+                {{-- assigned-to quick buttons --}}
+                <div class="mt-2">
+                    <div class="text-xs text-gray-500 mb-1">Assigned to</div>
+                    @include('partials.admin.assignee-picker', ['model' => 'assignedEmployeeIds'])
+                </div>
+            </div>
+
+            {{-- 3. Service / Equipment + Price --}}
+            <div>
+                <label class="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+                    <x-icon name="check-circle" class="w-4 h-4 text-emerald-500" x-show="(isEquipment ? (equipmentType && equipmentType !== '__other__') : serviceType) && quotedPrice" x-cloak/><span>3. Service / Equipment + Price <span class="text-red-500">*</span></span>
+                </label>
+                <div class="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-0.5 mb-2 text-xs">
+                    <button type="button" @click="setJobType('service')" class="px-3 py-1 rounded-md transition-colors" :class="!isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Service</button>
+                    <button type="button" @click="setJobType('equipment')" class="px-3 py-1 rounded-md transition-colors" :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Equipment</button>
+                </div>
+                <div class="space-y-2">
+                    {{-- service or equipment picker --}}
+                    <select x-show="!isEquipment" x-model="serviceType" @change="onServiceChange()" x-init="$nextTick(() => { $el.value = serviceType })" class="input-light text-sm py-2 w-full">
+                        <option value="">Service…</option>
+                        <template x-for="svc in serviceCatalog" :key="svc.id"><option :value="svc.key" x-text="svc.label"></option></template>
+                    </select>
+                    <select x-show="isEquipment" x-cloak x-model="equipmentType" @change="jobError = false; saveError = ''" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
+                        <option value="">Equipment…</option>
+                        <template x-for="opt in equipmentOptions" :key="opt.id"><option :value="opt.name" x-text="opt.name"></option></template>
+                        <option value="__other__">Other…</option>
+                    </select>
+
+                    {{-- equipment: rental qty + hours/days (drives the estimate) --}}
+                    <div x-show="isEquipment" x-cloak class="flex items-center gap-2">
+                        <input type="number" min="0" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
+                        <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-xs">
+                            <button type="button" @click="equipmentRentalUnit = 'hours'" class="px-3 py-1.5 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-white text-gray-600' : 'bg-amber-500 text-white'">Hours</button>
+                            <button type="button" @click="equipmentRentalUnit = 'days'" class="px-3 py-1.5 border-l border-gray-300 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600'">Days</button>
+                        </div>
+                    </div>
+
+                    {{-- price + one-tap estimate --}}
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1"><span class="absolute left-3 top-2.5 text-gray-500">$</span><input type="number" step="0.01" x-model="quotedPrice" placeholder="Price" class="input-light text-sm py-2 pl-7 w-full"></div>
+                        <button type="button" x-show="isEquipment && currentCatalogInitialQuote !== null" x-cloak @click="copyToQuotedPrice(currentCatalogInitialQuote)"
+                                class="shrink-0 inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 px-2.5 py-2 text-xs font-semibold hover:bg-emerald-100" title="Use the calculated price">
+                            Use ≈ $<span x-text="money(currentCatalogInitialQuote)"></span>
+                        </button>
+                        <button type="button" x-show="!isEquipment && selectedServicePrice !== null" x-cloak @click="copyToQuotedPrice(selectedServicePrice)"
+                                class="shrink-0 inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 px-2.5 py-2 text-xs font-semibold hover:bg-emerald-100" title="Use the catalog price">
+                            Use $<span x-text="money(selectedServicePrice)"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Request Details when everything's in --}}
+            <button type="button" @click="requestDetails()" :disabled="!quickScheduleReady || detailReq.loading"
+                    class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 text-sm transition-colors disabled:bg-gray-300 disabled:text-gray-500">
+                <x-icon name="send" class="w-4 h-4"/> <span x-text="detailReq.loading ? 'Creating…' : 'Request Details from Customer'"></span>
+            </button>
+            <p x-show="!quickScheduleReady" x-cloak class="text-[11px] text-gray-500 text-center -mt-1">Add phone, visit date/time, and service + price to send the request.</p>
+            <p x-show="detailReq.error" x-text="detailReq.error" x-cloak class="text-red-500 text-xs text-center"></p>
+        </div>
+    </div>
+
     <div x-show="status === 'finalize_scheduling'" x-cloak class="mb-5 rounded-2xl border-2 border-pink-300 bg-pink-50/50 p-5">
         <div class="flex items-start justify-between gap-3 mb-3">
             <div>
@@ -206,9 +304,20 @@
             </div>
         </template>
 
+        {{-- Adjust the visit duration after reviewing the photos --}}
+        <div class="mt-4">
+            <div class="text-xs text-gray-500 mb-1">Visit duration <span class="text-gray-400">— employee's time on site</span></div>
+            <div class="flex items-center gap-2 max-w-xs">
+                <button type="button" @click="stepDuration(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">&minus;</button>
+                <input type="number" x-model="expectedDurationValue" class="input-light text-sm py-2 flex-1 min-w-0 text-center px-1" placeholder="—">
+                <select x-model="expectedDurationUnit" class="input-light text-sm py-2 w-20 px-1 shrink-0"><option value="hours">hrs</option><option value="days">days</option></select>
+                <button type="button" @click="stepDuration(1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-base font-medium shrink-0">+</button>
+            </div>
+        </div>
+
         <div class="mt-4 flex justify-end">
             <button type="button" @click="quickUpdateStatus('scheduled')" :disabled="saving" class="btn-primary py-2.5 px-5 inline-flex items-center gap-2 disabled:opacity-60">
-                <x-icon name="check" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'All Good, move to Scheduled'"></span>
+                <x-icon name="check" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : (durationChanged ? 'Update Duration and Schedule' : 'All Good, move to Scheduled')"></span>
             </button>
         </div>
     </div>
@@ -936,7 +1045,7 @@
     {{-- Payment received + arrival/departure documented → one-tap complete (desktop; mobile is anchored above the status bar) --}}
     <div x-show="readyToComplete && !isMobile" x-cloak class="mt-5">
         <button type="button" @click="quickUpdateStatus('completed')" :disabled="saving" class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-2.5 text-sm transition-colors disabled:opacity-60">
-            <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Everything completed, Mark Completed?'"></span>
+            <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Payment collected, Mark Quote Completed?'"></span>
         </button>
     </div>
 

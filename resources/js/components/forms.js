@@ -579,7 +579,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
     addressStreet: '', addressCity: '', addressState: 'CA',
     preferredDay: '', preferredTime: '', preferredContactMethod: 'phone',
     confirmDatetime: false, confirmAmount: false,
-    photos: [], photoError: '',   // up to 2 customer photos (data URLs)
+    photos: [], photoError: '', _pendingPhotos: 0,   // up to 2 customer photos (JPEG data URLs)
     needsAgreement: false,        // equipment rental with no signed agreement on file
 
     init() {
@@ -640,19 +640,46 @@ Alpine.data('quoteDetailsForm', (token) => ({
     },
     prefHas(field, value) { return String(this[field] || '').split(',').map((s) => s.trim()).includes(value); },
 
-    // --- Photo upload (up to 2, 5MB each, images only) ---
+    // --- Photo upload (up to 2; resized + re-encoded to JPEG so they always load) ---
     addPhotos(event) {
         this.photoError = '';
         const files = Array.from(event.target.files || []);
         for (const file of files) {
-            if (this.photos.length >= 2) { this.photoError = 'You can upload up to 2 photos.'; break; }
-            if (!file.type.startsWith('image/')) { this.photoError = 'Please upload image files only.'; continue; }
-            if (file.size > 5 * 1024 * 1024) { this.photoError = 'Each photo must be under 5MB.'; continue; }
-            const reader = new FileReader();
-            reader.onload = () => this.photos.push({ url: reader.result, name: file.name });
-            reader.readAsDataURL(file);
+            if (this.photos.length + this._pendingPhotos >= 2) { this.photoError = 'You can attach up to 2 photos — remove one to add another.'; break; }
+            if (!file.type.startsWith('image/')) { this.photoError = `"${file.name}" isn't an image. Please choose a photo (JPG or PNG).`; continue; }
+            if (file.size > 15 * 1024 * 1024) { this.photoError = `"${file.name}" is ${(file.size / 1048576).toFixed(1)}MB — please choose a photo under 15MB.`; continue; }
+            this._processPhoto(file);
         }
         event.target.value = '';   // allow re-selecting the same file
+    },
+    _processPhoto(file) {
+        this._pendingPhotos++;
+        const done = () => { this._pendingPhotos = Math.max(0, this._pendingPhotos - 1); };
+        const reader = new FileReader();
+        reader.onerror = () => { done(); this.photoError = `Couldn't read "${file.name}". Please try a different photo.`; };
+        reader.onload = () => {
+            const img = new Image();
+            // If the browser can't decode it (e.g. an iPhone HEIC photo on a non-Apple browser), say so clearly.
+            img.onerror = () => { done(); this.photoError = `"${file.name}" couldn't be opened. If it's an iPhone HEIC photo, set your camera to "Most Compatible" (JPEG) or upload a screenshot of it instead.`; };
+            img.onload = () => {
+                done();
+                try {
+                    const max = 1600;
+                    let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                    if (!w || !h) throw new Error('empty');
+                    if (w > max || h > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const url = canvas.toDataURL('image/jpeg', 0.82);
+                    if (this.photos.length < 2) this.photos.push({ url, name: file.name });
+                } catch (e) {
+                    this.photoError = `Couldn't process "${file.name}". Please try a different photo.`;
+                }
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
     },
     removePhoto(i) { this.photos.splice(i, 1); this.photoError = ''; },
 

@@ -86,6 +86,23 @@ class InquiryController extends Controller
         ]);
     }
 
+    /** Print-friendly "Detailed Report" for a quote (browser → Save as PDF). */
+    public function report(string $id)
+    {
+        $inquiry = Inquiry::findOrFail($id);
+
+        return view('admin.inquiries.report', [
+            'inquiry' => $inquiry,
+            'history' => $inquiry->statusHistory()->orderBy('changed_at')->get(),
+            'agreements' => $inquiry->rentalAgreements()->whereNotNull('signed_at')->orderBy('signed_at')->get(),
+            'detailRequests' => $inquiry->detailRequests()->whereNotNull('signed_at')->orderBy('signed_at')->get(),
+            'paymentLinks' => $inquiry->paymentLinks()->orderByDesc('created_at')->get(),
+            'comments' => $inquiry->comments()->orderBy('created_at')->get(),
+            'visitAssignees' => Admin::namesFor($inquiry->assigneeIds('visit')),
+            'pickupAssignees' => Admin::namesFor($inquiry->assigneeIds('pickup')),
+        ]);
+    }
+
     /** Employees + the current admin (labelled "(me)") — who a job or pickup can be assigned to. */
     public static function assignees()
     {

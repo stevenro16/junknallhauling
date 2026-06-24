@@ -99,6 +99,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             Route::post('/field/job/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
 
             Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
+            Route::get('/inquiries/{id}/report', [InquiryController::class, 'report'])->name('inquiries.report');
             Route::get('/rental-agreement/{id}', [AdminRentalAgreementController::class, 'show'])->name('rental-agreement.show');
 
             Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');

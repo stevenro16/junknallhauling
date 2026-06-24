@@ -259,6 +259,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     phone: '', email: '', preferredContactMethod: 'phone',
     urgency: 'routine',
     isEditingCustomer: true,   // customer fields are always editable (no read-only toggle)
+    quickSchedule: cfg.quickSchedule ?? true,   // Quick Schedule card on/off (Site Content setting)
     isMobile: false,
     // Per-section collapse (mobile only). Completed sections start collapsed; the
     // header stays tappable to reopen. Desktop always shows everything.
@@ -589,6 +590,12 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
+    // Has the visit duration been changed from what's saved (Final Review)?
+    get durationChanged() {
+        const saved = Number(this.inquiry.expected_duration_minutes) || 120;
+        return Number(this.expectedDurationMinutes) !== saved;
+    },
+
     // Payment received + arrival/departure documented (and not already closed) → ready to complete.
     get readyToComplete() {
         return !!(this.inquiry.arrived_at && this.inquiry.departed_at && this.paymentMethod && !['completed', 'cancelled'].includes(this.status));
@@ -601,6 +608,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     // --- Schedule the visit + optionally notify the customer ----------------
     get hasConfirmedSlot() { return !!(this.datePart(this.confirmedDateTime) && this.timePart(this.confirmedDateTime)); },
     get canSchedule() { return this.hasConfirmedSlot && ['new', 'reviewing', 'quoted', 'left_voicemail'].includes(this.status); },
+
+    // --- Quick Schedule (expedited new-quote card on mobile) ----------------
+    get showQuickScheduleCard() { return this.quickSchedule && this.isMobile && ['new', 'reviewing', 'quoted', 'left_voicemail'].includes(this.status); },
+    get quickScheduleReady() {
+        const jobOk = this.isEquipment ? (!!this.equipmentType && this.equipmentType !== '__other__') : !!this.serviceType;
+        return !!this.phone && this.canRequestDetails && jobOk;
+    },
 
     // --- "Request details" link (customer self-service confirmation form) ----
     // Needs a concrete slot + price so there's something for the customer to confirm.
@@ -2600,6 +2614,9 @@ Alpine.data('etaEstimator', (cfg = {}) => ({
         return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     },
 
+    // Pad the drive time in 5-minute steps (e.g. for a quick stop on the way).
+    padTravel(mins) { this.travelMin = Math.max(0, (Number(this.travelMin) || 0) + mins); },
+
     // Text/email the customer the arrival window via the device's messaging app,
     // then record the notification so the card collapses to "Customer notified …".
     async communicate() {
@@ -2646,6 +2663,7 @@ Alpine.data('commentThread', (cfg = {}) => ({
     customerVisible: false,
     submitting: false,
     error: '',
+    collapsed: false,   // user can collapse the notes section
 
     async submit() {
         const body = this.body.trim();

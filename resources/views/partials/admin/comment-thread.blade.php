@@ -1,8 +1,12 @@
 {{-- Threaded notes on a quote. Pass $postUrl (where to POST) and $comments (array).
      Internal by default; the author can flag a note customer-visible. --}}
 <div x-data="commentThread({ postUrl: '{{ $postUrl }}', comments: @js($comments) })">
-    <div class="text-sm font-semibold text-gray-800 mb-3">Notes &amp; Comments</div>
+    <button type="button" @click="collapsed = !collapsed" class="w-full flex items-center justify-between gap-2 text-left mb-3">
+        <span class="text-sm font-semibold text-gray-800">Notes &amp; Comments <span x-show="collapsed && comments.length" x-cloak class="text-gray-400 font-normal" x-text="'(' + comments.length + ')'"></span></span>
+        <x-icon name="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 transition-transform" ::class="!collapsed && 'rotate-180'"/>
+    </button>
 
+    <div x-show="!collapsed" x-cloak>
     {{-- Existing thread --}}
     <div class="space-y-2 mb-4">
         <template x-for="c in comments" :key="c.id">
@@ -36,4 +40,5 @@
         <p x-show="error" x-cloak class="text-xs text-red-600 mt-1" x-text="error"></p>
         <p x-show="customerVisible" x-cloak class="text-[11px] text-emerald-600 mt-1">This note will show on the customer's status page.</p>
     </div>
+    </div>{{-- /collapsible body --}}
 </div>

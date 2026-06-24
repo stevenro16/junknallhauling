@@ -79,6 +79,8 @@
                         <div class="flex items-center gap-1.5">
                             <span class="text-gray-500">Drive time:</span>
                             <input type="number" min="0" x-model.number="travelMin" class="input-light text-sm py-1 w-16 text-center"><span class="text-gray-500">min</span>
+                            <button type="button" @click="padTravel(-5)" class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-medium" title="Subtract 5 minutes">&minus;5</button>
+                            <button type="button" @click="padTravel(5)" class="w-9 h-7 flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-medium" title="Add 5 minutes for a stop">+5</button>
                         </div>
                     </div>
                     <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
@@ -240,6 +242,18 @@
                 @endif
             </div>
 
+            {{-- Scheduled pickup time (under the Equipment Picked Up button) --}}
+            @if($inquiry->status === 'equipment_delivered')
+                <p class="mt-2 text-xs text-gray-500 inline-flex items-center gap-1.5">
+                    <x-icon name="calendar" class="w-3.5 h-3.5 shrink-0"/>
+                    @if($inquiry->pickup_date_time && preg_match('/T\d{2}:\d{2}/', $inquiry->pickup_date_time))
+                        Pickup scheduled: <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($inquiry->pickup_date_time)->format('D, M j · g:i A') }}</span>
+                    @else
+                        Pickup not yet scheduled
+                    @endif
+                </p>
+            @endif
+
             {{-- Captured signatures — one per action --}}
             @if(count($signatures))
                 <div class="mt-4 space-y-3">
@@ -304,7 +318,7 @@
             @csrf
             <input type="hidden" name="status" value="completed">
             <button type="submit" class="{{ $completeBtn }}">
-                <x-icon name="check-circle" class="w-4 h-4"/> Everything completed, Mark Completed?
+                <x-icon name="check-circle" class="w-4 h-4"/> Payment collected, Mark Quote Completed?
             </button>
         </form>
         {{-- Mobile: anchored just above the bottom Schedule/Quotes toolbar --}}
@@ -313,7 +327,7 @@
                 @csrf
                 <input type="hidden" name="status" value="completed">
                 <button type="submit" class="{{ $completeBtn }} shadow-xl">
-                    <x-icon name="check-circle" class="w-4 h-4"/> Everything completed, Mark Completed?
+                    <x-icon name="check-circle" class="w-4 h-4"/> Payment collected, Mark Quote Completed?
                 </button>
             </form>
         </div>

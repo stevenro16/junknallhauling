@@ -105,6 +105,14 @@ return [
         'default' => ['calendar', 'inquiries'],
     ],
 
+    // Quick Schedule — the expedited new-quote card shown on mobile.
+    'quick_schedule' => [
+        'group' => 'Admin — Quick Schedule',
+        'label' => 'Show the Quick Schedule card on new quotes (mobile)',
+        'type' => 'boolean',
+        'default' => true,
+    ],
+
     // Order + which workqueue filter cards appear on the Quotes section
     // (keys from config/quote_filters.php). Stored as an ordered list.
     'quote_filters' => [
