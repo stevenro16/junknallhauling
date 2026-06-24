@@ -75,6 +75,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
             ->whereIn('which', ['arrival', 'departure'])->name('my-schedule.photo-remove');
         Route::post('/my-schedule/job/{id}/sign', [EmployeeCalendarController::class, 'sign'])->name('my-schedule.sign');
         Route::post('/my-schedule/job/{id}/eta', [EmployeeCalendarController::class, 'eta'])->name('my-schedule.eta');
+        Route::post('/my-schedule/job/{id}/eta-sent', [EmployeeCalendarController::class, 'etaSent'])->name('my-schedule.eta-sent');
         Route::post('/my-schedule/job/{id}/comment', [EmployeeCalendarController::class, 'addComment'])->name('my-schedule.comment');
 
         // Everything below is full-admin only.
@@ -93,6 +94,7 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
                 ->whereIn('which', ['arrival', 'departure'])->name('field.photo-remove');
             Route::post('/field/job/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
             Route::post('/field/job/{id}/eta', [FieldViewController::class, 'eta'])->name('field.eta');
+            Route::post('/field/job/{id}/eta-sent', [FieldViewController::class, 'etaSent'])->name('field.eta-sent');
             Route::post('/field/job/{id}/payment', [FieldViewController::class, 'recordPayment'])->name('field.payment');
             Route::post('/field/job/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
 

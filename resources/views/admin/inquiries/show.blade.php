@@ -112,6 +112,13 @@
             </div>
         </div>
 
+        {{-- Ready to complete → action anchored just above the status bar --}}
+        <div x-show="readyToComplete" x-cloak class="mx-3 mb-2">
+            <button type="button" @click="quickUpdateStatus('completed')" :disabled="saving" class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-2.5 text-sm transition-colors shadow-lg disabled:opacity-60">
+                <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Everything completed, Mark Completed?'"></span>
+            </button>
+        </div>
+
         {{-- bottom bar --}}
         <div class="bg-white border-t border-gray-200 p-2.5 shadow-[0_-2px_12px_rgba(0,0,0,0.12)] flex items-center gap-2">
             <button type="button" @click="showOtherActions = !showOtherActions; showStatusSheet = false; showQuickNav = false"
@@ -925,6 +932,13 @@
                 </template>
         </div>{{-- /column 3 --}}
     </div>{{-- /grid --}}
+
+    {{-- Payment received + arrival/departure documented → one-tap complete (desktop; mobile is anchored above the status bar) --}}
+    <div x-show="readyToComplete && !isMobile" x-cloak class="mt-5">
+        <button type="button" @click="quickUpdateStatus('completed')" :disabled="saving" class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-2.5 text-sm transition-colors disabled:opacity-60">
+            <x-icon name="check-circle" class="w-4 h-4"/> <span x-text="saving ? 'Saving…' : 'Everything completed, Mark Completed?'"></span>
+        </button>
+    </div>
 
     @include('partials.admin.inquiry-modals')
 </div>

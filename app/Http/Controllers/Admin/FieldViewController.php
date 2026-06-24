@@ -28,6 +28,11 @@ class FieldViewController extends Controller
         return $this->travelEstimate(Inquiry::findOrFail($id), $request);
     }
 
+    public function etaSent(Request $request, string $id)
+    {
+        return $this->recordEtaSent(Inquiry::findOrFail($id));
+    }
+
     /** Calendar of every scheduled visit + equipment pickup (admin oversight). */
     public function index()
     {
@@ -120,7 +125,7 @@ class FieldViewController extends Controller
         $inquiry = Inquiry::findOrFail($id);
 
         $column = $which === 'arrival' ? 'arrived_at' : 'departed_at';
-        $inquiry->update([$column => now()]);
+        $inquiry->update([$column => $request->boolean('clear') ? null : now()]);
 
         return redirect()->route('admin.field.job', $inquiry->id)->with('jobSaved', true);
     }

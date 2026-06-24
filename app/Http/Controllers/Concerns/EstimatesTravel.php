@@ -39,4 +39,13 @@ trait EstimatesTravel
 
         return response()->json($est);
     }
+
+    /** Record that the customer was just texted/emailed their ETA. */
+    protected function recordEtaSent(Inquiry $inquiry): JsonResponse
+    {
+        $at = now()->toISOString();
+        $inquiry->update(['eta_notified_at' => $at]);
+
+        return response()->json(['eta_notified_at' => $at]);
+    }
 }

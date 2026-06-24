@@ -589,6 +589,11 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
+    // Payment received + arrival/departure documented (and not already closed) → ready to complete.
+    get readyToComplete() {
+        return !!(this.inquiry.arrived_at && this.inquiry.departed_at && this.paymentMethod && !['completed', 'cancelled'].includes(this.status));
+    },
+
     // A section's body is visible on desktop always, and on mobile unless collapsed.
     sectionOpen(s) { return !this.isMobile || !this.collapsed[s]; },
     toggleSection(s) { if (this.isMobile) this.collapsed[s] = !this.collapsed[s]; },
@@ -2546,6 +2551,8 @@ Alpine.data('serviceSignature', (cfg = {}) => ({
 // ---------------------------------------------------------------------------
 Alpine.data('etaEstimator', (cfg = {}) => ({
     estimateUrl: cfg.estimateUrl,
+    notifyUrl: cfg.notifyUrl || '',
+    notifiedAt: cfg.notifiedAt || '',   // when the customer was last sent their ETA (persisted)
     name: cfg.name || '',
     phone: cfg.phone || '',
     email: cfg.email || '',
@@ -2593,19 +2600,39 @@ Alpine.data('etaEstimator', (cfg = {}) => ({
         return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     },
 
-    // Text/email the customer the arrival window via the device's messaging app.
-    communicate() {
+    // Text/email the customer the arrival window via the device's messaging app,
+    // then record the notification so the card collapses to "Customer notified …".
+    async communicate() {
         if (this.travelMin == null) return;
         const eta = this.etaLabel;
         const msg = `Hi ${this.name || 'there'}, this is ${this.businessName}. We're on our way — estimated arrival around ${eta} (about ${this.travelMin} min out). See you soon!`;
+        if (this.preferred === 'email' && !this.email) { this.error = 'No email on file for this customer.'; return; }
+        if (this.preferred !== 'email' && !this.phone) { this.error = 'No phone number on file for this customer.'; return; }
+
+        // Record first (best-effort) so it persists across the field reloads.
+        if (this.notifyUrl) {
+            try {
+                const res = await fetch(this.notifyUrl, { method: 'POST', headers: window.jsonHeaders(true) });
+                const d = res.ok ? await res.json() : null;
+                this.notifiedAt = (d && d.eta_notified_at) || new Date().toISOString();
+            } catch { this.notifiedAt = new Date().toISOString(); }
+        } else {
+            this.notifiedAt = new Date().toISOString();
+        }
+
         if (this.preferred === 'email') {
-            if (!this.email) { this.error = 'No email on file for this customer.'; return; }
             window.location.href = `mailto:${encodeURIComponent(this.email)}?subject=${encodeURIComponent('On our way')}&body=${encodeURIComponent(msg)}`;
         } else {
-            if (!this.phone) { this.error = 'No phone number on file for this customer.'; return; }
             window.location.href = `sms:${this.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(msg)}`;
         }
     },
+    notifiedLabel() {
+        if (!this.notifiedAt) return '';
+        const d = new Date(this.notifiedAt);
+        return isNaN(d.getTime()) ? '' : d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    },
+    // Reopen the calculate/send flow to text an updated ETA.
+    resend() { this.notifiedAt = ''; this.error = ''; },
 }));
 
 // ---------------------------------------------------------------------------

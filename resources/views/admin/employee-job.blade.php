@@ -42,6 +42,58 @@
         <div class="mt-3 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{{ session('jobError') }}</div>
     @endif
 
+    {{-- Travel & arrival (top) — drive time from the field tech's current location to the job --}}
+    @if($inquiry->address)
+        <div class="mt-4 card-light p-5" x-data="etaEstimator({
+                estimateUrl: '{{ route($routeBase.'.eta', $inquiry->id) }}',
+                notifyUrl: '{{ route($routeBase.'.eta-sent', $inquiry->id) }}',
+                notifiedAt: @js($inquiry->eta_notified_at),
+                name: @js($inquiry->name),
+                phone: @js($inquiry->phone),
+                email: @js($inquiry->email),
+                preferred: @js($inquiry->preferred_contact_method),
+                businessName: @js(config('business.name')),
+            })">
+            <div class="text-sm font-semibold text-gray-800 mb-1">Travel &amp; Arrival</div>
+
+            {{-- Collapsed: the customer has been notified --}}
+            <div x-show="notifiedAt" x-cloak class="flex flex-wrap items-center justify-between gap-2 mt-1">
+                <div class="text-sm text-emerald-700 inline-flex items-center gap-1.5">
+                    <x-icon name="check-circle" class="w-4 h-4"/> Customer notified <span class="text-gray-500" x-text="notifiedLabel()"></span>
+                </div>
+                <button type="button" @click="resend()" class="text-sm font-semibold text-amber-600 hover:text-amber-700">Resend ETA</button>
+            </div>
+
+            {{-- Active: calculate + send --}}
+            <div x-show="!notifiedAt" x-cloak>
+                <p class="text-xs text-gray-500 mb-3">Calculate drive time from where you are now, then text/email the customer your ETA.</p>
+
+                <button type="button" @click="calculate()" :disabled="loading" class="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2 disabled:opacity-50">
+                    <x-icon name="map-pin" class="w-4 h-4"/>
+                    <span x-text="loading ? 'Locating…' : (calculated ? 'Recalculate from my location' : 'Calculate drive time')"></span>
+                </button>
+
+                <div x-show="calculated" x-cloak class="mt-3 space-y-3">
+                    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                        <div><span class="text-gray-500">Distance:</span> <span class="font-medium text-gray-800" x-text="distanceMi != null ? distanceMi + ' mi' : '—'"></span></div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-gray-500">Drive time:</span>
+                            <input type="number" min="0" x-model.number="travelMin" class="input-light text-sm py-1 w-16 text-center"><span class="text-gray-500">min</span>
+                        </div>
+                    </div>
+                    <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                        Estimated arrival <span class="font-semibold" x-text="etaLabel || '—'"></span>
+                    </div>
+                    <button type="button" @click="communicate()" class="btn-primary text-sm py-2 px-4 inline-flex items-center gap-2">
+                        <x-icon name="send" class="w-4 h-4"/> Send ETA to customer
+                    </button>
+                </div>
+
+                <p x-show="error" x-cloak class="text-xs text-red-600 mt-2" x-text="error"></p>
+            </div>
+        </div>
+    @endif
+
     <div class="mt-4 card-light border-l-2 border-[#F8C820] p-5">
         <div class="flex items-start justify-between gap-3 mb-4">
             <div>
@@ -103,73 +155,44 @@
         </dl>
     </div>
 
-    {{-- Travel & arrival — drive time from the field tech's current location to the job --}}
-    @if($inquiry->address)
-        <div class="mt-4 card-light p-5" x-data="etaEstimator({
-                estimateUrl: '{{ route($routeBase.'.eta', $inquiry->id) }}',
-                name: @js($inquiry->name),
-                phone: @js($inquiry->phone),
-                email: @js($inquiry->email),
-                preferred: @js($inquiry->preferred_contact_method),
-                businessName: @js(config('business.name')),
-            })">
-            <div class="text-sm font-semibold text-gray-800 mb-1">Travel &amp; Arrival</div>
-            <p class="text-xs text-gray-500 mb-3">Calculate drive time from where you are now, then text/email the customer your ETA.</p>
-
-            <button type="button" @click="calculate()" :disabled="loading" class="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2 disabled:opacity-50">
-                <x-icon name="map-pin" class="w-4 h-4"/>
-                <span x-text="loading ? 'Locating…' : (calculated ? 'Recalculate from my location' : 'Calculate drive time')"></span>
-            </button>
-
-            <div x-show="calculated" x-cloak class="mt-3 space-y-3">
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                    <div><span class="text-gray-500">Distance:</span> <span class="font-medium text-gray-800" x-text="distanceMi != null ? distanceMi + ' mi' : '—'"></span></div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-gray-500">Drive time:</span>
-                        <input type="number" min="0" x-model.number="travelMin" class="input-light text-sm py-1 w-16 text-center"><span class="text-gray-500">min</span>
-                    </div>
-                </div>
-                <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-                    Estimated arrival <span class="font-semibold" x-text="etaLabel || '—'"></span>
-                </div>
-                <button type="button" @click="communicate()" class="btn-primary text-sm py-2 px-4 inline-flex items-center gap-2">
-                    <x-icon name="send" class="w-4 h-4"/> Send ETA to customer
-                </button>
-            </div>
-
-            <p x-show="error" x-cloak class="text-xs text-red-600 mt-2" x-text="error"></p>
-        </div>
-    @endif
-
-    {{-- Visit log: arrival & departure --}}
+    {{-- Visit log: arrival & departure (side by side, compact) --}}
     <div class="mt-4 card-light p-5">
         <div class="text-sm font-semibold text-gray-800 mb-3">Visit Log</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2">
             @foreach(['arrival' => ['Arrival', $inquiry->arrived_at, $inquiry->arrival_photos ?? []], 'departure' => ['Departure', $inquiry->departed_at, $inquiry->departure_photos ?? []]] as $which => $info)
-                <div class="rounded-lg border border-gray-200 p-3">
-                    <div class="text-xs uppercase tracking-wide text-gray-500">{{ $info[0] }}</div>
+                <div class="rounded-lg border border-gray-200 p-2.5">
+                    <div class="flex items-baseline justify-between gap-1">
+                        <span class="text-[11px] uppercase tracking-wide text-gray-500">{{ $info[0] }}</span>
+                        @if($info[1])
+                            <span class="flex items-center gap-2 shrink-0">
+                                <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}">
+                                    @csrf<button type="submit" class="text-[10px] text-amber-600 hover:text-amber-700">now</button>
+                                </form>
+                                <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}">
+                                    @csrf<input type="hidden" name="clear" value="1"><button type="submit" class="text-[10px] text-gray-400 hover:text-red-500">clear</button>
+                                </form>
+                            </span>
+                        @endif
+                    </div>
                     @if($info[1])
-                        <div class="text-gray-900 text-lg font-semibold mt-0.5">{{ $info[1]->format('g:i A') }}</div>
-                        <div class="text-[11px] text-gray-400">{{ $info[1]->format('D, M j') }}</div>
-                        <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}" class="mt-2">
-                            @csrf<button type="submit" class="text-xs text-amber-600 hover:text-amber-700">Update to now</button>
-                        </form>
+                        <div class="text-gray-900 text-base font-semibold leading-tight">{{ $info[1]->format('g:i A') }}</div>
+                        <div class="text-[10px] text-gray-400 leading-tight">{{ $info[1]->format('D, M j') }}</div>
                     @else
-                        <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}" class="mt-2">
-                            @csrf<button type="submit" class="w-full btn-outline py-2 text-sm">Record {{ strtolower($info[0]) }}</button>
+                        <form method="POST" action="{{ route($routeBase.'.time', [$inquiry->id, $which]) }}" class="mt-1">
+                            @csrf<button type="submit" class="w-full btn-outline py-1.5 text-xs">Record {{ strtolower($info[0]) }}</button>
                         </form>
                     @endif
 
                     {{-- Photos for this stamp (capture or upload, multiple) --}}
-                    <div class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="mt-2 pt-2 border-t border-gray-100">
                         @if(count($info[2]))
-                            <div class="flex flex-wrap gap-2 mb-2">
+                            <div class="flex flex-wrap gap-1.5 mb-1.5">
                                 @foreach($info[2] as $idx => $p)
                                     <div class="relative">
-                                        <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="{{ $info[0] }} photo" class="w-16 h-16 object-cover rounded border border-gray-200"></a>
+                                        <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="{{ $info[0] }} photo" class="w-12 h-12 object-cover rounded border border-gray-200"></a>
                                         <form method="POST" action="{{ route($routeBase.'.photo-remove', [$inquiry->id, $which]) }}" class="absolute -top-1.5 -right-1.5">
                                             @csrf<input type="hidden" name="index" value="{{ $idx }}">
-                                            <button type="submit" class="w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white leading-none shadow hover:bg-red-600" title="Remove photo">&times;</button>
+                                            <button type="submit" class="w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] leading-none shadow hover:bg-red-600" title="Remove photo">&times;</button>
                                         </form>
                                     </div>
                                 @endforeach
@@ -177,8 +200,8 @@
                         @endif
                         <form method="POST" enctype="multipart/form-data" action="{{ route($routeBase.'.photo', [$inquiry->id, $which]) }}">
                             @csrf
-                            <label class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 cursor-pointer">
-                                <x-icon name="upload" class="w-3.5 h-3.5"/> Add photo
+                            <label class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 hover:text-amber-700 cursor-pointer">
+                                <x-icon name="upload" class="w-3 h-3"/> Add photo
                                 <input type="file" name="photos[]" accept="image/*" capture="environment" multiple class="hidden" onchange="this.form.submit()">
                             </label>
                         </form>
@@ -271,6 +294,30 @@
     <div class="mt-4 card-light p-5">
         @include('partials.admin.comment-thread', ['postUrl' => route($routeBase.'.comment', $inquiry->id), 'comments' => $comments])
     </div>
+
+    {{-- Payment received + arrival/departure documented → one-tap complete --}}
+    @php($readyToComplete = $inquiry->arrived_at && $inquiry->departed_at && $inquiry->payment_method && ! in_array($inquiry->status, ['completed', 'cancelled'], true))
+    @if($readyToComplete)
+        @php($completeBtn = 'w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-2.5 text-sm transition-colors')
+        {{-- Desktop: inline above the status card --}}
+        <form method="POST" action="{{ route($routeBase.'.status', $inquiry->id) }}" class="hidden lg:block mt-4">
+            @csrf
+            <input type="hidden" name="status" value="completed">
+            <button type="submit" class="{{ $completeBtn }}">
+                <x-icon name="check-circle" class="w-4 h-4"/> Everything completed, Mark Completed?
+            </button>
+        </form>
+        {{-- Mobile: anchored just above the bottom Schedule/Quotes toolbar --}}
+        <div class="lg:hidden fixed inset-x-0 {{ $adminField ? 'bottom-14' : 'bottom-4' }} z-30 px-4 print:hidden">
+            <form method="POST" action="{{ route($routeBase.'.status', $inquiry->id) }}">
+                @csrf
+                <input type="hidden" name="status" value="completed">
+                <button type="submit" class="{{ $completeBtn }} shadow-xl">
+                    <x-icon name="check-circle" class="w-4 h-4"/> Everything completed, Mark Completed?
+                </button>
+            </form>
+        </div>
+    @endif
 
     {{-- Quote status — shown to everyone; only the admin Field View can change it manually --}}
     <div class="mt-4 card-light p-5">

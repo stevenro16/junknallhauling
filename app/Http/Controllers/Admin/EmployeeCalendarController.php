@@ -18,7 +18,7 @@ class EmployeeCalendarController extends Controller
 
     /** Statuses an employee may set on a job they're assigned to (field updates).
      *  Completion stays an admin step (after billing), so it's intentionally absent. */
-    private const EMPLOYEE_STATUSES = ['service_performed'];
+    private const EMPLOYEE_STATUSES = ['service_performed', 'completed'];
 
     /** Calendar of the current user's assigned visits (day default, week toggle). */
     public function index(Request $request)
@@ -61,6 +61,11 @@ class EmployeeCalendarController extends Controller
     public function eta(Request $request, string $id)
     {
         return $this->travelEstimate($this->ownedInquiry($request, $id), $request);
+    }
+
+    public function etaSent(Request $request, string $id)
+    {
+        return $this->recordEtaSent($this->ownedInquiry($request, $id));
     }
 
     /** Add an internal (or customer-visible) comment to an assigned job. */
@@ -120,7 +125,7 @@ class EmployeeCalendarController extends Controller
         $inquiry = $this->ownedInquiry($request, $id);
 
         $column = $which === 'arrival' ? 'arrived_at' : 'departed_at';
-        $inquiry->update([$column => now()]);
+        $inquiry->update([$column => $request->boolean('clear') ? null : now()]);
 
         return redirect()->route('admin.my-schedule.job', $inquiry->id)->with('jobSaved', true);
     }

@@ -135,15 +135,15 @@ class EmployeeAccessTest extends TestCase
         $this->sessionFor($emp)->post("/admin/my-schedule/job/{$theirs->id}/time/arrival")->assertNotFound();
     }
 
-    public function test_employee_cannot_mark_a_job_completed(): void
+    public function test_employee_can_mark_a_job_completed(): void
     {
         $emp = $this->employee();
         $mine = $this->makeInquiry(['assigned_employee_id' => $emp->id, 'status' => 'service_performed']);
 
-        $this->sessionFor($emp)->post("/admin/my-schedule/job/{$mine->id}/status", ['status' => 'completed']);
+        $this->sessionFor($emp)->post("/admin/my-schedule/job/{$mine->id}/status", ['status' => 'completed'])->assertRedirect();
 
-        $this->assertSame('service_performed', $mine->fresh()->status);
-        $this->assertSame(0, $mine->statusHistory()->where('new_status', 'completed')->count());
+        $this->assertSame('completed', $mine->fresh()->status);
+        $this->assertSame(1, $mine->statusHistory()->where('new_status', 'completed')->count());
     }
 
     public function test_employee_adds_internal_and_customer_visible_comments(): void

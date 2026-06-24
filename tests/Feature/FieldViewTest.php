@@ -149,6 +149,32 @@ class FieldViewTest extends TestCase
         $this->assertEmpty($inq->fresh()->departure_photos ?? []);
     }
 
+    public function test_field_view_records_and_clears_arrival_time(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();
+
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/time/arrival")
+            ->assertRedirect(route('admin.field.job', $inq->id));
+        $this->assertNotNull($inq->fresh()->arrived_at);
+
+        $this->sessionFor($admin)->post("/admin/field/job/{$inq->id}/time/arrival", ['clear' => '1'])
+            ->assertRedirect(route('admin.field.job', $inq->id));
+        $this->assertNull($inq->fresh()->arrived_at);
+    }
+
+    public function test_field_view_records_eta_sent(): void
+    {
+        $admin = $this->admin();
+        $inq = $this->makeInquiry();
+
+        $this->sessionFor($admin)->postJson("/admin/field/job/{$inq->id}/eta-sent")
+            ->assertOk()
+            ->assertJsonStructure(['eta_notified_at']);
+
+        $this->assertNotNull($inq->fresh()->eta_notified_at);
+    }
+
     public function test_field_payment_requires_a_method(): void
     {
         $admin = $this->admin();
