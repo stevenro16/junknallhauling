@@ -29,7 +29,7 @@ class CalendarController extends Controller
 
         $data = [
             'phone' => $phone, 'name' => '', 'email' => '', 'service_type' => 'other', 'zip_code' => '',
-            'status' => 'scheduled',
+            'status' => 'quoted',   // admin-created quotes start as Quoted (even from a calendar slot)
         ];
 
         $datetime = (string) $request->input('datetime');

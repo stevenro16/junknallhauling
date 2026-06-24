@@ -39,6 +39,7 @@ class InquiryApiController extends Controller
             'email' => trim((string) $request->input('email')) ?: '',
             'service_type' => 'other',
             'zip_code' => trim((string) $request->input('zip_code')) ?: '',
+            'status' => 'quoted',   // admin-created quotes start as Quoted
         ]);
 
         return response()->json(['inquiry' => $inquiry], 201);

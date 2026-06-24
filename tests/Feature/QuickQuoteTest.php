@@ -33,7 +33,7 @@ class QuickQuoteTest extends TestCase
         $this->assertSame('9095551234', $inq->phone);
         $this->assertSame('2026-06-23T13:30', $inq->confirmed_date_time);
         $this->assertSame([$emp->id], $inq->assigned_employee_ids);
-        $this->assertSame('scheduled', $inq->status);
+        $this->assertSame('quoted', $inq->status);
     }
 
     public function test_quick_quote_requires_phone(): void
