@@ -106,14 +106,19 @@ class InquiryController extends Controller
     /** Employees + the current admin (labelled "(me)") — who a job or pickup can be assigned to. */
     public static function assignees()
     {
-        $list = Admin::where('role', 'employee')->orderBy('username')->get(['id', 'username'])
-            ->map(fn (Admin $e) => ['id' => $e->id, 'username' => $e->username, 'label' => $e->username]);
+        $meId = session('admin_id');
 
-        $me = Admin::find(session('admin_id'));
-        if ($me) {
-            $list->push(['id' => $me->id, 'username' => $me->username, 'label' => $me->username.' (me)']);
-        }
-
-        return $list->values();
+        // Everyone who can be assigned a job: all active admins + employees,
+        // alphabetical by username; the current user is marked "(me)".
+        return Admin::whereIn('role', ['admin', 'employee'])
+            ->where('active', true)
+            ->orderBy('username')
+            ->get(['id', 'username'])
+            ->map(fn (Admin $a) => [
+                'id' => $a->id,
+                'username' => $a->username,
+                'label' => $a->id === $meId ? $a->username.' (me)' : $a->username,
+            ])
+            ->values();
     }
 }

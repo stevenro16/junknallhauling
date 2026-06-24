@@ -1897,6 +1897,8 @@ Alpine.data('calendar', (cfg = {}) => ({
             id, name: this.employees.find((x) => x.id === id)?.label || 'Employee', isUnassigned: false,
             events: this._layoutColumn(dayEvents.filter((e) => (e.inquiry.assignee_ids || []).includes(id))),
         }));
+        // Columns left-to-right in alphabetical order.
+        cols.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
         // The scheduling popup (embed) only shows the selected employees' columns.
         const unassigned = this.embed ? [] : dayEvents.filter((e) => !(e.inquiry.assignee_ids && e.inquiry.assignee_ids.length));
         if (unassigned.length) {
