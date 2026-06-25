@@ -9,6 +9,7 @@
         createUrl: '{{ route('admin.api.inquiries.agreement', $inquiry->id) }}',
         deleteUrl: '{{ route('admin.api.rental-agreement.destroy', '__ID__') }}',
         agreements: @js($agreements),
+        agreementTitle: @js($agreementTitle),
         preferred: @js($inquiry->preferred_contact_method),
         phone: @js($inquiry->phone),
         email: @js($inquiry->email),
@@ -17,10 +18,10 @@
      x-effect="preferred = preferredContactMethod">
 
     <div class="flex items-center justify-between gap-3">
-        <div class="text-sm font-medium text-gray-700">Rental Agreement</div>
+        <div class="text-sm font-medium text-gray-700">Agreement<span x-show="agreementTitle" x-cloak class="font-normal text-gray-400"> · <span x-text="agreementTitle"></span></span></div>
 
-        {{-- No agreement yet → generate + text/email --}}
-        <button type="button" x-show="!current" @click="send()" :disabled="sending"
+        {{-- An agreement is attached and none sent yet → generate + text/email --}}
+        <button type="button" x-show="agreementTitle && !current" @click="send()" :disabled="sending"
                 class="btn-primary text-xs py-1.5 px-3 shrink-0 inline-flex items-center gap-1.5">
             <x-icon name="send" class="w-3.5 h-3.5"/>
             <span x-text="sending ? 'Sending…' : contactLabel"></span>
@@ -30,9 +31,16 @@
         <button type="button" x-show="current && !current.signed_at" x-cloak @click="copyCurrent()"
                 class="btn-outline text-xs !py-1.5 !px-3 shrink-0 inline-flex items-center gap-1.5">
             <x-icon name="external-link" class="w-3.5 h-3.5"/>
-            <span x-text="copied ? 'Copied!' : 'Rental Agreement Link'"></span>
+            <span x-text="copied ? 'Copied!' : 'Agreement Link'"></span>
         </button>
     </div>
+
+    {{-- No agreement attached to this item → hint --}}
+    <p x-show="!agreementTitle && !current" x-cloak class="mt-2 text-xs text-gray-500">
+        No agreement is attached to this quote's service or equipment. Attach one in the
+        <span class="font-medium text-gray-600">Service</span> or <span class="font-medium text-gray-600">Equipment Catalog</span>
+        to require it to be signed before this job is finalized.
+    </p>
 
     {{-- Awaiting-signature status --}}
     <div x-show="current && !current.signed_at" x-cloak class="mt-2 flex items-center justify-between gap-2 text-xs">

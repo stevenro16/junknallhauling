@@ -59,6 +59,9 @@ class InquiryController extends Controller
         return view('admin.inquiries.show', [
             'inquiry' => $inquiry,
             'inquiryData' => $inquiryData,   // slim, image-URL'd copy for the x-data JSON
+            // Title of the agreement attached to this quote's item (or null) — drives
+            // the agreement panel + the "no agreement attached" hint.
+            'agreementTitle' => $inquiry->agreementTemplate()?->title,
             'history' => $inquiry->statusHistory()->orderByDesc('changed_at')->get(),
             'equipment' => EquipmentType::active()->orderBy('name')->get(),
             // Service-catalog options for the Job Details picker (the dedicated

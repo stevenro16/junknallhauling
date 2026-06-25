@@ -233,6 +233,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     customerPickup: cfg.customerPickup || null, // pickup the customer requested on a signed agreement
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
     businessName: cfg.businessName || '',     // for the request-details text/email message
+    agreementTitle: cfg.agreementTitle || '', // title of the agreement attached to this item (or '')
     detailRequests: cfg.detailRequests || [], // customer "request details" links
     detailReq: { url: '', loading: false, error: '', copied: false }, // active link + ui state
     detailSubmission: null, // the customer's submitted details (signature + confirm flags), for review
@@ -2209,6 +2210,7 @@ Alpine.data('siteContent', (cfg = {}) => ({
 Alpine.data('agreementSender', (cfg = {}) => ({
     cfg,
     agreements: cfg.agreements || [],
+    agreementTitle: cfg.agreementTitle || '',
     preferred: cfg.preferred === 'email' ? 'email' : 'phone',
     phone: cfg.phone || '',
     email: cfg.email || '',

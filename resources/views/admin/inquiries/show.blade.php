@@ -5,6 +5,7 @@
 @section('admin-content')
 <div x-data="inquiryDetail({
         inquiry: @js($inquiryData),
+        agreementTitle: @js($agreementTitle),
         equipment: @js($equipment),
         services: @js($services),
         allInquiries: @js($allInquiries),
@@ -704,8 +705,9 @@
                         </div>
                     </div>
 
-                    {{-- Rental agreement (equipment rentals only) — condensed generate/send + signed view --}}
-                    <template x-if="isEquipment">
+                    {{-- Agreement panel — shown for equipment or any item with an agreement
+                         attached; surfaces the resolved agreement or a "none attached" hint. --}}
+                    <template x-if="isEquipment || agreementTitle">
                         @include('partials.admin.rental-agreement-panel')
                     </template>
 
