@@ -65,9 +65,11 @@ class FieldViewController extends Controller
     /** Field job sheet for any inquiry, with the admin payment + full-quote extras. */
     public function job(string $id)
     {
+        \Log::info('FIELDVIEW job: entered', ['id' => $id]);
         $inquiry = Inquiry::findOrFail($id);
+        \Log::info('FIELDVIEW job: found inquiry, rendering view', ['ref' => $inquiry->ref]);
 
-        return view('admin.employee-job', [
+        $view = view('admin.employee-job', [
             'inquiry' => $inquiry,
             'comments' => $inquiry->comments()->orderBy('created_at')->get()
                 ->map(fn (InquiryComment $c) => EmployeeCalendarController::commentPayload($c))->values(),
@@ -77,7 +79,10 @@ class FieldViewController extends Controller
             'adminField' => true,
             'paymentLinks' => $inquiry->paymentLinks()->orderByDesc('created_at')->get()
                 ->map(fn ($p) => InquiryApiController::paymentLinkPayload($p))->values(),
-        ]);
+        ])->render();
+        \Log::info('FIELDVIEW job: view rendered ok', ['bytes' => strlen($view)]);
+
+        return response($view);
     }
 
     /** Add an internal (or customer-visible) comment to a job. */
