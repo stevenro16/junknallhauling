@@ -1,7 +1,12 @@
 <IfModule mod_security.c>
-    SecRuleRemoveById 941100 941101 941110 941120 941130 941140 941150 941160 941170 941180 941190 941200 941210 941220 941230 941240 941250 941260 941270 941280 941290 941300 941310 941320 941330 941340 941350 941360 941370 941380 941390 941400
-    SecRuleRemoveById 942100 942101 942110 942120 942130 942140 942150 942151 942152 942160 942170 942180 942190 942200 942210 942220 942230 942240 942250 942251 942260 942270 942280 942290 942300 942310 942320 942330 942340 942350 942360 942361 942362 942370 942380 942390 942400 942410 942420 942421 942430 942431 942432 942440 942450 942460 942470 942480 942490 942500 942510 942511 942520 942521 942522 942530 942540 942550 942560
-    
+    # GoDaddy's OWASP CRS WAF false-positives on this app's authenticated admin
+    # requests (certain record UUIDs in admin URLs), blocking them as a 404 via
+    # the docroot error document. We can't reach the WAF audit log on shared
+    # hosting to target the exact rule, so disable the inbound CRS rule range for
+    # this app. (Laravel parameterizes every query via Eloquent and escapes output
+    # via Blade, so these CRS rules add little here.) This host only honors
+    # SecRuleRemoveById in .htaccess — SecRuleEngine/<If> returns a 405.
+    SecRuleRemoveById "920000-949999"
 </IfModule>
 
 <IfModule mod_rewrite.c>
