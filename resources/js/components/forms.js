@@ -805,11 +805,24 @@ Alpine.data('quoteDetailsForm', (token) => ({
                 },
                 signature_base64: signatureData,
             };
+            const body = JSON.stringify(payload);
+            // Photos can make the request exceed the server's upload limit; catch it here
+            // with a clear message instead of a failed/oversized POST.
+            if (body.length > 6_000_000) {
+                throw new Error('Your photos are too large to upload. Please remove a photo (or use a smaller one) and try again.');
+            }
             const res = await fetch(window.apiUrl(`/api/quote-details/${this.token}`), {
-                method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload),
+                method: 'POST', headers: window.jsonHeaders(), body,
             });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Failed to submit details');
+            // A rejected (too-large) request returns a non-JSON body — Safari reports that as
+            // "The string did not match the expected pattern", so handle it gracefully.
+            let json = null;
+            try { json = await res.json(); } catch { json = null; }
+            if (!res.ok || !json) {
+                throw new Error((json && json.error) || (res.status === 413
+                    ? 'Your photos are too large to upload. Please remove a photo (or use a smaller one) and try again.'
+                    : 'We couldn’t submit your details — please remove any large photos and try again, or call us if it keeps happening.'));
+            }
             // Equipment rental needing an agreement → go straight to it to complete.
             if (json.agreement_url) { window.location.href = json.agreement_url; return; }
             this.submitted = true;
