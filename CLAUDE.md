@@ -403,9 +403,13 @@ chmod 711 ~/repositories/junknallhauling   # if a fresh repo 404s
 ## 11. Conventions for changes
 
 - Match the surrounding style; run **Pint** before considering PHP changes done.
-- **Never inline base64 images in a server-rendered page.** Render stored photos/signatures via
-  `route('admin.job-image', [$id, $kind, $index])`, not `<img src="data:…;base64,…">`. Inlined images
-  bloat the HTML past the host WAF's ~512 KB response limit, which 404s the whole page (see §9 #11).
+- **Never put base64 images in *any* response — HTML, JSON, or Alpine `x-data`.** Render stored
+  photos/signatures via `route('admin.job-image', [$id, $kind, $index])` (inquiry photos/signatures) or
+  `route('admin.doc-image', [$type, $id])` (agreement/detail signatures), not `data:…;base64,…`. Inlined
+  images bloat the response past the host WAF's ~512 KB limit, which 404s it (see §9 #11). This applies to
+  `@js($model)` (pass a slim copy with image URLs — see `InquiryController::show`) and to API/JSON payloads
+  (e.g. the public `/api/lookup` `makeHidden`s the base64 arrays; `agreement`/`detail` payloads expose
+  `signature_url`, never `signature_base64`).
 - Any **new image / asset / endpoint reference** must be subfolder-safe (§6) or it will break in production.
 - Touching JS/CSS/asset-referencing Blade ⇒ remember it needs a **local `npm run build` + upload of
   `public/build/`** to take effect in prod (no Node on the server).
