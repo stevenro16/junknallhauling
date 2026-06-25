@@ -1,3 +1,12 @@
+# Mirror the docroot's ModSecurity exclusions for this sub-app. The top-level
+# public_html/.htaccess disables the OWASP XSS rules (941100-941350) for the
+# sibling apps, but that does not reach this symlinked app — so without this,
+# legitimate authenticated admin requests get false-positive-blocked by the WAF
+# and returned as a 404 via the docroot's error document.
+<IfModule mod_security.c>
+    SecRuleRemoveById 941100 941101 941110 941120 941130 941140 941150 941160 941170 941180 941190 941200 941210 941220 941230 941240 941250 941260 941270 941280 941290 941300 941310 941320 941330 941340 941350
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
