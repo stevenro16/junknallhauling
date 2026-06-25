@@ -47,8 +47,8 @@
     <div class="card-light p-6 md:p-8 print:shadow-none print:border-0 print:p-0">
         <div class="text-center mb-6">
             <img src="{{ asset('images/logo.jpg') }}" alt="{{ config('business.name') }}" class="h-12 w-auto mx-auto mb-3 hidden print:block">
-            <h1 class="text-2xl font-black tracking-tight text-gray-900">Dumpster Rental Contract Agreement</h1>
-            <p class="text-gray-700 mt-1 text-sm">The customer agrees to the following terms and conditions for the dumpster for services.</p>
+            <h1 class="text-2xl font-black tracking-tight text-gray-900">{{ $content['title'] }}</h1>
+            <p class="text-gray-700 mt-1 text-sm">The customer agrees to the following terms and conditions.</p>
             @if($inq)
                 <p class="text-xs text-gray-500 mt-1">Quote <span class="font-mono text-amber-700">{{ $inq->ref }}</span></p>
             @endif
@@ -81,7 +81,7 @@
         {{-- Acknowledgments --}}
         <h2 class="font-semibold text-base text-gray-800 mb-3 border-b border-gray-200 pb-1">Customer Acknowledgments</h2>
         <div class="space-y-2 text-sm text-gray-800 mb-5">
-            @foreach(config('agreement.acknowledgments') as $ack)
+            @foreach($content['acknowledgments'] as $ack)
                 <div class="flex items-start gap-2.5">
                     <x-icon name="{{ $signed ? 'check-circle' : 'circle' }}" class="w-4 h-4 mt-0.5 shrink-0 {{ $signed ? 'text-emerald-600' : 'text-gray-300' }}"/>
                     <span>{{ $ack }}</span>
@@ -89,14 +89,9 @@
             @endforeach
         </div>
 
-        <div class="text-sm text-gray-800 mb-2">
-            <p class="font-medium mb-1">Prohibited Items:</p>
-            <p>I understand that the following items are <strong>not allowed</strong> to be placed in the dumpster: {{ config('agreement.prohibited_items') }}</p>
-        </div>
-        <div class="text-sm text-gray-800 mb-6">
-            <p>{{ config('agreement.tire_pricing') }}</p>
-            <p class="mt-1">{{ config('agreement.tire_note') }}</p>
-        </div>
+        @if(! empty($content['instructions']))
+            <div class="text-sm text-gray-800 mb-6 whitespace-pre-line">{{ $content['instructions'] }}</div>
+        @endif
 
         {{-- Signature block --}}
         <h2 class="font-semibold text-base text-gray-800 mb-3 border-b border-gray-200 pb-1">Signature</h2>

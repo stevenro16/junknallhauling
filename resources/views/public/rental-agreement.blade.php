@@ -1,6 +1,6 @@
 @extends('layouts.public')
 
-@section('title', 'Dumpster Rental Contract Agreement | '.config('business.name'))
+@section('title', $content['title'].' | '.config('business.name'))
 
 @section('content')
 <div x-data="agreementForm('{{ $token }}')">
@@ -34,8 +34,8 @@
     <div x-show="!loading && data && !signed" x-cloak class="min-h-screen bg-[#F8F7F4] py-10 px-4">
         <div class="max-w-3xl mx-auto">
             <div class="text-center mb-6">
-                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-gray-900">Dumpster Rental Contract Agreement</h1>
-                <p class="text-gray-700 mt-2 text-sm md:text-base">The customer agrees to the following terms and conditions for the dumpster for services.</p>
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-gray-900">{{ $content['title'] }}</h1>
+                <p class="text-gray-700 mt-2 text-sm md:text-base">The customer agrees to the following terms and conditions.</p>
                 <p class="text-xs text-gray-500 mt-1">Quote <span class="font-mono font-medium text-[#EAB308]" x-text="inquiry?.ref"></span></p>
             </div>
 
@@ -118,22 +118,16 @@
                     <div x-ref="ackSection" class="rounded-xl transition-shadow" :class="invalidField === 'ackSection' && 'ring-2 ring-red-400'">
                         <h2 class="font-semibold text-lg mb-3 text-gray-800">Customer Acknowledgments</h2>
                         <div class="space-y-3 text-sm">
-                            @foreach(config('agreement.acknowledgments') as $ack)
+                            @foreach($content['acknowledgments'] as $ack)
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="checkbox" class="mt-1 w-4 h-4 accent-[#EAB308]" required>
                                     <span>{{ $ack }}</span>
                                 </label>
                             @endforeach
 
-                            <div class="pt-2">
-                                <p class="font-medium mb-1">Prohibited Items:</p>
-                                <p class="text-gray-700 text-sm">I understand that the following items are <strong>not allowed</strong> to be placed in the dumpster:
-                                    {{ config('agreement.prohibited_items') }}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm">{{ config('agreement.tire_pricing') }}</p>
-                                <p class="text-sm mt-1">{{ config('agreement.tire_note') }}</p>
-                            </div>
+                            @if(! empty($content['instructions']))
+                                <div class="pt-2 text-gray-700 whitespace-pre-line">{{ $content['instructions'] }}</div>
+                            @endif
                         </div>
                     </div>
 

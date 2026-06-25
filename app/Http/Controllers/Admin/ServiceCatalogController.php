@@ -30,6 +30,7 @@ class ServiceCatalogController extends Controller
             'active' => true,
             'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
             'customer_instructions' => trim((string) $request->input('customer_instructions')) ?: null,
+            'agreement_id' => $request->input('agreement_id') ?: null,
         ]);
 
         return response()->json(['service' => $service], 201);
@@ -73,6 +74,9 @@ class ServiceCatalogController extends Controller
         }
         if ($request->has('customer_instructions')) {
             $updates['customer_instructions'] = trim((string) $request->input('customer_instructions')) ?: null;
+        }
+        if ($request->has('agreement_id')) {
+            $updates['agreement_id'] = $request->input('agreement_id') ?: null;
         }
 
         $service->update($updates);

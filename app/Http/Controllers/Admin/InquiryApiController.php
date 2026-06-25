@@ -241,21 +241,12 @@ class InquiryApiController extends Controller
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        // Reuse a still-usable (unsigned, not cancelled, not expired) link;
-        // otherwise mint a fresh one and log that an agreement was sent.
-        $agreement = $inquiry->rentalAgreements()
-            ->whereNull('signed_at')
-            ->whereNull('cancelled_at')
-            ->orderByDesc('created_at')
-            ->get()
-            ->first(fn (RentalAgreement $a) => $a->isUsable());
-
+        // Reuse a still-usable link or mint one tied to the item's attached agreement.
+        $agreement = $inquiry->ensureAgreementLink();
         if (! $agreement) {
-            $agreement = $inquiry->rentalAgreements()->create([
-                'token' => (string) Str::uuid(),
-                'form_data' => [],
-            ]);
-            $inquiry->logAudit('rental_agreement_sent');
+            return response()->json([
+                'error' => 'No agreement is attached to this quote\'s service or equipment. Attach one in the Service or Equipment Catalog first.',
+            ], 422);
         }
 
         return response()->json(['agreement' => self::agreementPayload($agreement)]);

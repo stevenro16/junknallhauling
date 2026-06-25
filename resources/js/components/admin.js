@@ -1532,23 +1532,26 @@ Alpine.data('customerLookup', (cfg = {}) => ({
 Alpine.data('servicesCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     services: cfg.services || [],
-    nw: { label: '', price: '', duration: '120', customerVisible: true, instructions: '' },
+    agreements: cfg.agreements || [],
+    nw: { label: '', price: '', duration: '120', customerVisible: true, instructions: '', agreement_id: '' },
     error: '',
     editingId: null,
-    ed: { label: '', price: '', duration: '', instructions: '' },
+    ed: { label: '', price: '', duration: '', instructions: '', agreement_id: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.services = d.services || []; } } catch {} },
 
+    agreementName(item) { const a = this.agreements.find((x) => x.id === item.agreement_id); return a ? a.title : ''; },
+
     async add() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.nw.label, default_price: this.nw.price === '' ? null : this.nw.price, default_duration_minutes: this.nw.duration || 120, customer_visible: this.nw.customerVisible, customer_instructions: this.nw.instructions }) });
-        if (r.ok) { this.nw = { label: '', price: '', duration: '120', customerVisible: true, instructions: '' }; await this.reload(); }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.nw.label, default_price: this.nw.price === '' ? null : this.nw.price, default_duration_minutes: this.nw.duration || 120, customer_visible: this.nw.customerVisible, customer_instructions: this.nw.instructions, agreement_id: this.nw.agreement_id || null }) });
+        if (r.ok) { this.nw = { label: '', price: '', duration: '120', customerVisible: true, instructions: '', agreement_id: '' }; await this.reload(); }
         else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add service'; }
     },
-    startEdit(s) { this.editingId = s.id; this.ed = { label: s.label, price: s.default_price ?? '', duration: s.default_duration_minutes ?? 120, instructions: s.customer_instructions ?? '' }; },
+    startEdit(s) { this.editingId = s.id; this.ed = { label: s.label, price: s.default_price ?? '', duration: s.default_duration_minutes ?? 120, instructions: s.customer_instructions ?? '', agreement_id: s.agreement_id ?? '' }; },
     cancelEdit() { this.editingId = null; },
     async saveEdit(s) {
-        const r = await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.ed.label, default_price: this.ed.price === '' ? null : this.ed.price, default_duration_minutes: this.ed.duration, customer_instructions: this.ed.instructions }) });
+        const r = await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ label: this.ed.label, default_price: this.ed.price === '' ? null : this.ed.price, default_duration_minutes: this.ed.duration, customer_instructions: this.ed.instructions, agreement_id: this.ed.agreement_id || null }) });
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(s) { await fetch(this.urls.update.replace('__ID__', s.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !s.active }) }); await this.reload(); },
@@ -1563,29 +1566,65 @@ Alpine.data('servicesCatalog', (cfg = {}) => ({
 Alpine.data('equipmentCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     equipment: cfg.equipment || [],
-    nw: { name: '', cost: '', daily: '', instructions: '' },
+    agreements: cfg.agreements || [],
+    nw: { name: '', cost: '', daily: '', instructions: '', agreement_id: '' },
     error: '',
     editingId: null,
-    ed: { name: '', cost: '', daily: '', instructions: '' },
+    ed: { name: '', cost: '', daily: '', instructions: '', agreement_id: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.equipment = d.equipment || []; } } catch {} },
 
+    agreementName(item) { const a = this.agreements.find((x) => x.id === item.agreement_id); return a ? a.title : ''; },
+
     async add() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.nw.name, avg_cost_per_hour: this.nw.cost === '' ? null : this.nw.cost, daily_rate: this.nw.daily === '' ? null : this.nw.daily, customer_instructions: this.nw.instructions }) });
-        if (r.ok) { this.nw = { name: '', cost: '', daily: '', instructions: '' }; await this.reload(); }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.nw.name, avg_cost_per_hour: this.nw.cost === '' ? null : this.nw.cost, daily_rate: this.nw.daily === '' ? null : this.nw.daily, customer_instructions: this.nw.instructions, agreement_id: this.nw.agreement_id || null }) });
+        if (r.ok) { this.nw = { name: '', cost: '', daily: '', instructions: '', agreement_id: '' }; await this.reload(); }
         else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add equipment'; }
     },
-    startEdit(e) { this.editingId = e.id; this.ed = { name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '', instructions: e.customer_instructions ?? '' }; },
+    startEdit(e) { this.editingId = e.id; this.ed = { name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '', instructions: e.customer_instructions ?? '', agreement_id: e.agreement_id ?? '' }; },
     cancelEdit() { this.editingId = null; },
     async saveEdit(e) {
-        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.ed.name, avg_cost_per_hour: this.ed.cost === '' ? null : this.ed.cost, daily_rate: this.ed.daily === '' ? null : this.ed.daily, customer_instructions: this.ed.instructions }) });
+        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.ed.name, avg_cost_per_hour: this.ed.cost === '' ? null : this.ed.cost, daily_rate: this.ed.daily === '' ? null : this.ed.daily, customer_instructions: this.ed.instructions, agreement_id: this.ed.agreement_id || null }) });
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },
     async toggleCustomerVisible(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ customer_visible: !e.customer_visible }) }); await this.reload(); },
     async remove(e) { if (!confirm(`Permanently delete the "${e.name}" equipment item? This cannot be undone.`)) return; await fetch(this.urls.destroy.replace('__ID__', e.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
     money(n) { return n == null ? '—' : Number(n).toLocaleString(); },
+}));
+
+// ---------------------------------------------------------------------------
+// Agreements catalog — editable templates (title + acknowledgment items +
+// instructions) attachable to services/equipment. Acknowledgments are edited as
+// one-per-line text; the server parses them into an array.
+// ---------------------------------------------------------------------------
+Alpine.data('agreementCatalog', (cfg = {}) => ({
+    urls: cfg.urls,
+    agreements: cfg.agreements || [],
+    nw: { title: '', acknowledgments: '', instructions: '' },
+    error: '',
+    editingId: null,
+    ed: { title: '', acknowledgments: '', instructions: '' },
+
+    async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.agreements = d.agreements || []; } } catch {} },
+
+    ackCount(a) { return (a.acknowledgments || []).length; },
+
+    async add() {
+        this.error = '';
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ title: this.nw.title, acknowledgments: this.nw.acknowledgments, instructions: this.nw.instructions }) });
+        if (r.ok) { this.nw = { title: '', acknowledgments: '', instructions: '' }; await this.reload(); }
+        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add agreement'; }
+    },
+    startEdit(a) { this.editingId = a.id; this.ed = { title: a.title, acknowledgments: (a.acknowledgments || []).join('\n'), instructions: a.instructions ?? '' }; },
+    cancelEdit() { this.editingId = null; },
+    async saveEdit(a) {
+        const r = await fetch(this.urls.update.replace('__ID__', a.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ title: this.ed.title, acknowledgments: this.ed.acknowledgments, instructions: this.ed.instructions }) });
+        if (r.ok) { this.editingId = null; await this.reload(); }
+    },
+    async toggleActive(a) { await fetch(this.urls.update.replace('__ID__', a.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !a.active }) }); await this.reload(); },
+    async remove(a) { if (!confirm(`Permanently delete the "${a.title}" agreement? It will be detached from any services/equipment. This cannot be undone.`)) return; await fetch(this.urls.destroy.replace('__ID__', a.id), { method: 'DELETE', headers: window.jsonHeaders(true) }); await this.reload(); },
 }));
 
 // ---------------------------------------------------------------------------

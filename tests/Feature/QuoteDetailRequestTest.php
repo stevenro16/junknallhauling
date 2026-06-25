@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Admin;
+use App\Models\Agreement;
+use App\Models\EquipmentType;
 use App\Models\Inquiry;
+use App\Models\ServiceCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -123,6 +126,9 @@ class QuoteDetailRequestTest extends TestCase
 
     public function test_equipment_submit_returns_rental_agreement_url_when_none_on_file(): void
     {
+        $agreement = Agreement::create(['title' => 'Boom Lift Agreement', 'acknowledgments' => ['I will return it clean.']]);
+        EquipmentType::create(['name' => 'Boom Lift', 'agreement_id' => $agreement->id]);
+
         $inq = $this->inquiry(['service_type' => 'equipment', 'equipment_type' => 'Boom Lift']);
         $token = $this->makeToken($inq);
 
@@ -135,6 +141,52 @@ class QuoteDetailRequestTest extends TestCase
 
         $this->assertStringContainsString('/rental-agreement/', (string) $res->json('agreement_url'));
         $this->assertSame(1, $inq->rentalAgreements()->count());
+        // The link is tied to the attached template.
+        $this->assertSame($agreement->id, $inq->rentalAgreements()->first()->agreement_id);
+    }
+
+    public function test_service_with_attached_agreement_needs_one(): void
+    {
+        $agreement = Agreement::create(['title' => 'Demolition Waiver', 'acknowledgments' => ['I accept the risks.']]);
+        ServiceCatalog::create(['key' => 'demolition', 'label' => 'Demolition', 'agreement_id' => $agreement->id]);
+
+        $inq = $this->inquiry(['service_type' => 'demolition', 'equipment_type' => null]);
+        $token = $this->makeToken($inq);
+
+        $this->getJson("/api/quote-details/{$token}")->assertOk()->assertJsonPath('needs_agreement', true);
+    }
+
+    public function test_service_without_attached_agreement_needs_none(): void
+    {
+        ServiceCatalog::create(['key' => 'junk', 'label' => 'Junk Removal']); // no agreement attached
+
+        $inq = $this->inquiry(['service_type' => 'junk', 'equipment_type' => null]);
+        $token = $this->makeToken($inq);
+
+        $this->getJson("/api/quote-details/{$token}")->assertOk()->assertJsonPath('needs_agreement', false);
+    }
+
+    public function test_signing_an_agreement_freezes_a_content_snapshot(): void
+    {
+        $agreement = Agreement::create(['title' => 'Rental Terms', 'acknowledgments' => ['Item one.', 'Item two.'], 'instructions' => 'No hazardous waste.']);
+        EquipmentType::create(['name' => 'Dumpster', 'agreement_id' => $agreement->id]);
+        $inq = $this->inquiry(['service_type' => 'equipment', 'equipment_type' => 'Dumpster']);
+
+        $link = $inq->ensureAgreementLink();
+
+        $this->postJson("/api/rental-agreement/{$link->token}", [
+            'form_data' => ['agreed_to_terms' => true],
+            'signature_base64' => 'data:image/png;base64,iVBORw0KGgo=',
+        ])->assertOk();
+
+        // Editing the template afterward must NOT change the signed snapshot.
+        $agreement->update(['title' => 'CHANGED', 'acknowledgments' => ['different']]);
+
+        $signed = $link->fresh();
+        $this->assertSame('Rental Terms', $signed->content_snapshot['title']);
+        $this->assertSame(['Item one.', 'Item two.'], $signed->content_snapshot['acknowledgments']);
+        $this->assertSame('No hazardous waste.', $signed->content_snapshot['instructions']);
+        $this->assertSame('Rental Terms', $signed->effectiveContent()['title']);
     }
 
     public function test_admin_update_stores_address_parts_and_composed_address(): void

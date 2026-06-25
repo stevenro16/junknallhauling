@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\Agreement;
 use App\Models\EquipmentType;
 use App\Models\Inquiry;
 use App\Models\ServiceCatalog;
@@ -17,7 +18,7 @@ class DashboardController extends Controller
         DemoSeeder::ensure();
 
         $section = $request->query('section', 'inquiries');
-        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true)) {
+        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content'], true)) {
             $section = 'inquiries';
         }
 
@@ -57,6 +58,7 @@ class DashboardController extends Controller
             'counts' => $counts,
             'services' => ServiceCatalog::orderByDesc('active')->orderBy('key')->get(),
             'equipment' => EquipmentType::orderByDesc('active')->orderBy('name')->get(),
+            'agreements' => Agreement::orderByDesc('active')->orderBy('title')->get(),
             'admins' => Admin::orderBy('created_at')->get(),
         ]);
     }

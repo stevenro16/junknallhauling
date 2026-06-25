@@ -92,10 +92,15 @@ class RentalAgreementController extends Controller
 
         $signedAt = now()->toISOString();
 
+        // Freeze the exact terms the customer agreed to, so the signed record always
+        // reflects what was shown even if the template is later edited.
+        $snapshot = $agreement->effectiveContent();
+
         // One-time use guard at the SQL level. A query-builder update() bypasses
-        // the form_data array cast, so encode it explicitly.
+        // the array casts, so encode the JSON columns explicitly.
         RentalAgreement::where('token', $token)->whereNull('signed_at')->update([
             'form_data' => json_encode($formData),
+            'content_snapshot' => json_encode($snapshot),
             'signature_base64' => $signature,
             'signed_at' => $signedAt,
             'ip_address' => $ip ?: null,

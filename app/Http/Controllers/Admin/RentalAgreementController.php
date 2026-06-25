@@ -10,12 +10,15 @@ class RentalAgreementController extends Controller
     /** Read-only admin view of a rental agreement (signed or pending). */
     public function show(string $id)
     {
-        $agreement = RentalAgreement::with('inquiry')->find($id);
+        $agreement = RentalAgreement::with('inquiry', 'agreement')->find($id);
         if (! $agreement) {
             abort(404);
         }
 
-        return view('admin.rental-agreement', ['agreement' => $agreement]);
+        return view('admin.rental-agreement', [
+            'agreement' => $agreement,
+            'content' => $agreement->effectiveContent(),
+        ]);
     }
 
     /** Delete a rental agreement — a pending link or a signed/collected one. */

@@ -89,6 +89,64 @@ class Inquiry extends Model
         return $this->hasMany(RentalAgreement::class, 'inquiry_id');
     }
 
+    /**
+     * The agreement template attached to this inquiry's equipment or service item
+     * (equipment takes precedence), or null if none requires one.
+     */
+    public function agreementTemplate(): ?Agreement
+    {
+        if ($this->equipment_type) {
+            $equipment = EquipmentType::where('name', $this->equipment_type)->first();
+            if ($equipment?->agreement_id) {
+                return $equipment->agreement;
+            }
+        }
+
+        if ($this->service_type) {
+            $service = ServiceCatalog::where('key', $this->service_type)->first();
+            if ($service?->agreement_id) {
+                return $service->agreement;
+            }
+        }
+
+        return null;
+    }
+
+    /** True when this inquiry's item requires an agreement that isn't signed yet. */
+    public function needsAgreement(): bool
+    {
+        return $this->agreementTemplate() !== null
+            && ! $this->rentalAgreements()->whereNotNull('signed_at')->exists();
+    }
+
+    /**
+     * Reuse a still-usable unsigned agreement link, or mint a fresh one tied to the
+     * inquiry's attached agreement template. Returns null if no item requires one.
+     */
+    public function ensureAgreementLink(): ?RentalAgreement
+    {
+        $template = $this->agreementTemplate();
+        if (! $template) {
+            return null;
+        }
+
+        $existing = $this->rentalAgreements()
+            ->whereNull('signed_at')->whereNull('cancelled_at')->orderByDesc('created_at')
+            ->get()->first(fn (RentalAgreement $a) => $a->isUsable());
+        if ($existing) {
+            return $existing;
+        }
+
+        $link = $this->rentalAgreements()->create([
+            'token' => (string) Str::uuid(),
+            'agreement_id' => $template->id,
+            'form_data' => [],
+        ]);
+        $this->logAudit('rental_agreement_sent');
+
+        return $link;
+    }
+
     public function paymentLinks(): HasMany
     {
         return $this->hasMany(PaymentLink::class, 'inquiry_id');

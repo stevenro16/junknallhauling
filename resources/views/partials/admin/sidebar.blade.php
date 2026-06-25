@@ -4,7 +4,7 @@
     $path = request()->path();
     $onDashboard = $path === 'admin';
     $qsection = request()->query('section', 'inquiries');
-    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
+    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
     $onCalendar = $path === 'admin/calendar';
     $onCustomers = $path === 'admin/customers';
     $onEod = $path === 'admin/eod-report';
@@ -29,6 +29,7 @@
             ['key' => 'admins', 'label' => 'Account Management', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
             ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
             ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
+            ['key' => 'agreements', 'label' => 'Agreements', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'agreements']), 'active' => $current === 'agreements'],
         ];
     }
     $activeCls = 'bg-[#F8C820]/10 text-[#F8C820] border border-[#EAB308]/30';

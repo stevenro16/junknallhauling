@@ -5,11 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\QuoteDetailRequest;
-use App\Models\RentalAgreement;
 use App\Services\GeocodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class QuoteDetailController extends Controller
 {
@@ -63,8 +61,9 @@ class QuoteDetailController extends Controller
                 'quoted_price' => $inquiry->quoted_price,
             ],
             'is_equipment' => $this->isEquipment($inquiry),
-            // Equipment rentals with no signed agreement on file must complete one.
-            'needs_agreement' => $this->isEquipment($inquiry) && ! $inquiry->rentalAgreements()->whereNotNull('signed_at')->exists(),
+            // Any item (service or equipment) with an attached agreement that isn't
+            // signed yet must complete one.
+            'needs_agreement' => $inquiry->needsAgreement(),
         ]);
     }
 
@@ -173,15 +172,8 @@ class QuoteDetailController extends Controller
 
         $response = ['success' => true, 'signed_at' => $signedAt];
 
-        // Equipment rental with no signed agreement → send them straight to one to complete.
-        if ($this->isEquipment($inquiry) && ! $inquiry->rentalAgreements()->whereNotNull('signed_at')->exists()) {
-            $agreement = $inquiry->rentalAgreements()
-                ->whereNull('signed_at')->whereNull('cancelled_at')->orderByDesc('created_at')
-                ->get()->first(fn (RentalAgreement $a) => $a->isUsable());
-            if (! $agreement) {
-                $agreement = $inquiry->rentalAgreements()->create(['token' => (string) Str::uuid(), 'form_data' => []]);
-                $inquiry->logAudit('rental_agreement_sent');
-            }
+        // Item with an attached agreement and none signed yet → send them straight to it.
+        if ($inquiry->needsAgreement() && ($agreement = $inquiry->ensureAgreementLink())) {
             $response['agreement_url'] = route('rental-agreement.show', $agreement->token);
         }
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AddressController;
 use App\Http\Controllers\Admin\AdminAccountController;
+use App\Http\Controllers\Admin\AgreementController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CustomerController;
@@ -160,6 +161,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
                 Route::post('/equipment', [AdminEquipmentController::class, 'store'])->name('equipment.store');
                 Route::patch('/equipment/{id}', [AdminEquipmentController::class, 'update'])->name('equipment.update');
                 Route::delete('/equipment/{id}', [AdminEquipmentController::class, 'destroy'])->name('equipment.destroy');
+
+                // Agreements (editable templates attachable to services + equipment)
+                Route::get('/agreements', [AgreementController::class, 'index'])->name('agreements.index');
+                Route::post('/agreements', [AgreementController::class, 'store'])->name('agreements.store');
+                Route::patch('/agreements/{id}', [AgreementController::class, 'update'])->name('agreements.update');
+                Route::delete('/agreements/{id}', [AgreementController::class, 'destroy'])->name('agreements.destroy');
             });
         }); // end role.admin
     });

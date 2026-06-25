@@ -154,6 +154,23 @@ php artisan tinker
 - **Behind a proxy:** GoDaddy/Cloudflare sit in front, so `trustProxies(at: '*')` is set; `$request->ip()`
   (used by `/api/ip` and rental-agreement signing) resolves the real client IP.
 
+### Agreements
+Admin-editable agreement templates (the `agreements` table / `Agreement` model: `title`,
+`acknowledgments` JSON list, `instructions`, `active`) managed in the admin **Agreements** section
+(`AgreementController`, dashboard `?section=agreements`). Each `service_catalog` / `equipment_types`
+row can attach one via `agreement_id` (dropdown in those catalogs). An inquiry resolves its agreement
+from its item — `Inquiry::agreementTemplate()` (equipment by `name`, else service by `key`); a job
+**needs** an agreement when `needsAgreement()` is true (an attached template exists and none is signed),
+which now drives `quote-details` `needs_agreement` and the auto-handoff (`ensureAgreementLink()`),
+replacing the old equipment-only rule.
+- **Signing snapshot (important):** the signed copy still lives in `rental_agreements`, now with
+  `agreement_id` + a `content_snapshot` JSON frozen at signing (`Api\RentalAgreementController::sign`).
+  `RentalAgreement::effectiveContent()` returns the snapshot if signed, else the live template — so the
+  public/admin agreement pages always show the exact signed terms even after the template is edited.
+- `config/agreement.php` is **no longer rendered**; it only seeds the default "Dumpster Rental
+  Agreement" row in the `create_agreements_table` migration (prohibited-items + tire pricing folded into
+  `instructions`), attached to existing equipment so prior behavior is preserved.
+
 ### Payments
 Three ways a quote gets marked paid; all converge on the inquiry's `payment_method` + `payment_date`
 (and the `payment_links` row's `paid_at`):
