@@ -32,14 +32,16 @@
     $jobLabel = $inquiry->equipment_type ?: ucwords(str_replace('-', ' ', (string) $inquiry->service_type));
     $rental = ($inquiry->equipment_rental_duration && $inquiry->equipment_rental_unit)
         ? $inquiry->equipment_rental_duration.' '.$inquiry->equipment_rental_unit : null;
-    // Gather every attachment for the end of the report.
+    // Gather every attachment for the end of the report. Images are referenced by
+    // URL (admin.job-image), never inlined as base64 — a photo-heavy report inlined
+    // would exceed the host WAF's response-body limit and get rejected as a 404.
     $attachments = [];
     if ($inquiry->photo_base64) {
-        $attachments[] = ['label' => 'Customer photo (from quote request)', 'src' => 'data:'.$inquiry->photo_mime.';base64,'.$inquiry->photo_base64];
+        $attachments[] = ['label' => 'Customer photo (from quote request)', 'src' => route('admin.job-image', [$inquiry->id, 'legacy', 0])];
     }
-    foreach (($inquiry->photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Customer-submitted photo '.($i + 1), 'src' => $p]; }
-    foreach (($inquiry->arrival_photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Arrival photo '.($i + 1), 'src' => $p]; }
-    foreach (($inquiry->departure_photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Departure photo '.($i + 1), 'src' => $p]; }
+    foreach (($inquiry->photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Customer-submitted photo '.($i + 1), 'src' => route('admin.job-image', [$inquiry->id, 'photos', $i])]; }
+    foreach (($inquiry->arrival_photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Arrival photo '.($i + 1), 'src' => route('admin.job-image', [$inquiry->id, 'arrival', $i])]; }
+    foreach (($inquiry->departure_photos ?? []) as $i => $p) { $attachments[] = ['label' => 'Departure photo '.($i + 1), 'src' => route('admin.job-image', [$inquiry->id, 'departure', $i])]; }
 @endphp
 
     {{-- Print toolbar (hidden when printing) --}}

@@ -361,6 +361,22 @@ These are the things that cost real time. Check them first when a deploy "doesn'
     200 = docroot/symlink/perms fine (problem is app-level); 404 = Apache isn't serving the folder
     (perms/docroot/symlink).
 
+11. **The GoDaddy WAF turns oversized responses into a 404 (the multi-hour bug).** GoDaddy runs
+    **ModSecurity**, and it only inspects responses up to ~512 KB (`SecResponseBodyLimit`); anything
+    **larger is rejected** and served as the docroot app's 404 page (old-Laravel "404 | Not Found",
+    *no* `junknallhauling-session` cookie). Symptom: **certain records 404 on the field sheet / report,
+    others load** — because pages that **inline base64 images** (customer photos, field photos,
+    signatures) balloon past the limit only when that record has big photos. It is **not** the DB, the
+    route, or a cache. **Never inline `data:…;base64,…` images in a server-rendered page.** Serve stored
+    images as files via `route('admin.job-image', [$id, $kind, $index])`
+    (`EmployeeCalendarController::jobImage`, kinds: `photos|arrival|departure|signature|legacy`) so the
+    HTML stays small; image responses (`image/*`) aren't subject to the text-response limit. Diagnose by
+    logging `strlen(view(...)->render())` — if the app returns 200 with a >0.5 MB body but the browser
+    sees 404, it's this. (Also: the WAF's **request** rules false-positive on some admin requests; the
+    docroot `.htaccess` disables OWASP CRS XSS rules `941100-941350` for the sibling apps, and
+    `public/.htaccess` mirrors that with a broad `SecRuleRemoveById "920000-959999"` — note this host
+    **only honors `SecRuleRemoveById`**; `SecRuleEngine`/`<If>` in `.htaccess` returns a **405**.)
+
 ---
 
 ## 10. Quick command reference
@@ -387,6 +403,9 @@ chmod 711 ~/repositories/junknallhauling   # if a fresh repo 404s
 ## 11. Conventions for changes
 
 - Match the surrounding style; run **Pint** before considering PHP changes done.
+- **Never inline base64 images in a server-rendered page.** Render stored photos/signatures via
+  `route('admin.job-image', [$id, $kind, $index])`, not `<img src="data:…;base64,…">`. Inlined images
+  bloat the HTML past the host WAF's ~512 KB response limit, which 404s the whole page (see §9 #11).
 - Any **new image / asset / endpoint reference** must be subfolder-safe (§6) or it will break in production.
 - Touching JS/CSS/asset-referencing Blade ⇒ remember it needs a **local `npm run build` + upload of
   `public/build/`** to take effect in prod (no Node on the server).
