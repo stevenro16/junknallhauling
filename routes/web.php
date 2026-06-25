@@ -84,19 +84,19 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
             // Admin Field View — the employee field experience across all scheduled jobs.
             Route::get('/field', [FieldViewController::class, 'index'])->name('field');
-            Route::get('/onsite/{id}', [FieldViewController::class, 'job'])->name('field.job');
-            Route::post('/onsite/{id}/status', [FieldViewController::class, 'updateStatus'])->name('field.status');
-            Route::post('/onsite/{id}/time/{which}', [FieldViewController::class, 'recordTime'])
+            Route::get('/field/job/{id}', [FieldViewController::class, 'job'])->name('field.job');
+            Route::post('/field/job/{id}/status', [FieldViewController::class, 'updateStatus'])->name('field.status');
+            Route::post('/field/job/{id}/time/{which}', [FieldViewController::class, 'recordTime'])
                 ->whereIn('which', ['arrival', 'departure'])->name('field.time');
-            Route::post('/onsite/{id}/photo/{which}', [FieldViewController::class, 'recordPhoto'])
+            Route::post('/field/job/{id}/photo/{which}', [FieldViewController::class, 'recordPhoto'])
                 ->whereIn('which', ['arrival', 'departure'])->name('field.photo');
-            Route::post('/onsite/{id}/photo/{which}/remove', [FieldViewController::class, 'removePhoto'])
+            Route::post('/field/job/{id}/photo/{which}/remove', [FieldViewController::class, 'removePhoto'])
                 ->whereIn('which', ['arrival', 'departure'])->name('field.photo-remove');
-            Route::post('/onsite/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
-            Route::post('/onsite/{id}/eta', [FieldViewController::class, 'eta'])->name('field.eta');
-            Route::post('/onsite/{id}/eta-sent', [FieldViewController::class, 'etaSent'])->name('field.eta-sent');
-            Route::post('/onsite/{id}/payment', [FieldViewController::class, 'recordPayment'])->name('field.payment');
-            Route::post('/onsite/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
+            Route::post('/field/job/{id}/sign', [FieldViewController::class, 'sign'])->name('field.sign');
+            Route::post('/field/job/{id}/eta', [FieldViewController::class, 'eta'])->name('field.eta');
+            Route::post('/field/job/{id}/eta-sent', [FieldViewController::class, 'etaSent'])->name('field.eta-sent');
+            Route::post('/field/job/{id}/payment', [FieldViewController::class, 'recordPayment'])->name('field.payment');
+            Route::post('/field/job/{id}/comment', [FieldViewController::class, 'addComment'])->name('field.comment');
 
             Route::get('/inquiries/{id}', [InquiryController::class, 'show'])->name('inquiries.show');
             Route::get('/inquiries/{id}/report', [InquiryController::class, 'report'])->name('inquiries.report');

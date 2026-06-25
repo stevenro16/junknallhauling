@@ -6,7 +6,10 @@
     # this app. (Laravel parameterizes every query via Eloquent and escapes output
     # via Blade, so these CRS rules add little here.) This host only honors
     # SecRuleRemoveById in .htaccess — SecRuleEngine/<If> returns a 405.
-    SecRuleRemoveById "920000-949999"
+    # 920000-949999 = inbound (request) rules; 950000-959999 = outbound (response)
+    # rules. The field sheet renders record data that trips an OUTBOUND rule for
+    # certain inquiries, so both directions must be excluded.
+    SecRuleRemoveById "920000-959999"
 </IfModule>
 
 <IfModule mod_rewrite.c>
