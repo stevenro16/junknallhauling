@@ -6,6 +6,7 @@
 <div x-data="inquiryDetail({
         inquiry: @js($inquiryData),
         agreementTitle: @js($agreementTitle),
+        agreements: @js($agreements),
         equipment: @js($equipment),
         services: @js($services),
         allInquiries: @js($allInquiries),
@@ -287,6 +288,24 @@
                 <div class="text-xs text-emerald-700 inline-flex items-center gap-1"><x-icon name="check-circle" class="w-4 h-4"/> Customer confirmed date/time &amp; amount on <span x-text="detailFmt(detailSubmission.signed_at)"></span></div>
                 <template x-if="detailSubmission.signature_url">
                     <img :src="detailSubmission.signature_url" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-16 max-w-full">
+                </template>
+            </div>
+        </template>
+
+        {{-- Agreement status — confirm at a glance that any required agreement is signed --}}
+        <template x-if="agreementTitle || signedAgreement">
+            <div class="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+                <template x-if="signedAgreement">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <div class="text-xs text-emerald-700 inline-flex items-center gap-1"><x-icon name="check-circle" class="w-4 h-4"/> <span class="font-medium" x-text="agreementTitle || 'Agreement'"></span> signed <span x-text="detailFmt(signedAgreement.signed_at)"></span></div>
+                        <template x-if="signedAgreement.signature_url">
+                            <img :src="signedAgreement.signature_url" alt="Agreement signature" class="border border-gray-200 rounded-lg bg-white max-h-14 max-w-full">
+                        </template>
+                        <a :href="signedAgreement.admin_url" target="_blank" rel="noopener" class="text-xs text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-1 ml-auto">View / Print <x-icon name="external-link" class="w-3 h-3"/></a>
+                    </div>
+                </template>
+                <template x-if="!signedAgreement">
+                    <div class="text-xs text-amber-700 inline-flex items-center gap-1.5"><x-icon name="alert" class="w-4 h-4 shrink-0"/> <span class="font-medium" x-text="agreementTitle || 'Agreement'"></span> is not signed yet — generate/send it in Job Details below before scheduling.</div>
                 </template>
             </div>
         </template>

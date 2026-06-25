@@ -234,6 +234,8 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     scheduleEvents: cfg.scheduleEvents || [], // confirmed visits, for the day-schedule panel
     businessName: cfg.businessName || '',     // for the request-details text/email message
     agreementTitle: cfg.agreementTitle || '', // title of the agreement attached to this item (or '')
+    agreements: cfg.agreements || [],         // signed/pending agreement links for this quote
+    get signedAgreement() { return this.agreements.find((a) => a.signed_at) || null; },
     detailRequests: cfg.detailRequests || [], // customer "request details" links
     detailReq: { url: '', loading: false, error: '', copied: false }, // active link + ui state
     detailSubmission: null, // the customer's submitted details (signature + confirm flags), for review
