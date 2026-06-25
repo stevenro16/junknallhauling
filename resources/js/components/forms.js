@@ -647,7 +647,7 @@ Alpine.data('quoteDetailsForm', (token) => ({
         for (const file of files) {
             if (this.photos.length + this._pendingPhotos >= 2) { this.photoError = 'You can attach up to 2 photos — remove one to add another.'; break; }
             if (!file.type.startsWith('image/')) { this.photoError = `"${file.name}" isn't an image. Please choose a photo (JPG or PNG).`; continue; }
-            if (file.size > 15 * 1024 * 1024) { this.photoError = `"${file.name}" is ${(file.size / 1048576).toFixed(1)}MB — please choose a photo under 15MB.`; continue; }
+            if (file.size > 10 * 1024 * 1024) { this.photoError = `"${file.name}" is ${(file.size / 1048576).toFixed(1)}MB — please choose a photo under 10MB.`; continue; }
             this._processPhoto(file);
         }
         event.target.value = '';   // allow re-selecting the same file
@@ -807,8 +807,9 @@ Alpine.data('quoteDetailsForm', (token) => ({
             };
             const body = JSON.stringify(payload);
             // Photos can make the request exceed the server's upload limit; catch it here
-            // with a clear message instead of a failed/oversized POST.
-            if (body.length > 6_000_000) {
+            // with a clear message instead of a failed/oversized POST. (Photos are
+            // re-encoded to ~1600px JPEG first, so two of them stay well under this.)
+            if (body.length > 12_000_000) {
                 throw new Error('Your photos are too large to upload. Please remove a photo (or use a smaller one) and try again.');
             }
             const res = await fetch(window.apiUrl(`/api/quote-details/${this.token}`), {

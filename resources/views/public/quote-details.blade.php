@@ -95,7 +95,7 @@
                     {{-- Photos (optional, up to 2) --}}
                     <div>
                         <h2 class="font-semibold text-lg mb-1 text-gray-800">Photos <span class="text-sm font-normal text-gray-400">(optional)</span></h2>
-                        <p class="text-xs text-gray-500 mb-3">Add up to 2 photos of the items or area (5MB each) to help us prepare.</p>
+                        <p class="text-xs text-gray-500 mb-3">Add up to 2 photos of the items or area (10MB each) to help us prepare.</p>
                         <div class="flex flex-wrap gap-3">
                             <template x-for="(p, i) in photos" :key="i">
                                 <div class="relative">
