@@ -9,7 +9,7 @@
 <div x-show="showPhotoModal" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4" @click="showPhotoModal = false">
     <div class="max-w-[95vw] max-h-[90vh] overflow-auto" @click.stop>
         <div class="flex justify-end mb-2"><button type="button" @click="showPhotoModal = false" class="text-gray-300 hover:text-white text-sm px-3 py-1">Close &times;</button></div>
-        <img :src="inquiry.photo_base64 ? ('data:' + inquiry.photo_mime + ';base64,' + inquiry.photo_base64) : ''" alt="Customer photo" class="max-w-full max-h-[85vh] rounded-2xl border border-gray-300 shadow-2xl object-contain bg-gray-900">
+        <img :src="inquiry.photo_url || ''" alt="Customer photo" class="max-w-full max-h-[85vh] rounded-2xl border border-gray-300 shadow-2xl object-contain bg-gray-900">
         <p class="text-center text-xs text-gray-400 mt-2">Click outside or press close to dismiss</p>
     </div>
 </div>

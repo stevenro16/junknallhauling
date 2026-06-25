@@ -134,7 +134,7 @@
                     @if(($d->form_data['confirm_amount'] ?? false))✓ Confirmed the quoted amount.@endif
                 </p>
                 @if($d->signature_base64)
-                    <img src="{{ $d->signature_base64 }}" alt="Customer signature" class="mt-2 max-h-24 border border-gray-200 rounded bg-white">
+                    <img src="{{ route('admin.doc-image', ['detail', $d->id]) }}" alt="Customer signature" class="mt-2 max-h-24 border border-gray-200 rounded bg-white">
                 @endif
             </section>
         @endforeach
@@ -148,7 +148,7 @@
                         <div class="avoid-break">
                             <div class="text-sm font-semibold">{{ ucwords(str_replace('_', ' ', $action)) }}
                                 <span class="text-gray-400 font-normal">· {{ $dt($sig['signed_at'] ?? null) }}</span></div>
-                            @if(! empty($sig['signature']))<img src="{{ $sig['signature'] }}" alt="{{ $action }} signature" class="mt-1 max-h-24 border border-gray-200 rounded bg-white">@endif
+                            @if(! empty($sig['signature']))<img src="{{ route('admin.job-image', [$inquiry->id, 'signature', $loop->index]) }}" alt="{{ $action }} signature" class="mt-1 max-h-24 border border-gray-200 rounded bg-white">@endif
                         </div>
                     @endforeach
                 </div>
@@ -160,7 +160,7 @@
             <section class="avoid-break mb-6">
                 <h2 class="text-xs uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-1 mb-2">Signed Rental Agreement</h2>
                 <p class="text-sm text-gray-700">Signed on {{ $dt($a->signed_at) }}@if($a->ip_address) · IP {{ $a->ip_address }}@endif.</p>
-                @if($a->signature_base64)<img src="{{ $a->signature_base64 }}" alt="Agreement signature" class="mt-2 max-h-24 border border-gray-200 rounded bg-white">@endif
+                @if($a->signature_base64)<img src="{{ route('admin.doc-image', ['agreement', $a->id]) }}" alt="Agreement signature" class="mt-2 max-h-24 border border-gray-200 rounded bg-white">@endif
             </section>
         @endforeach
 

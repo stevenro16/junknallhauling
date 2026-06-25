@@ -272,8 +272,9 @@ class InquiryApiController extends Controller
             'cancelled_at' => $a->cancelled_at,
             'created_at' => $a->created_at,
             'usable' => $a->isUsable(),
-            // Signature thumbnail (signed agreements only) for the admin panel.
-            'signature_base64' => $a->signed_at ? $a->signature_base64 : null,
+            // Signature thumbnail (signed agreements only) for the admin panel — served
+            // as a URL, never inline base64 (keeps the quote page x-data small).
+            'signature_url' => $a->signed_at && $a->signature_base64 ? route('admin.doc-image', ['agreement', $a->id]) : null,
         ];
     }
 
@@ -324,8 +325,9 @@ class InquiryApiController extends Controller
             'created_at' => $d->created_at,
             'usable' => $d->isUsable(),
             // Submitted data + signature (signed requests only) for the admin review panel.
+            // Signature is served as a URL, never inline base64 (keeps x-data small).
             'form_data' => $d->signed_at ? $d->form_data : null,
-            'signature_base64' => $d->signed_at ? $d->signature_base64 : null,
+            'signature_url' => $d->signed_at && $d->signature_base64 ? route('admin.doc-image', ['detail', $d->id]) : null,
         ];
     }
 

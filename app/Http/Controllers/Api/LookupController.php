@@ -32,6 +32,12 @@ class LookupController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // Drop ALL base64 image data — a photo-heavy job would make this public JSON
+        // exceed the host WAF's response limit, which it rejects as a 404 (a customer
+        // then can't check their status at all). The status page guards the photo with
+        // x-show, so it just doesn't render; everything else works. (CLAUDE.md §9 #11)
+        $inquiries->each->makeHidden(['photos', 'signatures', 'arrival_photos', 'departure_photos', 'photo_base64', 'photo_mime']);
+
         return response()->json(['inquiries' => $inquiries]);
     }
 }

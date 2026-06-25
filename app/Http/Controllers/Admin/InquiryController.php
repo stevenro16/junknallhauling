@@ -44,8 +44,21 @@ class InquiryController extends Controller
             }
         }
 
+        // Slim the inquiry for x-data: swap the heavy base64 image arrays for image
+        // URLs so the page HTML stays small. Inlining them would push the response
+        // past the host WAF's body limit, which rejects it as a 404 (CLAUDE.md §9 #11).
+        // Field photos/signatures aren't rendered on this page, so they're dropped.
+        $inquiryData = $inquiry->toArray();
+        $inquiryData['photos'] = array_map(
+            fn ($i) => route('admin.job-image', [$inquiry->id, 'photos', $i]),
+            array_keys($inquiry->photos ?? [])
+        );
+        $inquiryData['photo_url'] = $inquiry->photo_base64 ? route('admin.job-image', [$inquiry->id, 'legacy', 0]) : null;
+        unset($inquiryData['photo_base64'], $inquiryData['signatures'], $inquiryData['arrival_photos'], $inquiryData['departure_photos']);
+
         return view('admin.inquiries.show', [
             'inquiry' => $inquiry,
+            'inquiryData' => $inquiryData,   // slim, image-URL'd copy for the x-data JSON
             'history' => $inquiry->statusHistory()->orderByDesc('changed_at')->get(),
             'equipment' => EquipmentType::active()->orderBy('name')->get(),
             // Service-catalog options for the Job Details picker (the dedicated

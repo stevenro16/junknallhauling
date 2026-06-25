@@ -118,7 +118,7 @@
                 <div class="text-sm mb-4"><div class="text-xs uppercase tracking-wider text-gray-400">Customer notes</div><div class="text-gray-800 whitespace-pre-wrap">{{ $fd['customer_notes'] }}</div></div>
             @endif
             @if($agreement->signature_base64)
-                <img src="{{ $agreement->signature_base64 }}" alt="Customer signature"
+                <img src="{{ route('admin.doc-image', ['agreement', $agreement->id]) }}" alt="Customer signature"
                      class="max-w-xs w-full rounded-lg border border-gray-300 bg-white">
             @endif
             <p class="text-xs text-emerald-700 mt-3 print:text-gray-700">&check; Customer read, understood, and agreed to all terms and conditions above.</p>

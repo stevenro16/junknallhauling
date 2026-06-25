@@ -8,6 +8,8 @@ use App\Http\Controllers\Concerns\EstimatesTravel;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\InquiryComment;
+use App\Models\QuoteDetailRequest;
+use App\Models\RentalAgreement;
 use Illuminate\Http\Request;
 
 class EmployeeCalendarController extends Controller
@@ -67,7 +69,7 @@ class EmployeeCalendarController extends Controller
     {
         $inquiry = Inquiry::findOrFail($id);
 
-        $src = match ($kind) {
+        return $this->imageResponse(match ($kind) {
             'photos' => ($inquiry->photos ?? [])[$index] ?? null,
             'arrival' => ($inquiry->arrival_photos ?? [])[$index] ?? null,
             'departure' => ($inquiry->departure_photos ?? [])[$index] ?? null,
@@ -76,9 +78,23 @@ class EmployeeCalendarController extends Controller
                 ? 'data:'.($inquiry->photo_mime ?: 'image/jpeg').';base64,'.$inquiry->photo_base64
                 : null,
             default => null,
-        };
+        });
+    }
 
-        if (! is_string($src) || ! preg_match('#^data:(image/[\w.+-]+);base64,(.+)$#is', $src, $m)) {
+    /** Serve a rental-agreement or detail-request signature as an image file. */
+    public function docImage(string $type, string $id)
+    {
+        $model = $type === 'agreement'
+            ? RentalAgreement::findOrFail($id)
+            : QuoteDetailRequest::findOrFail($id);
+
+        return $this->imageResponse($model->signature_base64);
+    }
+
+    /** Decode a base64 image data URL into a real image response (or 404). */
+    private function imageResponse(?string $dataUrl)
+    {
+        if (! is_string($dataUrl) || ! preg_match('#^data:(image/[\w.+-]+);base64,(.+)$#is', $dataUrl, $m)) {
             abort(404);
         }
 

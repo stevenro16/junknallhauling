@@ -83,6 +83,9 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/job-image/{id}/{kind}/{index}', [EmployeeCalendarController::class, 'jobImage'])
             ->whereIn('kind', ['photos', 'arrival', 'departure', 'signature', 'legacy'])
             ->whereNumber('index')->name('job-image');
+        // Rental-agreement / detail-request signatures, served as files for the same reason.
+        Route::get('/doc-image/{type}/{id}', [EmployeeCalendarController::class, 'docImage'])
+            ->whereIn('type', ['agreement', 'detail'])->name('doc-image');
 
         // Everything below is full-admin only.
         Route::middleware('role.admin')->group(function () {

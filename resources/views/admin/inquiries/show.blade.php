@@ -4,7 +4,7 @@
 
 @section('admin-content')
 <div x-data="inquiryDetail({
-        inquiry: @js($inquiry),
+        inquiry: @js($inquiryData),
         equipment: @js($equipment),
         services: @js($services),
         allInquiries: @js($allInquiries),
@@ -284,8 +284,8 @@
         <template x-if="detailSubmission">
             <div class="mt-3 flex flex-wrap items-center gap-3">
                 <div class="text-xs text-emerald-700 inline-flex items-center gap-1"><x-icon name="check-circle" class="w-4 h-4"/> Customer confirmed date/time &amp; amount on <span x-text="detailFmt(detailSubmission.signed_at)"></span></div>
-                <template x-if="detailSubmission.signature_base64">
-                    <img :src="detailSubmission.signature_base64" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-16 max-w-full">
+                <template x-if="detailSubmission.signature_url">
+                    <img :src="detailSubmission.signature_url" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-16 max-w-full">
                 </template>
             </div>
         </template>
@@ -397,8 +397,8 @@
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"><x-icon name="check" class="w-3 h-3"/> Date &amp; time confirmed</span>
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"><x-icon name="check" class="w-3 h-3"/> Amount confirmed</span>
                                 </div>
-                                <template x-if="detailSubmission.signature_base64">
-                                    <img :src="detailSubmission.signature_base64" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-24 max-w-full">
+                                <template x-if="detailSubmission.signature_url">
+                                    <img :src="detailSubmission.signature_url" alt="Customer signature" class="border border-gray-200 rounded-lg bg-white max-h-24 max-w-full">
                                 </template>
                                 <p class="text-[11px] text-gray-500">Review the updated details below, then set the status to <span class="font-medium">Scheduled</span> when ready.</p>
                             </div>
@@ -550,10 +550,10 @@
                                 <input x-show="equipmentType === '__other__'" type="text" @input="equipmentType = $event.target.value" placeholder="Specify equipment type" class="input-light text-sm py-2 mt-2 w-full" x-cloak>
                             </div>
                             {{-- Customer photo --}}
-                            <template x-if="inquiry.photo_base64 && inquiry.photo_mime">
+                            <template x-if="inquiry.photo_url">
                                 <div class="mt-2">
                                     <button type="button" @click="showPhotoModal = true" class="block overflow-hidden rounded-lg border border-gray-300 hover:border-[#F8C820] transition-colors" title="Click to view full size">
-                                        <img :src="'data:' + inquiry.photo_mime + ';base64,' + inquiry.photo_base64" alt="Customer photo" class="w-full max-h-24 object-cover">
+                                        <img :src="inquiry.photo_url" alt="Customer photo" class="w-full max-h-24 object-cover">
                                     </button>
                                     <div class="text-[10px] text-gray-500 mt-0.5">Photo — click to enlarge</div>
                                 </div>
