@@ -57,6 +57,42 @@ class EmployeeCalendarController extends Controller
         ]);
     }
 
+    /**
+     * Serve a stored inquiry image (customer/field photo or signature) as a real
+     * image file. The job sheet links to these instead of inlining base64, so the
+     * HTML stays small — a page with megabytes of inline base64 exceeds the host
+     * WAF's response-body limit and gets rejected as a 404.
+     */
+    public function jobImage(string $id, string $kind, int $index)
+    {
+        $inquiry = Inquiry::findOrFail($id);
+
+        $src = match ($kind) {
+            'photos' => ($inquiry->photos ?? [])[$index] ?? null,
+            'arrival' => ($inquiry->arrival_photos ?? [])[$index] ?? null,
+            'departure' => ($inquiry->departure_photos ?? [])[$index] ?? null,
+            'signature' => array_values($inquiry->signatures ?? [])[$index]['signature'] ?? null,
+            'legacy' => $inquiry->photo_base64
+                ? 'data:'.($inquiry->photo_mime ?: 'image/jpeg').';base64,'.$inquiry->photo_base64
+                : null,
+            default => null,
+        };
+
+        if (! is_string($src) || ! preg_match('#^data:(image/[\w.+-]+);base64,(.+)$#is', $src, $m)) {
+            abort(404);
+        }
+
+        $binary = base64_decode($m[2], true);
+        if ($binary === false) {
+            abort(404);
+        }
+
+        return response($binary, 200, [
+            'Content-Type' => $m[1],
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
     /** Driving estimate from the employee's current location to their assigned job. */
     public function eta(Request $request, string $id)
     {

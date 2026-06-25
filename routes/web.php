@@ -78,6 +78,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/my-schedule/job/{id}/eta-sent', [EmployeeCalendarController::class, 'etaSent'])->name('my-schedule.eta-sent');
         Route::post('/my-schedule/job/{id}/comment', [EmployeeCalendarController::class, 'addComment'])->name('my-schedule.comment');
 
+        // Inquiry images (photos/signatures) served as files so the job sheet HTML
+        // stays small — inlining base64 would exceed the host WAF's response limit.
+        Route::get('/job-image/{id}/{kind}/{index}', [EmployeeCalendarController::class, 'jobImage'])
+            ->whereIn('kind', ['photos', 'arrival', 'departure', 'signature', 'legacy'])
+            ->whereNumber('index')->name('job-image');
+
         // Everything below is full-admin only.
         Route::middleware('role.admin')->group(function () {
             Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

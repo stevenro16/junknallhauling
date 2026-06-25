@@ -141,7 +141,7 @@
             @if($inquiry->photo_base64)
                 <div class="py-2.5">
                     <dt class="text-gray-500 mb-1">Customer Photo</dt>
-                    <dd><a href="data:{{ $inquiry->photo_mime }};base64,{{ $inquiry->photo_base64 }}" target="_blank" rel="noopener"><img src="data:{{ $inquiry->photo_mime }};base64,{{ $inquiry->photo_base64 }}" alt="Customer-provided photo" class="max-h-64 rounded-lg border border-gray-200"></a></dd>
+                    <dd><a href="{{ route('admin.job-image', [$inquiry->id, 'legacy', 0]) }}" target="_blank" rel="noopener"><img src="{{ route('admin.job-image', [$inquiry->id, 'legacy', 0]) }}" alt="Customer-provided photo" class="max-h-64 rounded-lg border border-gray-200"></a></dd>
                 </div>
             @endif
             @if(! empty($inquiry->photos))
@@ -149,7 +149,7 @@
                     <dt class="text-gray-500 mb-1">Customer Photos</dt>
                     <dd class="flex flex-wrap gap-2">
                         @foreach($inquiry->photos as $p)
-                            <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="Customer photo" class="max-h-40 rounded-lg border border-gray-200"></a>
+                            <a href="{{ route('admin.job-image', [$inquiry->id, 'photos', $loop->index]) }}" target="_blank" rel="noopener"><img src="{{ route('admin.job-image', [$inquiry->id, 'photos', $loop->index]) }}" alt="Customer photo" class="max-h-40 rounded-lg border border-gray-200"></a>
                         @endforeach
                     </dd>
                 </div>
@@ -191,7 +191,7 @@
                             <div class="flex flex-wrap gap-1.5 mb-1.5">
                                 @foreach($info[2] as $idx => $p)
                                     <div class="relative">
-                                        <a href="{{ $p }}" target="_blank" rel="noopener"><img src="{{ $p }}" alt="{{ $info[0] }} photo" class="w-12 h-12 object-cover rounded border border-gray-200"></a>
+                                        <a href="{{ route('admin.job-image', [$inquiry->id, $which, $idx]) }}" target="_blank" rel="noopener"><img src="{{ route('admin.job-image', [$inquiry->id, $which, $idx]) }}" alt="{{ $info[0] }} photo" class="w-12 h-12 object-cover rounded border border-gray-200"></a>
                                         <form method="POST" action="{{ route($routeBase.'.photo-remove', [$inquiry->id, $which]) }}" class="absolute -top-1.5 -right-1.5">
                                             @csrf<input type="hidden" name="index" value="{{ $idx }}">
                                             <button type="submit" class="w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] leading-none shadow hover:bg-red-600" title="Remove photo">&times;</button>
@@ -266,7 +266,7 @@
                                 <span class="text-gray-400 font-normal">{{ \Carbon\Carbon::parse($sig['signed_at'])->format('D, M j · g:i A') }}</span>
                                 <button type="button" @click="openFor('{{ $key }}', '{{ $sigLabel }}')" class="text-amber-600 hover:text-amber-700">Re-sign</button>
                             </div>
-                            <img src="{{ $sig['signature'] }}" alt="{{ $sigLabel }} signature" class="mt-1 border border-gray-200 rounded-lg bg-white max-h-28 max-w-full">
+                            <img src="{{ route('admin.job-image', [$inquiry->id, 'signature', $loop->index]) }}" alt="{{ $sigLabel }} signature" class="mt-1 border border-gray-200 rounded-lg bg-white max-h-28 max-w-full">
                         </div>
                     @endforeach
                 </div>
