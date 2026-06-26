@@ -119,6 +119,7 @@ Alpine.data('quoteForm', () => ({
     // photo
     photo: null,               // { base64, mime, name }
     photoError: null,
+    _photoPending: false,      // true while a selected photo is still being read
     errors: {},
 
     init() {
@@ -195,14 +196,19 @@ Alpine.data('quoteForm', () => ({
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) { this.photoError = 'Photo must be smaller than 5MB'; return; }
-        if (!file.type.startsWith('image/')) { this.photoError = 'Please upload an image file'; return; }
+        // Don't hard-reject on MIME type — iPhones often report an empty or non-standard
+        // type (e.g. "" or image/heic) for real photos. accept="image/*" filters the picker.
+        if (file.type && !file.type.startsWith('image/')) { this.photoError = 'Please upload an image file'; return; }
         this.photoError = null;
+        this._photoPending = true;
         const reader = new FileReader();
+        reader.onerror = () => { this._photoPending = false; this.photoError = 'Couldn’t read that photo — please try a different one.'; };
         reader.onload = (ev) => {
             const result = ev.target.result;
             const [header, base64] = result.split(',');
             const mime = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
             this.photo = { base64, mime, name: file.name };
+            this._photoPending = false;
         };
         reader.readAsDataURL(file);
     },
@@ -223,6 +229,15 @@ Alpine.data('quoteForm', () => ({
     async submit() {
         if (!this.validate()) return;
         this.status = 'loading';
+        // A photo may still be reading (slow on iPhones for large photos). Wait briefly
+        // so a fast tap doesn't post before the photo is attached.
+        if (this._photoPending) {
+            let waited = 0;
+            while (this._photoPending && waited < 8000) {
+                await new Promise((r) => setTimeout(r, 150));
+                waited += 150;
+            }
+        }
         const payload = {
             name: this.name, phone: this.phone, email: this.email,
             service_type: this.serviceType,
@@ -646,7 +661,11 @@ Alpine.data('quoteDetailsForm', (token) => ({
         const files = Array.from(event.target.files || []);
         for (const file of files) {
             if (this.photos.length + this._pendingPhotos >= 2) { this.photoError = 'You can attach up to 2 photos — remove one to add another.'; break; }
-            if (!file.type.startsWith('image/')) { this.photoError = `"${file.name}" isn't an image. Please choose a photo (JPG or PNG).`; continue; }
+            // Don't hard-reject on MIME type — iPhones often report an empty or non-standard
+            // type (e.g. "" or image/heic) for real photos, especially via "Choose Files".
+            // accept="image/*" already filters the picker; the Image decode below is the real
+            // validator (its onerror catches anything that isn't a usable image).
+            if (file.type && !file.type.startsWith('image/')) { this.photoError = `"${file.name}" isn't an image. Please choose a photo (JPG or PNG).`; continue; }
             if (file.size > 10 * 1024 * 1024) { this.photoError = `"${file.name}" is ${(file.size / 1048576).toFixed(1)}MB — please choose a photo under 10MB.`; continue; }
             this._processPhoto(file);
         }
@@ -783,6 +802,15 @@ Alpine.data('quoteDetailsForm', (token) => ({
         if (!signatureData) return this.flag('signatureField', 'Please add your signature.');
 
         this.submitting = true;
+        // A photo may still be decoding/re-encoding (slow on iPhones for large photos).
+        // Wait briefly so a fast tap doesn't drop the photo or post before it's ready.
+        if (this._pendingPhotos > 0) {
+            let waited = 0;
+            while (this._pendingPhotos > 0 && waited < 8000) {
+                await new Promise((r) => setTimeout(r, 150));
+                waited += 150;
+            }
+        }
         this.error = '';
         try {
             const name = [this.firstName.trim(), this.lastName.trim()].filter(Boolean).join(' ');
