@@ -1,4 +1,4 @@
-<footer class="bg-charcoal-800 border-t border-white/10 mt-auto text-white">
+<footer x-data="{ legal: null }" class="bg-charcoal-800 border-t border-white/10 mt-auto text-white">
     <div class="container-wide py-14">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
             {{-- Brand --}}
@@ -52,8 +52,16 @@
             </div>
         </div>
 
-        <div class="mt-12 pt-8 border-t border-white/10 text-center text-xs text-slate-500">
-            &copy; {{ date('Y') }} {{ config('business.name') }}. All rights reserved. &nbsp;&bull;&nbsp; Locally Owned &amp; Operated Since 2019
+        <div class="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-3 text-xs text-slate-500">
+            <span>&copy; {{ date('Y') }} {{ config('business.name') }}. All rights reserved. &nbsp;&bull;&nbsp; Locally Owned &amp; Operated Since 2019</span>
+            <span class="hidden sm:inline text-slate-600">&bull;</span>
+            <span class="flex items-center gap-3">
+                <button type="button" @click="legal = 'privacy'" class="hover:text-orange-400 hover:underline underline-offset-2 transition-colors">Privacy Policy</button>
+                <span class="text-slate-600">&bull;</span>
+                <button type="button" @click="legal = 'terms'" class="hover:text-orange-400 hover:underline underline-offset-2 transition-colors">Terms &amp; Conditions</button>
+            </span>
         </div>
     </div>
+
+    @include('partials.legal-modals')
 </footer>
