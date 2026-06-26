@@ -32,7 +32,7 @@ class PublicApiTest extends TestCase
     {
         $this->getJson('/api/equipment')
             ->assertOk()
-            ->assertJsonCount(6, 'equipment');
+            ->assertJsonCount(7, 'equipment');   // 6 hourly machines + the flat-rate dump trailer
     }
 
     public function test_quote_creates_inquiry_and_applies_default_duration(): void

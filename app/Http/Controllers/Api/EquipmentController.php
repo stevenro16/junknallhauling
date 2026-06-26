@@ -16,6 +16,11 @@ class EquipmentController extends Controller
                 'name' => $e->name,
                 'avg_cost_per_hour' => $e->avg_cost_per_hour,
                 'daily_rate' => $e->daily_rate,
+                'flat_price' => $e->flat_price,
+                'included_days' => $e->included_days,
+                'included_tons' => $e->included_tons,
+                'price_per_additional_ton' => $e->price_per_additional_ton,
+                'price_per_additional_day' => $e->price_per_additional_day,
             ]);
 
         return response()->json(['equipment' => $equipment]);

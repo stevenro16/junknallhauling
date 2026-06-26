@@ -1570,25 +1570,62 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     equipment: cfg.equipment || [],
     agreements: cfg.agreements || [],
-    nw: { name: '', cost: '', daily: '', instructions: '', agreement_id: '' },
+    blank: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
+    nw: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
     error: '',
     editingId: null,
-    ed: { name: '', cost: '', daily: '', instructions: '', agreement_id: '' },
+    ed: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.equipment = d.equipment || []; } } catch {} },
 
     agreementName(item) { const a = this.agreements.find((x) => x.id === item.agreement_id); return a ? a.title : ''; },
 
+    // Short summary of an item's pricing for the list.
+    pricingLabel(e) {
+        if (e.flat_price) {
+            const inc = [];
+            if (e.included_days) inc.push(`${e.included_days}d`);
+            if (e.included_tons) inc.push(`${this.money(e.included_tons)}t`);
+            let s = `$${this.money(e.flat_price)} flat`;
+            if (inc.length) s += ` (incl ${inc.join(' / ')})`;
+            return s;
+        }
+        const r = [];
+        if (e.avg_cost_per_hour) r.push(`$${this.money(e.avg_cost_per_hour)}/hr`);
+        if (e.daily_rate) r.push(`$${this.money(e.daily_rate)}/day`);
+        return r.length ? r.join(' · ') : '—';
+    },
+
+    // Build the request body from a form-state object (nw or ed).
+    _payload(s) {
+        const n = (v) => (v === '' || v == null ? null : v);
+        return {
+            name: s.name,
+            avg_cost_per_hour: n(s.cost), daily_rate: n(s.daily),
+            flat_price: n(s.flat), included_days: n(s.incDays), included_tons: n(s.incTons),
+            price_per_additional_ton: n(s.addTon), price_per_additional_day: n(s.addDay),
+            customer_instructions: s.instructions, agreement_id: s.agreement_id || null,
+        };
+    },
+
     async add() {
         this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.nw.name, avg_cost_per_hour: this.nw.cost === '' ? null : this.nw.cost, daily_rate: this.nw.daily === '' ? null : this.nw.daily, customer_instructions: this.nw.instructions, agreement_id: this.nw.agreement_id || null }) });
-        if (r.ok) { this.nw = { name: '', cost: '', daily: '', instructions: '', agreement_id: '' }; await this.reload(); }
+        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.nw)) });
+        if (r.ok) { this.nw = { ...this.blank }; await this.reload(); }
         else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add equipment'; }
     },
-    startEdit(e) { this.editingId = e.id; this.ed = { name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '', instructions: e.customer_instructions ?? '', agreement_id: e.agreement_id ?? '' }; },
+    startEdit(e) {
+        this.editingId = e.id;
+        this.ed = {
+            name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '',
+            flat: e.flat_price ?? '', incDays: e.included_days ?? '', incTons: e.included_tons ?? '',
+            addTon: e.price_per_additional_ton ?? '', addDay: e.price_per_additional_day ?? '',
+            instructions: e.customer_instructions ?? '', agreement_id: e.agreement_id ?? '',
+        };
+    },
     cancelEdit() { this.editingId = null; },
     async saveEdit(e) {
-        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ name: this.ed.name, avg_cost_per_hour: this.ed.cost === '' ? null : this.ed.cost, daily_rate: this.ed.daily === '' ? null : this.ed.daily, customer_instructions: this.ed.instructions, agreement_id: this.ed.agreement_id || null }) });
+        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.ed)) });
         if (r.ok) { this.editingId = null; await this.reload(); }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },

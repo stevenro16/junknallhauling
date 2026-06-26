@@ -26,8 +26,13 @@ class EquipmentController extends Controller
 
         $equipment = EquipmentType::create([
             'name' => $name,
-            'avg_cost_per_hour' => $request->input('avg_cost_per_hour') !== null && $request->input('avg_cost_per_hour') !== '' ? (float) $request->input('avg_cost_per_hour') : null,
-            'daily_rate' => $request->input('daily_rate') !== null && $request->input('daily_rate') !== '' ? (float) $request->input('daily_rate') : null,
+            'avg_cost_per_hour' => $this->num($request->input('avg_cost_per_hour')),
+            'daily_rate' => $this->num($request->input('daily_rate')),
+            'flat_price' => $this->num($request->input('flat_price')),
+            'included_days' => $this->intOrNull($request->input('included_days')),
+            'included_tons' => $this->num($request->input('included_tons')),
+            'price_per_additional_ton' => $this->num($request->input('price_per_additional_ton')),
+            'price_per_additional_day' => $this->num($request->input('price_per_additional_day')),
             'active' => true,
             'customer_visible' => $request->has('customer_visible') ? (bool) $request->input('customer_visible') : true,
             'customer_instructions' => trim((string) $request->input('customer_instructions')) ?: null,
@@ -49,10 +54,25 @@ class EquipmentController extends Controller
             $updates['name'] = trim((string) $request->input('name'));
         }
         if ($request->has('avg_cost_per_hour')) {
-            $updates['avg_cost_per_hour'] = $request->input('avg_cost_per_hour') !== null && $request->input('avg_cost_per_hour') !== '' ? (float) $request->input('avg_cost_per_hour') : null;
+            $updates['avg_cost_per_hour'] = $this->num($request->input('avg_cost_per_hour'));
         }
         if ($request->has('daily_rate')) {
-            $updates['daily_rate'] = $request->input('daily_rate') !== null && $request->input('daily_rate') !== '' ? (float) $request->input('daily_rate') : null;
+            $updates['daily_rate'] = $this->num($request->input('daily_rate'));
+        }
+        if ($request->has('flat_price')) {
+            $updates['flat_price'] = $this->num($request->input('flat_price'));
+        }
+        if ($request->has('included_days')) {
+            $updates['included_days'] = $this->intOrNull($request->input('included_days'));
+        }
+        if ($request->has('included_tons')) {
+            $updates['included_tons'] = $this->num($request->input('included_tons'));
+        }
+        if ($request->has('price_per_additional_ton')) {
+            $updates['price_per_additional_ton'] = $this->num($request->input('price_per_additional_ton'));
+        }
+        if ($request->has('price_per_additional_day')) {
+            $updates['price_per_additional_day'] = $this->num($request->input('price_per_additional_day'));
         }
         if ($request->has('active')) {
             $updates['active'] = (bool) $request->input('active');
@@ -82,5 +102,17 @@ class EquipmentController extends Controller
         $equipment->delete(); // permanent delete (matches the service catalog)
 
         return response()->json(['success' => true]);
+    }
+
+    /** Parse an optional numeric input to float, or null when blank. */
+    private function num(mixed $value): ?float
+    {
+        return ($value !== null && $value !== '') ? (float) $value : null;
+    }
+
+    /** Parse an optional integer input, or null when blank. */
+    private function intOrNull(mixed $value): ?int
+    {
+        return ($value !== null && $value !== '') ? (int) $value : null;
     }
 }

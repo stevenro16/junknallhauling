@@ -78,6 +78,40 @@ class AdminCatalogTest extends TestCase
         $this->assertNull($eq->fresh()); // permanent delete
     }
 
+    public function test_flat_rate_equipment_pricing(): void
+    {
+        $a = $this->actingAdmin();
+
+        $a->postJson('/admin/api/equipment', [
+            'name' => 'Oversized 10-Yard Dump Trailer',
+            'flat_price' => 349, 'included_days' => 7, 'included_tons' => 1,
+            'price_per_additional_ton' => 84, 'price_per_additional_day' => 15,
+        ])->assertStatus(201);
+
+        $eq = EquipmentType::where('name', 'Oversized 10-Yard Dump Trailer')->first();
+        $this->assertTrue($eq->isFlatRate());
+
+        // Estimate: base within the included days; base + extra days beyond.
+        $this->assertEquals(349.0, $eq->flatRateEstimate(7));
+        $this->assertEquals(349.0, $eq->flatRateEstimate(3));
+        $this->assertEquals(349.0 + 3 * 15, $eq->flatRateEstimate(10));
+
+        // Exposed to the public equipment API.
+        $json = $a->getJson('/api/equipment')->assertOk()->json('equipment.0');
+        $this->assertEquals(349, $json['flat_price']);
+        $this->assertEquals(7, $json['included_days']);
+        $this->assertEquals(84, $json['price_per_additional_ton']);
+
+        // Editable via update.
+        $a->patchJson("/admin/api/equipment/{$eq->id}", ['price_per_additional_ton' => 90])->assertOk();
+        $this->assertEquals(90.0, $eq->fresh()->price_per_additional_ton);
+
+        // A plain hourly item is not flat-rate.
+        $hourly = EquipmentType::create(['name' => 'Lift', 'avg_cost_per_hour' => 85]);
+        $this->assertFalse($hourly->isFlatRate());
+        $this->assertNull($hourly->flatRateEstimate(5));
+    }
+
     public function test_calendar_page_renders(): void
     {
         $this->actingAdmin()->get('/admin/calendar')->assertOk()->assertSee('Schedule');

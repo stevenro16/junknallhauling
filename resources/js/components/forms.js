@@ -127,6 +127,16 @@ Alpine.data('quoteForm', () => ({
             .then((r) => r.json())
             .then((d) => { if (d.services && d.services.length) this.serviceOptions = d.services; })
             .catch(() => {});
+
+        // Flat-rate rentals are priced by the day — switch the unit and prefill the
+        // included days when such an item is picked.
+        this.$watch('selectedEquipment', () => {
+            const e = this.selectedEquipmentObj;
+            if (e && e.flat_price) {
+                this.equipmentRentalUnit = 'days';
+                if (!this.equipmentRentalDuration) this.equipmentRentalDuration = e.included_days || '';
+            }
+        });
     },
 
     get isEquipment() { return this.jobType === 'equipment'; },
@@ -177,12 +187,46 @@ Alpine.data('quoteForm', () => ({
         }
     },
 
+    get selectedEquipmentObj() { return this.equipmentOptions.find((e) => e.name === this.selectedEquipment) || null; },
+    get selectedIsFlatRate() { const e = this.selectedEquipmentObj; return !!(e && e.flat_price); },
+
+    // Equipment dropdown price hint.
+    equipPriceHint(opt) {
+        if (opt.flat_price) return ' — $' + Number(opt.flat_price).toLocaleString();
+        if (opt.avg_cost_per_hour) return ' — ~$' + opt.avg_cost_per_hour + '/hr';
+        return '';
+    },
+    // Flat-rate inclusions / overages (for the breakdown card).
+    flatInclusions() {
+        const e = this.selectedEquipmentObj;
+        if (!e || !e.flat_price) return [];
+        const inc = [];
+        if (e.included_days) inc.push(`Up to ${e.included_days} day${e.included_days > 1 ? 's' : ''}`);
+        inc.push('Delivery', 'Pickup');
+        if (e.included_tons) inc.push(`${this.money(e.included_tons)} ton disposal included`);
+        return inc;
+    },
+    flatOverages() {
+        const e = this.selectedEquipmentObj;
+        if (!e || !e.flat_price) return [];
+        const o = [];
+        if (e.price_per_additional_ton) o.push(`$${this.money(e.price_per_additional_ton)} per additional ton`);
+        if (e.price_per_additional_day && e.included_days) o.push(`$${this.money(e.price_per_additional_day)} per additional day after day ${e.included_days}`);
+        return o;
+    },
+
     get computedEstimate() {
         if (this.serviceType !== 'equipment' || !this.selectedEquipment || !this.equipmentRentalDuration) return null;
-        const equip = this.equipmentOptions.find((e) => e.name === this.selectedEquipment);
+        const equip = this.selectedEquipmentObj;
         if (!equip) return null;
         const qty = parseFloat(this.equipmentRentalDuration);
         if (!qty || qty <= 0) return null;
+        // Flat-rate (dumpster/trailer): base price + extra-day charges. Tonnage
+        // overage is billed later (only known at disposal), so it's not added here.
+        if (equip.flat_price) {
+            const extraDays = Math.max(0, qty - (equip.included_days || 0));
+            return Math.round(Number(equip.flat_price) + extraDays * Number(equip.price_per_additional_day || 0));
+        }
         if (this.equipmentRentalUnit === 'days') {
             if (equip.daily_rate) return Math.round(equip.daily_rate * qty);
             if (equip.avg_cost_per_hour) return Math.round(equip.avg_cost_per_hour * qty * 8);

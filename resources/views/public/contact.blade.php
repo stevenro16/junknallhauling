@@ -137,11 +137,29 @@
                             <select class="input" x-model="selectedEquipment" :disabled="loadingEquipment">
                                 <option value="" disabled x-text="loadingEquipment ? 'Loading equipment...' : 'Select equipment...'"></option>
                                 <template x-for="opt in equipmentOptions" :key="opt.id">
-                                    <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' — ~$' + opt.avg_cost_per_hour + '/hr' : '')"></option>
+                                    <option :value="opt.name" x-text="opt.name + equipPriceHint(opt)"></option>
                                 </template>
                             </select>
                             <p x-show="errors.equipment" x-text="errors.equipment" class="text-red-600 text-xs mt-1" x-cloak></p>
-                            <p class="text-xs text-slate-500 mt-1">Prices shown are average hourly rates for reference.</p>
+                            <p class="text-xs text-slate-500 mt-1">Prices shown are starting rates for reference.</p>
+
+                            {{-- Flat-rate (dumpster/trailer) breakdown --}}
+                            <div x-show="selectedIsFlatRate" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                                <div class="text-sm font-semibold text-emerald-800 mb-1">Includes</div>
+                                <ul class="text-sm text-slate-700 space-y-0.5">
+                                    <template x-for="item in flatInclusions()" :key="item">
+                                        <li class="flex items-center gap-1.5"><span class="text-emerald-600">&#10003;</span> <span x-text="item"></span></li>
+                                    </template>
+                                </ul>
+                                <template x-if="flatOverages().length">
+                                    <div class="mt-2 pt-2 border-t border-emerald-200">
+                                        <div class="text-sm font-semibold text-slate-700 mb-1">Additional charges</div>
+                                        <ul class="text-sm text-slate-600 space-y-0.5">
+                                            <template x-for="item in flatOverages()" :key="item"><li x-text="item"></li></template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
 
                             <div class="mt-4">
                                 <label class="block text-slate-700 text-sm font-medium mb-1.5">Rental Duration</label>
@@ -152,12 +170,13 @@
                                         <option value="days">Days</option>
                                     </select>
                                 </div>
-                                <p class="text-xs text-slate-500 mt-1">How long do you need the equipment?</p>
+                                <p class="text-xs text-slate-500 mt-1" x-text="selectedIsFlatRate ? 'Number of days you need the rental.' : 'How long do you need the equipment?'"></p>
 
                                 <div x-show="computedEstimate !== null" x-cloak class="mt-2 text-red-600 font-semibold text-lg">
                                     Initial Quote: $<span x-text="money(computedEstimate)"></span>
-                                    <span x-show="equipmentRentalUnit === 'days'"> (based on daily rate)</span>
-                                    <span x-show="equipmentRentalUnit === 'hours'"> (based on hourly rate)</span>
+                                    <span x-show="selectedIsFlatRate"> (flat rate)</span>
+                                    <span x-show="!selectedIsFlatRate && equipmentRentalUnit === 'days'"> (based on daily rate)</span>
+                                    <span x-show="!selectedIsFlatRate && equipmentRentalUnit === 'hours'"> (based on hourly rate)</span>
                                 </div>
                             </div>
 
@@ -168,7 +187,8 @@
                                         <div class="text-4xl font-black text-emerald-800 mt-1 tracking-tighter">$<span x-text="money(computedEstimate)"></span></div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-[10px] text-emerald-600 leading-tight">Based on catalog rate<br>&times; your duration</div>
+                                        <div class="text-[10px] text-emerald-600 leading-tight" x-show="!selectedIsFlatRate">Based on catalog rate<br>&times; your duration</div>
+                                        <div class="text-[10px] text-emerald-600 leading-tight" x-show="selectedIsFlatRate" x-cloak>Flat rate + extra days.<br>Tonnage billed at disposal.</div>
                                     </div>
                                 </div>
                             </div>
