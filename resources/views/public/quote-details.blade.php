@@ -3,7 +3,7 @@
 @section('title', 'Confirm Your Service Details | '.config('business.name'))
 
 @section('content')
-<div x-data="quoteDetailsForm('{{ $token }}')">
+<div x-data="quoteDetailsForm('{{ $token }}', @js($needsAgreement))">
     {{-- Loading --}}
     <div x-show="loading" class="min-h-screen flex items-center justify-center bg-[#F8F7F4]">
         <x-icon name="circle" class="w-8 h-8 animate-spin text-[#EAB308]"/>
@@ -24,8 +24,11 @@
         <div class="max-w-lg w-full bg-white rounded-2xl shadow p-8 text-center">
             <x-icon name="check-circle" class="w-16 h-16 text-green-500 mx-auto mb-4"/>
             <h1 class="text-3xl font-black tracking-tight text-gray-900 mb-2">Thank You!</h1>
-            <p class="text-gray-600 mb-6">Your details have been submitted for quote
+            <p class="text-gray-600 mb-4">Your details have been submitted for quote
                 <span class="font-mono text-[#EAB308]" x-text="inquiry?.ref"></span>. We'll review everything and confirm your appointment shortly.</p>
+            <p x-show="needsAgreement" x-cloak class="text-gray-600 mb-6 inline-flex items-center gap-1.5 justify-center">
+                <x-icon name="check-circle" class="w-4 h-4 text-green-500"/> A signed copy of your rental agreement has been emailed to you.
+            </p>
             <p class="text-sm text-gray-500">If you have any questions, call or text us at the number on your original quote.</p>
         </div>
     </div>
@@ -59,8 +62,9 @@
                                 <p class="text-[10px] text-gray-400 mt-1">To change your number, please call us.</p>
                             </div>
                             <div x-ref="emailField" :class="invalidField === 'emailField' && 'ring-2 ring-red-400 rounded-lg p-2 -m-2'">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Email <span x-show="preferredContactMethod === 'email'" x-cloak class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email <span x-show="preferredContactMethod === 'email' || needsAgreement" x-cloak class="text-red-500">*</span></label>
                                 <input type="email" x-model="email" class="input-dark w-full" placeholder="you@example.com">
+                                <p x-show="needsAgreement" x-cloak class="text-[10px] text-gray-400 mt-1">Your signed rental agreement will be emailed here.</p>
                             </div>
                             <div class="md:col-span-2" x-ref="addressField" :class="invalidField === 'addressField' && 'ring-2 ring-red-400 rounded-lg p-2 -m-2'">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Street Address <span class="text-red-500">*</span></label>
@@ -161,11 +165,72 @@
                         </div>
                     </div>
 
-                    {{-- Equipment rental with no signed rental agreement on file --}}
-                    <div x-show="needsAgreement" x-cloak class="rounded-xl border-2 border-amber-400 bg-amber-50 p-3 flex items-start gap-2">
-                        <x-icon name="alert" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"/>
-                        <p class="text-sm text-amber-800"><span class="font-bold">No rental agreement on file.</span> After you submit, we'll take you to the rental agreement to review and sign.</p>
-                    </div>
+                    {{-- Rental agreement (rendered only when the item requires one) --}}
+                    @if($needsAgreement)
+                        {{-- Labeled divider, then a distinct gold card so this reads as a separate step --}}
+                        <div class="flex items-center gap-3 pt-2">
+                            <div class="h-px flex-1 bg-gray-300"></div>
+                            <span class="text-xs font-bold uppercase tracking-widest text-gray-500">Required Agreement</span>
+                            <div class="h-px flex-1 bg-gray-300"></div>
+                        </div>
+                        <div class="rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-5 md:p-6 space-y-6 shadow-sm">
+                            <div class="flex items-start gap-3">
+                                <div class="shrink-0 w-10 h-10 rounded-xl bg-brand-yellow flex items-center justify-center shadow-sm">
+                                    <x-icon name="file-text" class="w-5 h-5 text-charcoal-900"/>
+                                </div>
+                                <div>
+                                    <h2 class="font-bold text-xl text-gray-900 leading-tight">{{ $agreement['title'] ?? 'Rental Agreement' }}</h2>
+                                    <p class="text-sm text-gray-700 mt-1">This item requires a signed rental agreement. Please review the terms, check each box, sign, and agree below. A signed copy will be emailed to you.</p>
+                                </div>
+                            </div>
+
+                            {{-- Acknowledgments --}}
+                            <div x-ref="ackSection" class="rounded-xl transition-shadow" :class="invalidField === 'ackSection' && 'ring-2 ring-red-400 p-3 -m-3'">
+                                <div class="space-y-3 text-sm">
+                                    @foreach($agreement['acknowledgments'] as $ack)
+                                        <label class="flex items-start gap-3 cursor-pointer">
+                                            <input type="checkbox" class="mt-1 w-4 h-4 accent-orange-500">
+                                            <span class="text-gray-700">{{ $ack }}</span>
+                                        </label>
+                                    @endforeach
+                                    @if(! empty($agreement['instructions']))
+                                        <div class="pt-2 text-gray-700 whitespace-pre-line bg-gray-50 border border-gray-200 rounded-lg p-3">{{ $agreement['instructions'] }}</div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Agreement signature --}}
+                            <div x-ref="agreementSignatureField" class="rounded-xl transition-shadow" :class="invalidField === 'agreementSignatureField' && 'ring-2 ring-red-400 p-3 -m-3'">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block font-medium text-gray-700">Rental Agreement Signature <span class="text-red-500">*</span></label>
+                                    <button type="button" @click="openSignaturePad('agreement')" class="text-xs font-semibold text-[#CA8A04] hover:text-[#A66B00] inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#EAB308]/40 hover:bg-[#F8C820]/10">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg> Sign in full screen
+                                    </button>
+                                </div>
+                                <div class="border-2 border-dashed border-gray-300 rounded-2xl bg-white p-2">
+                                    <template x-if="agreementSignatureDataUrl">
+                                        <img :src="agreementSignatureDataUrl" alt="Your agreement signature" class="w-full h-40 object-contain rounded-xl bg-white border border-gray-200">
+                                    </template>
+                                    <template x-if="!agreementSignatureDataUrl">
+                                        <canvas x-ref="agreementCanvas" width="520" height="160"
+                                                class="w-full touch-none rounded-xl bg-white border border-gray-200 cursor-crosshair"
+                                                @mousedown="startDrawing($event, 'agreement')" @mousemove="draw($event)" @mouseup="endDrawing()" @mouseleave="endDrawing()"
+                                                @touchstart.prevent="startDrawing($event, 'agreement')" @touchmove.prevent="draw($event)" @touchend="endDrawing()"></canvas>
+                                    </template>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <button type="button" @click="clearSignature('agreement')" class="text-xs text-gray-500 hover:text-gray-700">Clear signature</button>
+                                    <span class="text-[10px] text-gray-400">Tip: tap &ldquo;Sign in full screen&rdquo; for a bigger pad</span>
+                                </div>
+                            </div>
+
+                            {{-- Final agreement --}}
+                            <label x-ref="agreedField" class="flex items-start gap-3 cursor-pointer rounded-lg transition-shadow" :class="invalidField === 'agreedField' && 'ring-2 ring-red-400 p-2 -m-2'">
+                                <input type="checkbox" x-model="agreedToTerms" class="mt-1 w-4 h-4 accent-orange-500">
+                                <span class="text-sm text-gray-700">I have read, understand, and agree to all terms and conditions above for quote <span class="font-mono" x-text="inquiry?.ref"></span>.</span>
+                            </label>
+                        </div>
+                    @endif
 
                     <p x-show="error" x-text="error" class="text-red-600 text-sm" x-cloak></p>
 

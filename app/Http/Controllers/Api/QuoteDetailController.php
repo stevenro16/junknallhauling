@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\QuoteDetailRequest;
+use App\Models\RentalAgreement;
 use App\Services\GeocodeService;
 use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class QuoteDetailController extends Controller
 {
@@ -83,6 +86,7 @@ class QuoteDetailController extends Controller
     {
         $form = (array) $request->input('form_data');
         $signature = $request->input('signature_base64');
+        $agreementSignature = $request->input('agreement_signature_base64');
 
         if (! $signature) {
             return response()->json(['error' => 'A signature is required.'], 422);
@@ -94,9 +98,6 @@ class QuoteDetailController extends Controller
             || trim((string) ($form['address_street'] ?? '')) === ''
             || trim((string) ($form['address_city'] ?? '')) === '') {
             return response()->json(['error' => 'Name, street and city are required.'], 422);
-        }
-        if (($form['preferred_contact_method'] ?? '') === 'email' && trim((string) ($form['email'] ?? '')) === '') {
-            return response()->json(['error' => 'An email is required when email is the preferred contact method.'], 422);
         }
 
         $req = QuoteDetailRequest::where('token', $token)->first();
@@ -113,6 +114,26 @@ class QuoteDetailController extends Controller
         $inquiry = $req->inquiry;
         if (! $inquiry) {
             return response()->json(['error' => 'Associated quote no longer exists'], 404);
+        }
+
+        // When the item needs a rental agreement, the customer signs it on this same
+        // form — so an email (to send the signed copy) and the 2nd signature + terms
+        // acknowledgement are all required.
+        $needsAgreement = $inquiry->needsAgreement();
+        $email = trim((string) ($form['email'] ?? ''));
+
+        if ($needsAgreement) {
+            if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return response()->json(['error' => 'A valid email is required to receive your signed rental agreement.'], 422);
+            }
+            if (! $agreementSignature) {
+                return response()->json(['error' => 'Please sign the rental agreement.'], 422);
+            }
+            if (($form['agreed_to_terms'] ?? false) !== true) {
+                return response()->json(['error' => 'Please confirm you agree to the rental agreement terms.'], 422);
+            }
+        } elseif (($form['preferred_contact_method'] ?? '') === 'email' && $email === '') {
+            return response()->json(['error' => 'An email is required when email is the preferred contact method.'], 422);
         }
 
         // Update the quote from the customer's submission — never the phone number.
@@ -175,11 +196,56 @@ class QuoteDetailController extends Controller
 
         $response = ['success' => true, 'signed_at' => $signedAt];
 
-        // Item with an attached agreement and none signed yet → send them straight to it.
-        if ($inquiry->needsAgreement() && ($agreement = $inquiry->ensureAgreementLink())) {
-            $response['agreement_url'] = route('rental-agreement.show', $agreement->token);
+        // Rental agreement is signed on this same form (2nd signature): mint the link,
+        // sign it with a frozen snapshot of the terms, and email the customer a copy.
+        if ($needsAgreement && ($agreement = $inquiry->ensureAgreementLink())) {
+            $this->signAgreement($agreement, $inquiry, (string) $agreementSignature, $ip);
+            $notifier->fire('agreement_signed', $inquiry);
+            $response['agreement_signed'] = true;
         }
 
         return response()->json($response);
+    }
+
+    /** Sign the rental agreement (snapshot + 2nd signature) and email the customer the copy. */
+    private function signAgreement(RentalAgreement $agreement, Inquiry $inquiry, string $signature, ?string $ip): void
+    {
+        $snapshot = $agreement->effectiveContent();
+        $signedAt = now()->toISOString();
+
+        // One-time-use guard at the SQL level (query-builder bypasses casts).
+        RentalAgreement::where('token', $agreement->token)->whereNull('signed_at')->update([
+            'form_data' => json_encode([
+                'agreed_to_terms' => true,
+                'signed_name' => $inquiry->name,
+                'signed_via' => 'quote_details',
+            ]),
+            'content_snapshot' => json_encode($snapshot),
+            'signature_base64' => $signature,
+            'signed_at' => $signedAt,
+            'ip_address' => $ip ?: null,
+        ]);
+
+        $this->emailSignedAgreement($inquiry, $snapshot, $signedAt);
+    }
+
+    /** Email the customer their signed agreement copy; never throws. */
+    private function emailSignedAgreement(Inquiry $inquiry, array $snapshot, string $signedAt): void
+    {
+        if (! $inquiry->email) {
+            return;
+        }
+        try {
+            Mail::send('emails.agreement', [
+                'inquiry' => $inquiry,
+                'content' => $snapshot,
+                'signedAt' => $signedAt,
+            ], function ($message) use ($inquiry, $snapshot) {
+                $message->to($inquiry->email)
+                    ->subject(($snapshot['title'] ?? 'Rental Agreement').' — '.config('business.name'));
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Signed agreement email failed', ['inquiry' => $inquiry->id, 'error' => $e->getMessage()]);
+        }
     }
 }

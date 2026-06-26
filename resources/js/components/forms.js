@@ -575,18 +575,23 @@ Alpine.data('agreementForm', (token) => ({
 // quoted amount, and signs. On submit the quote moves to "Finalize Scheduling".
 // The phone number is shown read-only and is never submitted.
 // ---------------------------------------------------------------------------
-Alpine.data('quoteDetailsForm', (token) => ({
+Alpine.data('quoteDetailsForm', (token, needsAgreement = false) => ({
     token,
+    needsAgreement,               // server-resolved: item has an attached, unsigned agreement
     data: null,
     loading: true,
     error: '',
     submitting: false,
     submitted: false,
-    // signature pad (same behavior as agreementForm)
+    // signature pads — two slots: 'info' (confirm details) + 'agreement' (rental
+    // terms). They share one full-screen pad; _padTarget tracks which it edits.
     isDrawing: false,
     hasSignature: false,
-    showSignaturePad: false,
     signatureDataUrl: null,
+    agreementHasSignature: false,
+    agreementSignatureDataUrl: null,
+    showSignaturePad: false,
+    _padTarget: 'info',
     _canvas: null, _bigDrawn: false,
     invalidField: '', _flashT: null,
     // editable fields
@@ -594,8 +599,8 @@ Alpine.data('quoteDetailsForm', (token) => ({
     addressStreet: '', addressCity: '', addressState: 'CA',
     preferredDay: '', preferredTime: '', preferredContactMethod: 'phone',
     confirmDatetime: false, confirmAmount: false,
+    agreedToTerms: false,         // checked the "I agree to the rental terms" box
     photos: [], photoError: '', _pendingPhotos: 0,   // up to 2 customer photos (JPEG data URLs)
-    needsAgreement: false,        // equipment rental with no signed agreement on file
 
     init() {
         fetch(window.apiUrl(`/api/quote-details/${this.token}`))
@@ -616,7 +621,6 @@ Alpine.data('quoteDetailsForm', (token) => ({
                 this.preferredDay = i.preferred_day || '';
                 this.preferredTime = i.preferred_time || '';
                 this.preferredContactMethod = i.preferred_contact_method === 'email' ? 'email' : 'phone';
-                this.needsAgreement = !!json.needs_agreement;
             })
             .catch((e) => { this.error = e.message || 'This link is invalid or has expired.'; })
             .finally(() => { this.loading = false; });
@@ -710,7 +714,8 @@ Alpine.data('quoteDetailsForm', (token) => ({
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
     },
-    startDrawing(e) {
+    // The 'agreement' slot uses its own canvas/state; everything else defaults to 'info'.
+    startDrawing(e, slot) {
         const canvas = e.currentTarget;
         this._canvas = canvas;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -718,6 +723,9 @@ Alpine.data('quoteDetailsForm', (token) => ({
         this.isDrawing = true;
         if (canvas === this.$refs.bigCanvas) {
             this._bigDrawn = true;
+        } else if (slot === 'agreement') {
+            this.agreementHasSignature = true;
+            this.agreementSignatureDataUrl = null;
         } else {
             this.hasSignature = true;
             this.signatureDataUrl = null;
@@ -737,18 +745,25 @@ Alpine.data('quoteDetailsForm', (token) => ({
         ctx.stroke();
     },
     endDrawing() { this.isDrawing = false; },
-    clearSignature() {
-        const c = this.$refs.canvas;
+    _padCanvas(slot) { return slot === 'agreement' ? this.$refs.agreementCanvas : this.$refs.canvas; },
+    clearSignature(slot) {
+        const c = this._padCanvas(slot);
         if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-        this.hasSignature = false;
-        this.signatureDataUrl = null;
+        if (slot === 'agreement') { this.agreementHasSignature = false; this.agreementSignatureDataUrl = null; }
+        else { this.hasSignature = false; this.signatureDataUrl = null; }
     },
-    getSignatureData() {
+    getSignatureData(slot) {
+        if (slot === 'agreement') {
+            if (this.agreementSignatureDataUrl) return this.agreementSignatureDataUrl;
+            const c = this.$refs.agreementCanvas;
+            return (c && this.agreementHasSignature) ? c.toDataURL('image/png') : null;
+        }
         if (this.signatureDataUrl) return this.signatureDataUrl;
         const c = this.$refs.canvas;
         return (c && this.hasSignature) ? c.toDataURL('image/png') : null;
     },
-    openSignaturePad() {
+    openSignaturePad(slot) {
+        this._padTarget = slot === 'agreement' ? 'agreement' : 'info';
         this.showSignaturePad = true;
         this._bigDrawn = false;
         this.$nextTick(() => {
@@ -764,8 +779,8 @@ Alpine.data('quoteDetailsForm', (token) => ({
     useBigSignature() {
         const c = this.$refs.bigCanvas;
         if (c && this._bigDrawn) {
-            this.signatureDataUrl = c.toDataURL('image/png');
-            this.hasSignature = true;
+            if (this._padTarget === 'agreement') { this.agreementSignatureDataUrl = c.toDataURL('image/png'); this.agreementHasSignature = true; }
+            else { this.signatureDataUrl = c.toDataURL('image/png'); this.hasSignature = true; }
         }
         this.showSignaturePad = false;
     },
@@ -789,17 +804,32 @@ Alpine.data('quoteDetailsForm', (token) => ({
         if (!this.lastName.trim()) return this.flag('nameField', 'Please enter your last name.');
         if (!this.addressStreet.trim() || !this.addressCity.trim()) return this.flag('addressField', 'Please enter your street address and city.');
         if (!this.zipCode.trim()) return this.flag('addressField', 'Please enter your zip code.');
+        // Email is required when there's an agreement (we email the signed copy), or
+        // when the customer chose email as their contact method.
+        if (this.needsAgreement && !this.email.trim()) return this.flag('emailField', 'Please enter your email — your signed rental agreement will be sent there.');
         if (this.preferredContactMethod === 'email' && !this.email.trim()) return this.flag('emailField', 'Please enter your email — you chose email as your contact method.');
         if (!this.confirmDatetime || !this.confirmAmount) return this.flag('confirmField', 'Please confirm the scheduled date/time and the quoted amount.');
-        if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature.');
+        if (!this.hasSignature && !this.signatureDataUrl) return this.flag('signatureField', 'Please add your signature confirming your details.');
+
+        // Rental agreement section (only when required).
+        if (this.needsAgreement) {
+            const ack = this.$refs.ackSection;
+            if (ack && [...ack.querySelectorAll('input[type="checkbox"]')].some((c) => !c.checked)) {
+                return this.flag('ackSection', 'Please check all of the rental agreement acknowledgments.');
+            }
+            if (!this.agreementHasSignature && !this.agreementSignatureDataUrl) return this.flag('agreementSignatureField', 'Please sign the rental agreement.');
+            if (!this.agreedToTerms) return this.flag('agreedField', 'Please confirm you agree to the rental agreement terms.');
+        }
         this.error = '';
         return true;
     },
 
     async submit() {
         if (!this.validate()) return;
-        const signatureData = this.getSignatureData();
+        const signatureData = this.getSignatureData('info');
         if (!signatureData) return this.flag('signatureField', 'Please add your signature.');
+        const agreementSignature = this.needsAgreement ? this.getSignatureData('agreement') : null;
+        if (this.needsAgreement && !agreementSignature) return this.flag('agreementSignatureField', 'Please sign the rental agreement.');
 
         this.submitting = true;
         // A photo may still be decoding/re-encoding (slow on iPhones for large photos).
@@ -830,8 +860,10 @@ Alpine.data('quoteDetailsForm', (token) => ({
                     signed_name: name,
                     photos: this.photos.map((p) => p.url),
                     inquiry_snapshot: this.inquiry,
+                    agreed_to_terms: this.needsAgreement ? true : undefined,
                 },
                 signature_base64: signatureData,
+                agreement_signature_base64: agreementSignature,
             };
             const body = JSON.stringify(payload);
             // Photos can make the request exceed the server's upload limit; catch it here
@@ -852,8 +884,6 @@ Alpine.data('quoteDetailsForm', (token) => ({
                     ? 'Your photos are too large to upload. Please remove a photo (or use a smaller one) and try again.'
                     : 'We couldn’t submit your details — please remove any large photos and try again, or call us if it keeps happening.'));
             }
-            // Equipment rental needing an agreement → go straight to it to complete.
-            if (json.agreement_url) { window.location.href = json.agreement_url; return; }
             this.submitted = true;
         } catch (e) {
             this.error = e.message || 'Something went wrong. Please try again or call us.';

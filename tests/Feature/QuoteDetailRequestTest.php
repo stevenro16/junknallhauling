@@ -9,6 +9,7 @@ use App\Models\Inquiry;
 use App\Models\ServiceCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class QuoteDetailRequestTest extends TestCase
@@ -124,8 +125,9 @@ class QuoteDetailRequestTest extends TestCase
         $this->postJson("/api/quote-details/{$token}", $payload)->assertStatus(410);
     }
 
-    public function test_equipment_submit_returns_rental_agreement_url_when_none_on_file(): void
+    public function test_equipment_submit_signs_agreement_inline_and_emails_copy(): void
     {
+        config(['mail.default' => 'array']);   // capture the signed-copy email in memory
         $agreement = Agreement::create(['title' => 'Boom Lift Agreement', 'acknowledgments' => ['I will return it clean.']]);
         EquipmentType::create(['name' => 'Boom Lift', 'agreement_id' => $agreement->id]);
 
@@ -134,15 +136,33 @@ class QuoteDetailRequestTest extends TestCase
 
         $this->getJson("/api/quote-details/{$token}")->assertOk()->assertJsonPath('needs_agreement', true);
 
-        $res = $this->postJson("/api/quote-details/{$token}", [
+        $base = [
             'form_data' => ['name' => 'Jane', 'address_street' => '123 Main St', 'address_city' => 'Yucaipa', 'confirm_datetime' => true, 'confirm_amount' => true],
             'signature_base64' => 'data:image/png;base64,iVBORw0KGgo=',
-        ])->assertOk();
+        ];
 
-        $this->assertStringContainsString('/rental-agreement/', (string) $res->json('agreement_url'));
-        $this->assertSame(1, $inq->rentalAgreements()->count());
-        // The link is tied to the attached template.
-        $this->assertSame($agreement->id, $inq->rentalAgreements()->first()->agreement_id);
+        // Email is required (the signed copy is emailed) → rejected without it.
+        $this->postJson("/api/quote-details/{$token}", $base)->assertStatus(422);
+
+        // Email + agreed, but no agreement signature → rejected.
+        $withEmail = $base;
+        $withEmail['form_data']['email'] = 'jane@example.com';
+        $withEmail['form_data']['agreed_to_terms'] = true;
+        $this->postJson("/api/quote-details/{$token}", $withEmail)->assertStatus(422);
+
+        // Full submit (both signatures + agreed + email) → signs inline & emails the copy.
+        $full = $withEmail;
+        $full['agreement_signature_base64'] = 'data:image/png;base64,iVBORw0KGgo=';
+        $this->postJson("/api/quote-details/{$token}", $full)
+            ->assertOk()->assertJsonPath('agreement_signed', true);
+
+        $signed = $inq->rentalAgreements()->first();
+        $this->assertNotNull($signed->signed_at);
+        $this->assertSame($agreement->id, $signed->agreement_id);
+        $this->assertSame('Boom Lift Agreement', $signed->content_snapshot['title']);
+
+        // The customer was emailed their signed copy.
+        $this->assertCount(1, Mail::mailer('array')->getSymfonyTransport()->messages());
     }
 
     public function test_service_with_attached_agreement_needs_one(): void
