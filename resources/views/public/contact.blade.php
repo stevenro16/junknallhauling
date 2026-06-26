@@ -165,7 +165,6 @@
                                     </template>
                                 </div>
                                 <div x-show="selectedEquipmentObj?.customer_instructions" x-cloak class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                    <div class="text-sm font-semibold text-slate-800 mb-1">Good to Know</div>
                                     <div class="text-sm text-slate-700 whitespace-pre-line" x-text="selectedEquipmentObj?.customer_instructions"></div>
                                 </div>
                             </div>
