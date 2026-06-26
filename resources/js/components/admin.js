@@ -385,9 +385,10 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         this.customerPreferredTime = inq.preferred_time || '';
         this.serviceType = inq.service_type || '';
         this.equipmentType = inq.equipment_type || '';
-        // Equipment Rental is the legacy service_type === 'equipment' (or any saved
-        // equipment_type); everything else is a Service.
-        this.jobType = (inq.service_type === 'equipment' || inq.equipment_type) ? 'equipment' : 'service';
+        // Rentals = the legacy service_type === 'equipment' (or any saved equipment_type);
+        // 'help-me-decide' = the customer asked us to decide; everything else is a Service.
+        this.jobType = inq.service_type === 'help-me-decide' ? 'help'
+            : ((inq.service_type === 'equipment' || inq.equipment_type) ? 'equipment' : 'service');
         this.quotedPrice = inq.quoted_price ?? '';
         this.equipmentRentalDuration = inq.equipment_rental_duration ?? '';
         this.equipmentRentalUnit = inq.equipment_rental_unit || 'hours';   // Hours is the default
@@ -417,6 +418,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     get dirty() { return this.baseline !== '' && JSON.stringify(this.buildBody()) !== this.baseline; },
 
     get isEquipment() { return this.jobType === 'equipment'; },
+    get isHelp() { return this.jobType === 'help'; },
 
     get fullName() { return [this.firstName.trim(), this.lastName.trim()].filter(Boolean).join(' '); },
 
@@ -433,10 +435,13 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         if (this.jobType === type) return;
         this.jobType = type;
         if (type === 'service') {
-            if (!this.serviceType || this.serviceType === 'equipment') {
+            if (!this.serviceType || this.serviceType === 'equipment' || this.serviceType === 'help-me-decide') {
                 this.serviceType = this.serviceCatalog[0]?.key || '';
             }
             this.applyServiceDefaultDuration();
+        } else if (type === 'help') {
+            this.serviceType = 'help-me-decide';
+            this.equipmentType = '';
         }
     },
 

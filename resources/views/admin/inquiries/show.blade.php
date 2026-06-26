@@ -158,6 +158,20 @@
             <span class="text-[10px] uppercase tracking-widest text-amber-600/80">Fast setup</span>
         </div>
 
+        {{-- Customer photos (e.g. Help Me Decide) — review before deciding --}}
+        <template x-if="inquiry.photos && inquiry.photos.length">
+            <div class="mb-3">
+                <div class="text-[10px] uppercase tracking-widest text-amber-700/70 mb-1">Customer photos</div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="(p, i) in inquiry.photos" :key="i">
+                        <button type="button" @click="lightboxPhoto = p" class="block overflow-hidden rounded-lg border border-amber-300 hover:border-[#F8C820] transition-colors" title="Click to view full screen">
+                            <img :src="p" alt="Customer photo" class="w-16 h-16 object-cover">
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </template>
+
         <div class="space-y-3">
             {{-- 1. Phone --}}
             <div>
@@ -196,12 +210,15 @@
                     <x-icon name="check-circle" class="w-4 h-4 text-emerald-500" x-show="(isEquipment ? (equipmentType && equipmentType !== '__other__') : serviceType) && quotedPrice" x-cloak/><span>3. Service / Equipment + Price <span class="text-red-500">*</span></span>
                 </label>
                 <div class="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-0.5 mb-2 text-xs">
-                    <button type="button" @click="setJobType('service')" class="px-3 py-1 rounded-md transition-colors" :class="!isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Service</button>
-                    <button type="button" @click="setJobType('equipment')" class="px-3 py-1 rounded-md transition-colors" :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Equipment</button>
+                    <button type="button" @click="setJobType('service')" class="px-3 py-1 rounded-md transition-colors" :class="jobType === 'service' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Service</button>
+                    <button type="button" @click="setJobType('equipment')" class="px-3 py-1 rounded-md transition-colors" :class="jobType === 'equipment' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Rentals</button>
+                    <button type="button" @click="setJobType('help')" class="px-3 py-1 rounded-md transition-colors" :class="jobType === 'help' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'">Help</button>
                 </div>
                 <div class="space-y-2">
+                    {{-- help-me-decide note --}}
+                    <div x-show="isHelp" x-cloak class="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800">Review the customer's photos above, then choose Service or Rentals to quote it.</div>
                     {{-- service or equipment picker --}}
-                    <select x-show="!isEquipment" x-model="serviceType" @change="onServiceChange()" x-init="$nextTick(() => { $el.value = serviceType })" class="input-light text-sm py-2 w-full">
+                    <select x-show="jobType === 'service'" x-model="serviceType" @change="onServiceChange()" x-init="$nextTick(() => { $el.value = serviceType })" class="input-light text-sm py-2 w-full">
                         <option value="">Service…</option>
                         <template x-for="svc in serviceCatalog" :key="svc.id"><option :value="svc.key" x-text="svc.label"></option></template>
                     </select>
@@ -534,19 +551,27 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Job Type</label>
                         <div class="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-0.5">
                             <button type="button" @click="setJobType('service')"
-                                    class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="!isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Service</button>
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="jobType === 'service' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Service</button>
                             <button type="button" @click="setJobType('equipment')"
-                                    class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Rentals</button>
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="jobType === 'equipment' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Rentals</button>
+                            <button type="button" @click="setJobType('help')"
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="jobType === 'help' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Help Me Decide</button>
                         </div>
                         <p x-show="jobError" x-cloak class="text-xs text-red-600 mt-1.5">Please select a <span x-text="isEquipment ? 'equipment type' : 'service'"></span> before saving.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
+                            {{-- Help Me Decide — customer hasn't picked; review photos then choose --}}
+                            <div x-show="isHelp" x-cloak>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed</label>
+                                <div class="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">The customer asked us to help decide. Review their photos, then choose <strong>Service</strong> or <strong>Rentals</strong> to quote it.</div>
+                            </div>
                             {{-- Service picker (from the service catalog) --}}
-                            <div x-show="!isEquipment">
+                            <div x-show="jobType === 'service'">
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Needed <span class="text-red-500">*</span></label>
                                 {{-- x-init re-syncs the value after x-for renders the options (x-model
                                      alone binds before they exist, dropping the saved selection). --}}
