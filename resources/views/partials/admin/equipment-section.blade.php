@@ -7,34 +7,14 @@
             update: '{{ route('admin.api.equipment.update', '__ID__') }}',
             destroy: '{{ route('admin.api.equipment.destroy', '__ID__') }}',
         },
-    })" class="space-y-6">
+    })" class="space-y-4">
 
-    {{-- Add form --}}
-    <div class="card-dark p-5">
-        <div class="text-sm font-semibold text-gray-200 mb-3">Add Equipment</div>
-        <div class="space-y-4">
-            <div class="sm:max-w-md"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="nw.name" class="input-dark" placeholder="e.g. Oversized 10-Yard Dump Trailer"></div>
-
-            @include('partials.admin.equipment-pricing-fields', ['s' => 'nw'])
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label><textarea x-model="nw.instructions" rows="2" class="input-dark" placeholder="Instructions shown to the customer"></textarea></div>
-                <div><label class="block text-xs text-gray-400 mb-1">Agreement <span class="text-gray-500">(signed before the job is finalized)</span></label>
-                    <select x-model="nw.agreement_id" class="input-dark">
-                        <option value="">— None —</option>
-                        <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                <button @click="add()" class="btn-primary text-sm py-2.5 px-4 w-full sm:w-auto inline-flex items-center justify-center gap-1"><x-icon name="plus" class="w-4 h-4"/> Add Equipment</button>
-                <span x-show="error && editingId === null" x-text="error" class="text-red-400 text-sm" x-cloak></span>
-            </div>
-        </div>
+    {{-- Add button --}}
+    <div class="flex justify-end">
+        <button @click="openCreate()" class="btn-primary text-sm py-2.5 px-4 inline-flex items-center justify-center gap-1"><x-icon name="plus" class="w-4 h-4"/> Add Equipment</button>
     </div>
 
-    {{-- List: table on desktop, cards on mobile (read-only; Edit opens the modal) --}}
+    {{-- List: table on desktop, cards on mobile (read-only; Edit/Add open the modal) --}}
     <div class="card-dark p-5">
       <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm text-gray-200">
@@ -65,7 +45,7 @@
                 </template>
             </tbody>
         </table>
-        <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet.</div>
+        <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet — use “Add Equipment” above.</div>
       </div>
 
       {{-- Mobile cards --}}
@@ -92,35 +72,35 @@
                 </div>
             </div>
         </template>
-        <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet.</div>
+        <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet — use “Add Equipment” above.</div>
       </div>
     </div>
 
-    {{-- Edit modal --}}
-    <div x-show="editingId !== null" x-cloak class="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" @keydown.escape.window="cancelEdit()">
-        <div class="absolute inset-0 bg-black/60" @click="cancelEdit()"></div>
+    {{-- Add / Edit modal (shared) --}}
+    <div x-show="formOpen" x-cloak class="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" @keydown.escape.window="closeForm()">
+        <div class="absolute inset-0 bg-black/60" @click="closeForm()"></div>
         <div class="relative bg-charcoal-800 border border-charcoal-700 rounded-2xl shadow-2xl w-full max-w-2xl my-8">
             <div class="flex items-center justify-between px-5 py-4 border-b border-charcoal-700">
-                <div class="text-sm font-semibold text-gray-200">Edit Equipment</div>
-                <button type="button" @click="cancelEdit()" class="p-1.5 -mr-1.5 text-gray-400 hover:text-white"><x-icon name="x" class="w-5 h-5"/></button>
+                <div class="text-sm font-semibold text-gray-200" x-text="editingId ? 'Edit Equipment' : 'Add Equipment'"></div>
+                <button type="button" @click="closeForm()" class="p-1.5 -mr-1.5 text-gray-400 hover:text-white"><x-icon name="x" class="w-5 h-5"/></button>
             </div>
             <div class="p-5 space-y-4">
-                <div><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="ed.name" class="input-dark"></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="f.name" class="input-dark" placeholder="e.g. Oversized 10-Yard Dump Trailer"></div>
 
-                @include('partials.admin.equipment-pricing-fields', ['s' => 'ed'])
+                @include('partials.admin.equipment-pricing-fields', ['s' => 'f'])
 
-                <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions</label><textarea x-model="ed.instructions" rows="2" class="input-dark"></textarea></div>
-                <div><label class="block text-xs text-gray-400 mb-1">Agreement</label>
-                    <select x-model="ed.agreement_id" class="input-dark">
+                <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label><textarea x-model="f.instructions" rows="2" class="input-dark" placeholder="Instructions shown to the customer"></textarea></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Agreement <span class="text-gray-500">(signed before the job is finalized)</span></label>
+                    <select x-model="f.agreement_id" class="input-dark">
                         <option value="">— None —</option>
                         <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
                     </select>
                 </div>
-                <span x-show="error && editingId !== null" x-text="error" class="block text-red-400 text-sm" x-cloak></span>
+                <span x-show="error" x-text="error" class="block text-red-400 text-sm" x-cloak></span>
             </div>
             <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-charcoal-700">
-                <button type="button" @click="cancelEdit()" class="px-4 py-2 rounded-lg border border-charcoal-600 text-gray-300 text-sm hover:bg-charcoal-700">Cancel</button>
-                <button type="button" @click="saveEdit()" class="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Save changes</button>
+                <button type="button" @click="closeForm()" class="px-4 py-2 rounded-lg border border-charcoal-600 text-gray-300 text-sm hover:bg-charcoal-700">Cancel</button>
+                <button type="button" @click="save()" class="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700" x-text="editingId ? 'Save changes' : 'Add equipment'"></button>
             </div>
         </div>
     </div>

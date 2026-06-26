@@ -1571,10 +1571,10 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
     equipment: cfg.equipment || [],
     agreements: cfg.agreements || [],
     blank: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
-    nw: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
+    f: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },   // single buffer for add + edit
+    formOpen: false,
+    editingId: null,   // null while creating
     error: '',
-    editingId: null,
-    ed: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.equipment = d.equipment || []; } } catch {} },
 
@@ -1614,29 +1614,29 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
         };
     },
 
-    async add() {
-        this.error = '';
-        const r = await fetch(this.urls.store, { method: 'POST', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.nw)) });
-        if (r.ok) { this.nw = { ...this.blank }; await this.reload(); }
-        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to add equipment'; }
-    },
+    // Open the shared modal in create mode.
+    openCreate() { this.error = ''; this.editingId = null; this.f = { ...this.blank }; this.formOpen = true; },
+    // Open the shared modal in edit mode, prefilled from the item.
     startEdit(e) {
+        this.error = '';
         this.editingId = e.id;
-        this.ed = {
+        this.f = {
             name: e.name, pricingType: e.flat_price ? 'flat' : 'machinery',
             cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '',
             flat: e.flat_price ?? '', incDays: e.included_days ?? '', incTons: e.included_tons ?? '',
             addTon: e.price_per_additional_ton ?? '', addDay: e.price_per_additional_day ?? '',
             instructions: e.customer_instructions ?? '', agreement_id: e.agreement_id ?? '',
         };
+        this.formOpen = true;
     },
-    editingItem() { return this.equipment.find((e) => e.id === this.editingId) || null; },
-    cancelEdit() { this.editingId = null; },
-    async saveEdit() {
+    closeForm() { this.formOpen = false; this.editingId = null; this.error = ''; },
+    async save() {
         this.error = '';
-        const r = await fetch(this.urls.update.replace('__ID__', this.editingId), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.ed)) });
-        if (r.ok) { this.editingId = null; await this.reload(); }
-        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to save changes'; }
+        const editing = this.editingId !== null;
+        const url = editing ? this.urls.update.replace('__ID__', this.editingId) : this.urls.store;
+        const r = await fetch(url, { method: editing ? 'PATCH' : 'POST', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.f)) });
+        if (r.ok) { this.closeForm(); await this.reload(); }
+        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to save'; }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },
     async toggleCustomerVisible(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ customer_visible: !e.customer_visible }) }); await this.reload(); },
