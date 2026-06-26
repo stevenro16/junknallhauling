@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentLink;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Stripe\StripeClient;
@@ -228,6 +229,7 @@ class PaymentController extends Controller
                 'payment_date' => now()->format('Y-m-d\TH:i'),
             ]);
             $inquiry->logAudit('payment_received');
+            app(Notifier::class)->fire('payment_received', $inquiry);
         }
     }
 }

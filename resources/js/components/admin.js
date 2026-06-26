@@ -1682,6 +1682,128 @@ Alpine.data('adminsManager', (cfg = {}) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Notification settings — the current admin's per-event channel choices.
+// Settings only: this persists preferences; nothing sends yet.
+// ---------------------------------------------------------------------------
+Alpine.data('notificationSettings', (cfg = {}) => ({
+    events: cfg.events || [],
+    updateUrl: cfg.updateUrl,
+    email: cfg.prefs?.email || '',
+    phone: cfg.prefs?.phone || '',
+    channels: {},          // { [eventKey]: { email: bool, sms: bool } }
+    saving: false,
+    saved: false,
+    error: '',
+
+    // Global customer-facing channel switches.
+    customerUrl: cfg.customerUrl,
+    customerEmail: !!cfg.customer?.email,
+    customerSms: !!cfg.customer?.sms,
+    customerSaving: false,
+    customerSaved: false,
+    customerError: '',
+
+    // Twilio test send.
+    testSmsUrl: cfg.testSmsUrl,
+    testing: false,
+    testResult: '',
+    testOk: false,
+
+    async sendTest() {
+        this.testResult = '';
+        this.testing = true;
+        try {
+            const res = await fetch(this.testSmsUrl, {
+                method: 'POST', headers: window.jsonHeaders(true),
+                body: JSON.stringify({ phone: this.phone }),
+            });
+            const json = await res.json().catch(() => ({}));
+            this.testOk = res.ok;
+            this.testResult = res.ok ? 'Sent — check your phone.' : (json.error || 'Couldn’t send.');
+        } catch (e) {
+            this.testOk = false;
+            this.testResult = 'Couldn’t send.';
+        } finally {
+            this.testing = false;
+        }
+    },
+
+    // Test email send.
+    testEmailUrl: cfg.testEmailUrl,
+    emailTesting: false,
+    emailTestResult: '',
+    emailTestOk: false,
+
+    async sendTestEmail() {
+        this.emailTestResult = '';
+        this.emailTesting = true;
+        try {
+            const res = await fetch(this.testEmailUrl, {
+                method: 'POST', headers: window.jsonHeaders(true),
+                body: JSON.stringify({ email: this.email }),
+            });
+            const json = await res.json().catch(() => ({}));
+            this.emailTestOk = res.ok;
+            this.emailTestResult = res.ok ? 'Sent — check your inbox.' : (json.error || 'Couldn’t send.');
+        } catch (e) {
+            this.emailTestOk = false;
+            this.emailTestResult = 'Couldn’t send.';
+        } finally {
+            this.emailTesting = false;
+        }
+    },
+
+    init() {
+        const saved = cfg.prefs?.events || {};
+        // Seed a channel entry for every known event from saved prefs (default off).
+        for (const ev of this.events) {
+            const s = saved[ev.key] || {};
+            this.channels[ev.key] = { email: !!s.email, sms: !!s.sms };
+        }
+    },
+
+    async saveCustomer() {
+        this.customerError = '';
+        this.customerSaved = false;
+        this.customerSaving = true;
+        try {
+            const res = await fetch(this.customerUrl, {
+                method: 'PATCH', headers: window.jsonHeaders(true),
+                body: JSON.stringify({ email: this.customerEmail, sms: this.customerSms }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Couldn’t save these settings.');
+            this.customerSaved = true;
+            setTimeout(() => { this.customerSaved = false; }, 2500);
+        } catch (e) {
+            this.customerError = e.message || 'Couldn’t save these settings.';
+        } finally {
+            this.customerSaving = false;
+        }
+    },
+
+    async save() {
+        this.error = '';
+        this.saved = false;
+        this.saving = true;
+        try {
+            const res = await fetch(this.updateUrl, {
+                method: 'PATCH', headers: window.jsonHeaders(true),
+                body: JSON.stringify({ email: this.email, phone: this.phone, events: this.channels }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Couldn’t save your settings.');
+            this.saved = true;
+            setTimeout(() => { this.saved = false; }, 2500);
+        } catch (e) {
+            this.error = e.message || 'Couldn’t save your settings.';
+        } finally {
+            this.saving = false;
+        }
+    },
+}));
+
+// ---------------------------------------------------------------------------
 // Pickup calendar — month / week / day. Ported from app/admin/calendar/page.tsx.
 // ---------------------------------------------------------------------------
 const DAY_START_HOUR = 5, DAY_END_HOUR = 22, HOUR_PX = 64;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\Agreement;
+use App\Models\AppSetting;
 use App\Models\EquipmentType;
 use App\Models\Inquiry;
 use App\Models\ServiceCatalog;
@@ -18,7 +19,7 @@ class DashboardController extends Controller
         DemoSeeder::ensure();
 
         $section = $request->query('section', 'inquiries');
-        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content'], true)) {
+        if (! in_array($section, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content', 'notifications'], true)) {
             $section = 'inquiries';
         }
 
@@ -51,6 +52,14 @@ class DashboardController extends Controller
             'payment_method' => $i->payment_method,
         ])->values();
 
+        // Current admin's saved notification preferences (defaults email to their
+        // account email on first visit, so the email channel has somewhere to go).
+        $me = Admin::find($request->session()->get('admin_id'));
+        $notificationPrefs = $me?->notification_preferences ?? [];
+        if (! isset($notificationPrefs['email'])) {
+            $notificationPrefs['email'] = $me?->email ?? '';
+        }
+
         return view('admin.dashboard', [
             'section' => $section,
             'inquiries' => $inquiries,
@@ -60,6 +69,12 @@ class DashboardController extends Controller
             'equipment' => EquipmentType::orderByDesc('active')->orderBy('name')->get(),
             'agreements' => Agreement::orderByDesc('active')->orderBy('title')->get(),
             'admins' => Admin::orderBy('created_at')->get(),
+            'notificationEvents' => config('business.notification_events', []),
+            'notificationPrefs' => $notificationPrefs,
+            'customerNotify' => [
+                'email' => AppSetting::bool('customer_notify_email'),
+                'sms' => AppSetting::bool('customer_notify_sms'),
+            ],
         ]);
     }
 }

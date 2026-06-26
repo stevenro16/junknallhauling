@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\EquipmentController as AdminEquipmentController;
 use App\Http\Controllers\Admin\FieldViewController;
 use App\Http\Controllers\Admin\InquiryApiController;
 use App\Http\Controllers\Admin\InquiryController;
+use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentLinkController;
 use App\Http\Controllers\Admin\RentalAgreementController as AdminRentalAgreementController;
 use App\Http\Controllers\Admin\ServiceCatalogController;
@@ -167,6 +168,15 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
                 Route::post('/agreements', [AgreementController::class, 'store'])->name('agreements.store');
                 Route::patch('/agreements/{id}', [AgreementController::class, 'update'])->name('agreements.update');
                 Route::delete('/agreements/{id}', [AgreementController::class, 'destroy'])->name('agreements.destroy');
+
+                // Per-admin notification preferences (events + channels)
+                Route::patch('/notifications', [NotificationSettingsController::class, 'update'])->name('notifications.update');
+                // Global customer-facing notification master switches
+                Route::patch('/notifications/customer', [NotificationSettingsController::class, 'updateCustomer'])->name('notifications.customer');
+                // One-off Twilio test send
+                Route::post('/notifications/test-sms', [NotificationSettingsController::class, 'testSms'])->name('notifications.test-sms');
+                // One-off test email
+                Route::post('/notifications/test-email', [NotificationSettingsController::class, 'testEmail'])->name('notifications.test-email');
             });
         }); // end role.admin
     });

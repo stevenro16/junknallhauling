@@ -4,7 +4,7 @@
     $path = request()->path();
     $onDashboard = $path === 'admin';
     $qsection = request()->query('section', 'inquiries');
-    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
+    $current = $onDashboard && in_array($qsection, ['inquiries', 'stats', 'services', 'equipment', 'agreements', 'admins', 'content', 'notifications'], true) ? $qsection : ($onDashboard ? 'inquiries' : null);
     $onCalendar = $path === 'admin/calendar';
     $onCustomers = $path === 'admin/customers';
     $onEod = $path === 'admin/eod-report';
@@ -27,6 +27,7 @@
         $settingsItems = [
             ['key' => 'content', 'label' => 'Site Content', 'icon' => 'pencil', 'href' => route('admin.dashboard', ['section' => 'content']), 'active' => $current === 'content'],
             ['key' => 'admins', 'label' => 'Account Management', 'icon' => 'users', 'href' => route('admin.dashboard', ['section' => 'admins']), 'active' => $current === 'admins'],
+            ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'href' => route('admin.dashboard', ['section' => 'notifications']), 'active' => $current === 'notifications'],
             ['key' => 'services', 'label' => 'Service Catalog', 'icon' => 'package', 'href' => route('admin.dashboard', ['section' => 'services']), 'active' => $current === 'services'],
             ['key' => 'equipment', 'label' => 'Equipment Catalog', 'icon' => 'truck', 'href' => route('admin.dashboard', ['section' => 'equipment']), 'active' => $current === 'equipment'],
             ['key' => 'agreements', 'label' => 'Agreements', 'icon' => 'file-text', 'href' => route('admin.dashboard', ['section' => 'agreements']), 'active' => $current === 'agreements'],

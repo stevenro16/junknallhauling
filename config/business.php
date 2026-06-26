@@ -43,4 +43,26 @@ return [
         'completed' => 'Completed',
         'cancelled' => 'Cancelled',
     ],
+
+    // Events an admin can subscribe to notifications for (Notifications settings page).
+    // The keys are stored in each admin's notification_preferences; labels/descriptions
+    // drive the settings UI. (Sending isn't wired up yet — this is the control panel.)
+    'notification_events' => [
+        'new_quote' => [
+            'label' => 'New quote request',
+            'description' => 'A customer submits a quote request from the website.',
+        ],
+        'details_submitted' => [
+            'label' => 'Customer submitted details',
+            'description' => 'A customer completes the request-details form for their quote.',
+        ],
+        'agreement_signed' => [
+            'label' => 'Rental agreement signed',
+            'description' => 'A customer signs a rental agreement.',
+        ],
+        'payment_received' => [
+            'label' => 'Payment received',
+            'description' => 'A customer pays online, or a payment is recorded for a quote.',
+        ],
+    ],
 ];

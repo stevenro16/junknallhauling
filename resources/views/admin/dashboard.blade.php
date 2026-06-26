@@ -13,6 +13,7 @@
                 @case('agreements') Agreements @break
                 @case('content') Site Content @break
                 @case('admins') Account Management @break
+                @case('notifications') Notifications @break
                 @default Quotes
             @endswitch
         </h2>
@@ -25,6 +26,7 @@
         @case('agreements') @include('partials.admin.agreements-section') @break
         @case('content') @include('partials.admin.content-section') @break
         @case('admins') @include('partials.admin.admins-section') @break
+        @case('notifications') @include('partials.admin.notifications-section') @break
         @default @include('partials.admin.inquiries-section')
     @endswitch
 </div>

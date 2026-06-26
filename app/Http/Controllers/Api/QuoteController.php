@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Models\Inquiry;
 use App\Models\ServiceCatalog;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 
 class QuoteController extends Controller
 {
-    public function store(StoreQuoteRequest $request): JsonResponse
+    public function store(StoreQuoteRequest $request, Notifier $notifier): JsonResponse
     {
         $data = $request->validated();
 
@@ -43,6 +44,8 @@ class QuoteController extends Controller
         if ($svc && $svc->default_duration_minutes) {
             $inquiry->update(['expected_duration_minutes' => $svc->default_duration_minutes]);
         }
+
+        $notifier->fire('new_quote', $inquiry);
 
         return response()->json([
             'success' => true,

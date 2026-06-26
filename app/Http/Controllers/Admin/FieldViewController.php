@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\EstimatesTravel;
 use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\InquiryComment;
+use App\Services\Notifier;
 use Illuminate\Http\Request;
 
 /**
@@ -176,6 +177,8 @@ class FieldViewController extends Controller
             ->update(['paid_at' => now(), 'payment_method' => $method]);
 
         $inquiry->logAudit('payment_received');
+
+        app(Notifier::class)->fire('payment_received', $inquiry);
 
         return response()->json([
             'payment_method' => $inquiry->payment_method,

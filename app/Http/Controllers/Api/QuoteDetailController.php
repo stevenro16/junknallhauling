@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Inquiry;
 use App\Models\QuoteDetailRequest;
 use App\Services\GeocodeService;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -78,7 +79,7 @@ class QuoteDetailController extends Controller
      * moves it to "finalize_scheduling" for the admin's final review. The phone
      * number is intentionally NOT updated.
      */
-    public function submit(string $token, Request $request): JsonResponse
+    public function submit(string $token, Request $request, Notifier $notifier): JsonResponse
     {
         $form = (array) $request->input('form_data');
         $signature = $request->input('signature_base64');
@@ -155,6 +156,8 @@ class QuoteDetailController extends Controller
             $inquiry->logStatusChange($oldStatus, 'finalize_scheduling');
         }
         $inquiry->logAudit('customer_submitted_details');
+
+        $notifier->fire('details_submitted', $inquiry);
 
         $ip = trim(explode(',', (string) $request->header('x-forwarded-for'))[0])
             ?: $request->header('x-real-ip')

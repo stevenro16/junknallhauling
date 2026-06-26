@@ -43,4 +43,13 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    // Twilio — outbound SMS notifications. When any of these are empty, SMS is a
+    // safe no-op (logged, never sent), so dev/tests run without credentials.
+    // 'from' is either a Twilio number (+1…) or a Messaging Service SID (MG…).
+    'twilio' => [
+        'sid' => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+    ],
+
 ];

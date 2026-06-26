@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RentalAgreement;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -66,7 +67,7 @@ class RentalAgreementController extends Controller
      * POST /api/rental-agreement/{token}
      * Customer submits the signed agreement (one-time use).
      */
-    public function sign(string $token, Request $request): JsonResponse
+    public function sign(string $token, Request $request, Notifier $notifier): JsonResponse
     {
         $formData = $request->input('form_data');
         $signature = $request->input('signature_base64');
@@ -105,6 +106,10 @@ class RentalAgreementController extends Controller
             'signed_at' => $signedAt,
             'ip_address' => $ip ?: null,
         ]);
+
+        if ($inquiry = $agreement->inquiry) {
+            $notifier->fire('agreement_signed', $inquiry);
+        }
 
         return response()->json(['success' => true, 'signed_at' => $signedAt]);
     }

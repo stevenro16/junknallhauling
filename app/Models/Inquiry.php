@@ -112,6 +112,35 @@ class Inquiry extends Model
         return null;
     }
 
+    /**
+     * Which channel a customer notification for this inquiry should go out on,
+     * honoring BOTH the global site toggles and the customer's preferred contact
+     * method. Returns 'email', 'sms', or null when nothing should be sent — i.e.
+     * the customer's preferred channel is switched off site-wide, or we have no
+     * address/number for it. Notifications are never sent on a non-preferred
+     * channel. (Sending isn't wired up yet; this is the gate it will consult.)
+     */
+    public function customerNotificationChannel(): ?string
+    {
+        $channel = $this->preferred_contact_method === 'email' ? 'email' : 'sms';
+
+        $enabled = $channel === 'email'
+            ? AppSetting::bool('customer_notify_email')
+            : AppSetting::bool('customer_notify_sms');
+
+        if (! $enabled) {
+            return null;
+        }
+        if ($channel === 'email' && empty($this->email)) {
+            return null;
+        }
+        if ($channel === 'sms' && empty($this->phone)) {
+            return null;
+        }
+
+        return $channel;
+    }
+
     /** True when this inquiry's item requires an agreement that isn't signed yet. */
     public function needsAgreement(): bool
     {
