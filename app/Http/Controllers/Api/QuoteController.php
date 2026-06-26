@@ -20,6 +20,12 @@ class QuoteController extends Controller
             return response()->json(['success' => true]);
         }
 
+        // "Help Me Decide" project photos — keep only valid image data URLs (≤ ~7MB
+        // base64 each), capped at 3. Stored the same way as request-details photos.
+        $photos = array_values(array_filter((array) ($data['photos'] ?? []), function ($p) {
+            return is_string($p) && preg_match('#^data:image/[a-z.+-]+;base64,#i', $p) && strlen($p) <= 7_500_000;
+        }));
+
         $inquiry = Inquiry::create([
             'name' => $data['name'],
             'phone' => $data['phone'],
@@ -28,6 +34,7 @@ class QuoteController extends Controller
             'description' => $data['description'] ?? null,
             'photo_base64' => $data['photo_base64'] ?? null,
             'photo_mime' => $data['photo_mime'] ?? null,
+            'photos' => $photos ? array_slice($photos, 0, 3) : null,
             'zip_code' => $data['zip_code'],
             'preferred_day' => $data['preferred_day'] ?? null,
             'preferred_time' => $data['preferred_time'] ?? null,

@@ -21,6 +21,7 @@ class EquipmentController extends Controller
                 'included_tons' => $e->included_tons,
                 'price_per_additional_ton' => $e->price_per_additional_ton,
                 'price_per_additional_day' => $e->price_per_additional_day,
+                'customer_instructions' => $e->customer_instructions,
             ]);
 
         return response()->json(['equipment' => $equipment]);

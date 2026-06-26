@@ -23,7 +23,7 @@ class StoreQuoteRequest extends FormRequest
         // and the built-in fallback keys used before the catalog loads. This keeps
         // admin-added services (e.g. "moving") from being rejected at submit.
         $serviceTypes = ServiceCatalog::pluck('key')
-            ->merge(['junk-removal', '10yd-dumpster', '20yd-dumpster', 'equipment', 'other'])
+            ->merge(['junk-removal', '10yd-dumpster', '20yd-dumpster', 'equipment', 'help-me-decide', 'other'])
             ->unique()
             ->values()
             ->all();
@@ -36,6 +36,8 @@ class StoreQuoteRequest extends FormRequest
             'description' => 'nullable|string',
             'photo_base64' => 'nullable|string',
             'photo_mime' => 'nullable|string',
+            'photos' => 'nullable|array|max:3',     // "Help Me Decide" project photos
+            'photos.*' => 'string',
             'website' => 'nullable|string',   // honeypot
             'zip_code' => 'required|string|min:5',
             'preferred_day' => 'nullable|string',

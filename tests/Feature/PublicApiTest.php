@@ -70,6 +70,34 @@ class PublicApiTest extends TestCase
         $this->assertSame('moving', Inquiry::first()->service_type);
     }
 
+    public function test_help_me_decide_quote_stores_project_photos(): void
+    {
+        $this->postJson('/api/quote', [
+            'name' => 'Pat Doe', 'phone' => '(909) 555-7777', 'email' => 'pat@example.com',
+            'service_type' => 'help-me-decide', 'zip_code' => '92399',
+            'description' => 'Garage cleanout — not sure what I need.',
+            'photos' => [
+                'data:image/jpeg;base64,/9j/abc',
+                'not-a-data-url',                       // dropped
+                'data:image/png;base64,iVBORw0KGgo=',
+            ],
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $inq = Inquiry::first();
+        $this->assertSame('help-me-decide', $inq->service_type);
+        $this->assertCount(2, $inq->photos);   // only valid image data URLs kept
+        $this->assertSame('data:image/jpeg;base64,/9j/abc', $inq->photos[0]);
+    }
+
+    public function test_quote_rejects_more_than_three_photos(): void
+    {
+        $this->postJson('/api/quote', [
+            'name' => 'Pat Doe', 'phone' => '(909) 555-7777', 'email' => 'pat@example.com',
+            'service_type' => 'help-me-decide', 'zip_code' => '92399',
+            'photos' => array_fill(0, 4, 'data:image/png;base64,iVBORw0KGgo='),
+        ])->assertStatus(422);
+    }
+
     public function test_quote_rejects_unknown_service_type(): void
     {
         $this->postJson('/api/quote', [

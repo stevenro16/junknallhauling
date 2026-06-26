@@ -104,7 +104,7 @@ Alpine.data('quoteForm', () => ({
     submittedRef: null,
     // fields
     name: '', phone: '', email: '', description: '',
-    jobType: 'service',        // 'service' | 'equipment' (pill toggle)
+    jobType: 'service',        // 'service' | 'equipment' | 'help' (pill toggle)
     serviceType: '', zipCode: '', preferredDay: '', preferredTime: '',
     website: '',               // honeypot
     preferredContactMethod: 'phone',
@@ -116,10 +116,14 @@ Alpine.data('quoteForm', () => ({
     loadingEquipment: false,
     equipmentRentalDuration: '',
     equipmentRentalUnit: 'hours',
-    // photo
+    // photo (single — service / equipment)
     photo: null,               // { base64, mime, name }
     photoError: null,
     _photoPending: false,      // true while a selected photo is still being read
+    // Help Me Decide — up to 3 project photos (resized + re-encoded to JPEG)
+    helpPhotos: [],
+    helpPhotoError: '',
+    _pendingHelpPhotos: 0,
     errors: {},
 
     init() {
@@ -140,6 +144,7 @@ Alpine.data('quoteForm', () => ({
     },
 
     get isEquipment() { return this.jobType === 'equipment'; },
+    get isHelp() { return this.jobType === 'help'; },
 
     // Multi-select chips: toggle a value within a comma-separated string field,
     // re-ordered to the canonical day/time order.
@@ -179,8 +184,14 @@ Alpine.data('quoteForm', () => ({
                     .catch(() => {})
                     .finally(() => { this.loadingEquipment = false; });
             }
+        } else if (type === 'help') {
+            // "Help Me Decide" — no service/equipment to pick; they describe + upload photos.
+            this.serviceType = 'help-me-decide';
+            this.selectedEquipment = '';
+            this.equipmentRentalDuration = '';
+            this.equipmentRentalUnit = 'hours';
         } else {
-            if (this.serviceType === 'equipment') this.serviceType = '';
+            if (this.serviceType === 'equipment' || this.serviceType === 'help-me-decide') this.serviceType = '';
             this.selectedEquipment = '';
             this.equipmentRentalDuration = '';
             this.equipmentRentalUnit = 'hours';
@@ -259,6 +270,52 @@ Alpine.data('quoteForm', () => ({
 
     removePhoto() { this.photo = null; this.photoError = null; },
 
+    // --- Help Me Decide photos (up to 3; resized + re-encoded to JPEG so they
+    // always load — same robust handling as the request-details form) ---
+    addHelpPhotos(event) {
+        this.helpPhotoError = '';
+        const files = Array.from(event.target.files || []);
+        for (const file of files) {
+            if (this.helpPhotos.length + this._pendingHelpPhotos >= 3) { this.helpPhotoError = 'You can attach up to 3 photos — remove one to add another.'; break; }
+            // Don't hard-reject on MIME type — iPhones often report an empty or non-standard
+            // type (e.g. "" or image/heic). accept="image/*" filters the picker; the Image
+            // decode below is the real validator.
+            if (file.type && !file.type.startsWith('image/')) { this.helpPhotoError = `"${file.name}" isn't an image. Please choose a photo (JPG or PNG).`; continue; }
+            if (file.size > 10 * 1024 * 1024) { this.helpPhotoError = `"${file.name}" is ${(file.size / 1048576).toFixed(1)}MB — please choose a photo under 10MB.`; continue; }
+            this._processHelpPhoto(file);
+        }
+        event.target.value = '';   // allow re-selecting the same file
+    },
+    _processHelpPhoto(file) {
+        this._pendingHelpPhotos++;
+        const done = () => { this._pendingHelpPhotos = Math.max(0, this._pendingHelpPhotos - 1); };
+        const reader = new FileReader();
+        reader.onerror = () => { done(); this.helpPhotoError = `Couldn't read "${file.name}". Please try a different photo.`; };
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => { done(); this.helpPhotoError = `"${file.name}" couldn't be opened. If it's an iPhone HEIC photo, set your camera to "Most Compatible" (JPEG) or upload a screenshot of it instead.`; };
+            img.onload = () => {
+                done();
+                try {
+                    const max = 1600;
+                    let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                    if (!w || !h) throw new Error('empty');
+                    if (w > max || h > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const url = canvas.toDataURL('image/jpeg', 0.82);
+                    if (this.helpPhotos.length < 3) this.helpPhotos.push({ url, name: file.name });
+                } catch (e) {
+                    this.helpPhotoError = `Couldn't process "${file.name}". Please try a different photo.`;
+                }
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    },
+    removeHelpPhoto(i) { this.helpPhotos.splice(i, 1); this.helpPhotoError = ''; },
+
     validate() {
         this.errors = {};
         if (!this.name || this.name.length < 2) this.errors.name = 'Please enter your name';
@@ -266,6 +323,10 @@ Alpine.data('quoteForm', () => ({
         if (!this.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.email)) this.errors.email = 'Please enter a valid email address';
         if (!this.serviceType) this.errors.serviceType = 'Please select a service';
         if (this.isEquipment && !this.selectedEquipment) this.errors.equipment = 'Please select the equipment you need';
+        // Help Me Decide: we need something to go on — a description and/or a photo.
+        if (this.isHelp && !(this.description || '').trim() && this.helpPhotos.length === 0) {
+            this.errors.help = 'Please add a short description or at least one photo so we can help.';
+        }
         if (!this.zipCode || this.zipCode.length < 5) this.errors.zipCode = 'Please enter a valid zip code';
         return Object.keys(this.errors).length === 0;
     },
@@ -273,11 +334,11 @@ Alpine.data('quoteForm', () => ({
     async submit() {
         if (!this.validate()) return;
         this.status = 'loading';
-        // A photo may still be reading (slow on iPhones for large photos). Wait briefly
-        // so a fast tap doesn't post before the photo is attached.
-        if (this._photoPending) {
+        // Photos may still be decoding/re-encoding (slow on iPhones). Wait briefly so a
+        // fast tap doesn't drop a photo or post before it's ready.
+        if (this._photoPending || this._pendingHelpPhotos > 0) {
             let waited = 0;
-            while (this._photoPending && waited < 8000) {
+            while ((this._photoPending || this._pendingHelpPhotos > 0) && waited < 8000) {
                 await new Promise((r) => setTimeout(r, 150));
                 waited += 150;
             }
@@ -295,6 +356,9 @@ Alpine.data('quoteForm', () => ({
             preferred_contact_method: this.preferredContactMethod,
             urgency: this.urgency,
         };
+        if (this.isHelp && this.helpPhotos.length) {
+            payload.photos = this.helpPhotos.map((p) => p.url);
+        }
         if (this.serviceType === 'equipment' && this.selectedEquipment) {
             payload.equipment_type = this.selectedEquipment;
             if (this.equipmentRentalDuration) {
@@ -304,8 +368,11 @@ Alpine.data('quoteForm', () => ({
                 if (finalQuote && !isNaN(finalQuote)) payload.initial_estimated_quote = Math.round(finalQuote);
             }
         }
+        const body = JSON.stringify(payload);
+        // Photos are re-encoded to ~1600px JPEG, so 3 stay well under this; guard anyway.
+        if (body.length > 12_000_000) { this.status = 'error'; return; }
         try {
-            const res = await fetch(window.apiUrl('/api/quote'), { method: 'POST', headers: window.jsonHeaders(), body: JSON.stringify(payload) });
+            const res = await fetch(window.apiUrl('/api/quote'), { method: 'POST', headers: window.jsonHeaders(), body });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Request failed');
             this.submittedRef = json.ref || null;

@@ -103,18 +103,21 @@
                         {{-- Job type pill --}}
                         <div>
                             <label class="block text-slate-700 text-sm font-medium mb-1.5">What do you need? <span class="text-orange-500">*</span></label>
-                            <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                            <div class="flex rounded-lg border border-gray-300 overflow-hidden max-w-lg text-center">
                                 <button type="button" @click="setJobType('service')"
-                                        class="px-4 py-2 text-sm font-medium transition-colors"
-                                        :class="!isEquipment ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Service</button>
+                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors"
+                                        :class="jobType === 'service' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Service</button>
                                 <button type="button" @click="setJobType('equipment')"
-                                        class="px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
-                                        :class="isEquipment ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Equipment Rental</button>
+                                        class="flex-1 px-3 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+                                        :class="jobType === 'equipment' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Equipment Rental</button>
+                                <button type="button" @click="setJobType('help')"
+                                        class="flex-1 px-3 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
+                                        :class="jobType === 'help' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Help Me Decide</button>
                             </div>
                         </div>
 
                         {{-- Service picker (service mode) --}}
-                        <div x-show="!isEquipment">
+                        <div x-show="jobType === 'service'" x-cloak>
                             <label class="block text-slate-700 text-sm font-medium mb-1.5">Service Needed <span class="text-orange-500">*</span></label>
                             <select class="input" x-model="serviceType">
                                 <option value="" disabled>Select a service…</option>
@@ -143,22 +146,28 @@
                             <p x-show="errors.equipment" x-text="errors.equipment" class="text-red-600 text-xs mt-1" x-cloak></p>
                             <p class="text-xs text-slate-500 mt-1">Prices shown are starting rates for reference.</p>
 
-                            {{-- Flat-rate (dumpster/trailer) breakdown --}}
-                            <div x-show="selectedIsFlatRate" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-                                <div class="text-sm font-semibold text-emerald-800 mb-1">Includes</div>
-                                <ul class="text-sm text-slate-700 space-y-0.5">
-                                    <template x-for="item in flatInclusions()" :key="item">
-                                        <li class="flex items-center gap-1.5"><span class="text-emerald-600">&#10003;</span> <span x-text="item"></span></li>
+                            {{-- Flat-rate (dumpster/trailer) breakdown + customer instructions --}}
+                            <div x-show="selectedIsFlatRate" x-cloak class="mt-3 grid grid-cols-1 gap-3" :class="selectedEquipmentObj?.customer_instructions ? 'md:grid-cols-2' : ''">
+                                <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                                    <div class="text-sm font-semibold text-emerald-800 mb-1">Includes</div>
+                                    <ul class="text-sm text-slate-700 space-y-0.5">
+                                        <template x-for="item in flatInclusions()" :key="item">
+                                            <li class="flex items-center gap-1.5"><span class="text-emerald-600">&#10003;</span> <span x-text="item"></span></li>
+                                        </template>
+                                    </ul>
+                                    <template x-if="flatOverages().length">
+                                        <div class="mt-2 pt-2 border-t border-emerald-200">
+                                            <div class="text-sm font-semibold text-slate-700 mb-1">Additional charges</div>
+                                            <ul class="text-sm text-slate-600 space-y-0.5">
+                                                <template x-for="item in flatOverages()" :key="item"><li x-text="item"></li></template>
+                                            </ul>
+                                        </div>
                                     </template>
-                                </ul>
-                                <template x-if="flatOverages().length">
-                                    <div class="mt-2 pt-2 border-t border-emerald-200">
-                                        <div class="text-sm font-semibold text-slate-700 mb-1">Additional charges</div>
-                                        <ul class="text-sm text-slate-600 space-y-0.5">
-                                            <template x-for="item in flatOverages()" :key="item"><li x-text="item"></li></template>
-                                        </ul>
-                                    </div>
-                                </template>
+                                </div>
+                                <div x-show="selectedEquipmentObj?.customer_instructions" x-cloak class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div class="text-sm font-semibold text-slate-800 mb-1">Good to Know</div>
+                                    <div class="text-sm text-slate-700 whitespace-pre-line" x-text="selectedEquipmentObj?.customer_instructions"></div>
+                                </div>
                             </div>
 
                             <div class="mt-4">
@@ -194,9 +203,32 @@
                             </div>
                         </div>
 
+                        {{-- Help Me Decide (help mode): up to 3 project photos + a description --}}
+                        <div x-show="jobType === 'help'" x-cloak class="rounded-xl border border-orange-200 bg-orange-50/50 p-4 space-y-3">
+                            <p class="text-sm text-slate-700">Not sure what you need? Upload a few photos of your project and tell us about it below — we'll review it and recommend the best service or equipment for the job.</p>
+                            <div>
+                                <label class="block text-slate-700 text-sm font-medium mb-1.5">Project Photos <span class="text-slate-500 text-xs font-normal">(up to 3)</span></label>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="(p, i) in helpPhotos" :key="i">
+                                        <div class="relative">
+                                            <img :src="p.url" alt="Project photo" class="w-24 h-24 object-cover rounded-lg border border-gray-200">
+                                            <button type="button" @click="removeHelpPhoto(i)" class="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600" title="Remove"><x-icon name="x" class="w-3.5 h-3.5"/></button>
+                                        </div>
+                                    </template>
+                                    <label x-show="helpPhotos.length < 3" class="w-24 h-24 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 cursor-pointer hover:border-orange-400 hover:text-orange-500 transition-colors">
+                                        <x-icon name="upload" class="w-5 h-5"/>
+                                        <span class="text-[10px] font-medium">Add photo</span>
+                                        <input type="file" accept="image/*" multiple class="hidden" @change="addHelpPhotos($event)">
+                                    </label>
+                                </div>
+                                <p x-show="helpPhotoError" x-text="helpPhotoError" x-cloak class="text-red-500 text-xs mt-2"></p>
+                            </div>
+                            <p x-show="errors.help" x-text="errors.help" class="text-red-600 text-xs" x-cloak></p>
+                        </div>
+
                         {{-- Description --}}
                         <div>
-                            <label class="block text-slate-700 text-sm font-medium mb-1.5">Description / Notes <span class="text-slate-500 text-xs font-normal">(optional)</span></label>
+                            <label class="block text-slate-700 text-sm font-medium mb-1.5">Description / Notes <span class="text-slate-500 text-xs font-normal" x-text="jobType === 'help' ? '(tell us about your project)' : '(optional)'"></span></label>
                             <textarea rows="4" placeholder="Tell us about the items, approximate size, location access, or any other details..." class="input resize-none" x-model="description"></textarea>
                         </div>
 
@@ -231,8 +263,8 @@
                             </div>
                         </div>
 
-                        {{-- Photo --}}
-                        <div>
+                        {{-- Photo (service / equipment modes; Help Me Decide has its own uploader) --}}
+                        <div x-show="jobType !== 'help'" x-cloak>
                             <label class="block text-slate-700 text-sm font-medium mb-1.5">Photo of the junk / job site <span class="text-slate-500 text-xs font-normal">(optional, helps us quote accurately)</span></label>
                             <label x-show="!photo" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-orange-400 rounded-xl p-8 cursor-pointer transition-colors bg-slate-50">
                                 <x-icon name="upload" class="w-8 h-8 text-orange-500 mb-3"/>
