@@ -83,12 +83,12 @@ class AdminCatalogTest extends TestCase
         $a = $this->actingAdmin();
 
         $a->postJson('/admin/api/equipment', [
-            'name' => 'Oversized 10-Yard Dump Trailer',
+            'name' => 'Test Flat Trailer',
             'flat_price' => 349, 'included_days' => 7, 'included_tons' => 1,
             'price_per_additional_ton' => 84, 'price_per_additional_day' => 15,
         ])->assertStatus(201);
 
-        $eq = EquipmentType::where('name', 'Oversized 10-Yard Dump Trailer')->first();
+        $eq = EquipmentType::where('name', 'Test Flat Trailer')->first();
         $this->assertTrue($eq->isFlatRate());
 
         // Estimate: base within the included days; base + extra days beyond.
@@ -97,10 +97,11 @@ class AdminCatalogTest extends TestCase
         $this->assertEquals(349.0 + 3 * 15, $eq->flatRateEstimate(10));
 
         // Exposed to the public equipment API.
-        $json = $a->getJson('/api/equipment')->assertOk()->json('equipment.0');
-        $this->assertEquals(349, $json['flat_price']);
-        $this->assertEquals(7, $json['included_days']);
-        $this->assertEquals(84, $json['price_per_additional_ton']);
+        $list = $a->getJson('/api/equipment')->assertOk()->json('equipment');
+        $row = collect($list)->firstWhere('name', 'Test Flat Trailer');
+        $this->assertEquals(349, $row['flat_price']);
+        $this->assertEquals(7, $row['included_days']);
+        $this->assertEquals(84, $row['price_per_additional_ton']);
 
         // Editable via update.
         $a->patchJson("/admin/api/equipment/{$eq->id}", ['price_per_additional_ton' => 90])->assertOk();

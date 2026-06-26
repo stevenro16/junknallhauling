@@ -12,171 +12,116 @@
     {{-- Add form --}}
     <div class="card-dark p-5">
         <div class="text-sm font-semibold text-gray-200 mb-3">Add Equipment</div>
-        <div id="equipment-catalog-form" class="space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                <div class="sm:col-span-2"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="nw.name" class="input-dark" placeholder="e.g. Oversized 10-Yard Dump Trailer"></div>
-                <div><label class="block text-xs text-gray-400 mb-1">Avg $/hr <span class="text-gray-500">(machinery)</span></label><input type="number" x-model="nw.cost" class="input-dark" placeholder="(optional)"></div>
-                <div><label class="block text-xs text-gray-400 mb-1">Daily Rate</label><input type="number" x-model="nw.daily" class="input-dark" placeholder="(optional)"></div>
-            </div>
-            {{-- Flat-rate (dumpster / trailer): a base price including days + tons, with overage rates --}}
-            <div class="rounded-lg border border-charcoal-700 p-3">
-                <div class="text-xs font-semibold text-gray-300 mb-2">Flat-rate rental <span class="text-gray-500 font-normal">— dumpster/trailer; base price includes days + tons (leave blank for machinery)</span></div>
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <div><label class="block text-xs text-gray-400 mb-1">Base price</label><input type="number" x-model="nw.flat" class="input-dark" placeholder="349"></div>
-                    <div><label class="block text-xs text-gray-400 mb-1">Incl. days</label><input type="number" x-model="nw.incDays" class="input-dark" placeholder="7"></div>
-                    <div><label class="block text-xs text-gray-400 mb-1">Incl. tons</label><input type="number" x-model="nw.incTons" class="input-dark" placeholder="1"></div>
-                    <div><label class="block text-xs text-gray-400 mb-1">$ / extra ton</label><input type="number" x-model="nw.addTon" class="input-dark" placeholder="84"></div>
-                    <div><label class="block text-xs text-gray-400 mb-1">$ / extra day</label><input type="number" x-model="nw.addDay" class="input-dark" placeholder="15"></div>
+        <div class="space-y-4">
+            <div class="sm:max-w-md"><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="nw.name" class="input-dark" placeholder="e.g. Oversized 10-Yard Dump Trailer"></div>
+
+            @include('partials.admin.equipment-pricing-fields', ['s' => 'nw'])
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label><textarea x-model="nw.instructions" rows="2" class="input-dark" placeholder="Instructions shown to the customer"></textarea></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Agreement <span class="text-gray-500">(signed before the job is finalized)</span></label>
+                    <select x-model="nw.agreement_id" class="input-dark">
+                        <option value="">— None —</option>
+                        <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
+                    </select>
                 </div>
             </div>
-        </div>
-        <div class="mt-3">
-            <label class="block text-xs text-gray-400 mb-1">Customer Instructions <span class="text-gray-500">(optional)</span></label>
-            <textarea x-model="nw.instructions" rows="2" class="input-dark" placeholder="Instructions for the customer (used in later workflows)"></textarea>
-        </div>
-        <div class="mt-3">
-            <label class="block text-xs text-gray-400 mb-1">Agreement <span class="text-gray-500">(signed before the job is finalized)</span></label>
-            <select x-model="nw.agreement_id" class="input-dark">
-                <option value="">— None —</option>
-                <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
-            </select>
-        </div>
-        <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
-            <button @click="add()" class="btn-primary text-sm py-2.5 px-4 w-full sm:w-auto inline-flex items-center justify-center gap-1"><x-icon name="plus" class="w-4 h-4"/> Add Equipment</button>
-            <span x-show="error" x-text="error" class="text-red-400 text-sm" x-cloak></span>
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button @click="add()" class="btn-primary text-sm py-2.5 px-4 w-full sm:w-auto inline-flex items-center justify-center gap-1"><x-icon name="plus" class="w-4 h-4"/> Add Equipment</button>
+                <span x-show="error && editingId === null" x-text="error" class="text-red-400 text-sm" x-cloak></span>
+            </div>
         </div>
     </div>
 
-    {{-- List: table on desktop, cards on mobile --}}
+    {{-- List: table on desktop, cards on mobile (read-only; Edit opens the modal) --}}
     <div class="card-dark p-5">
       <div class="hidden md:block overflow-x-auto">
-        <table class="w-full min-w-[760px] text-sm text-gray-200">
+        <table class="w-full text-sm text-gray-200">
             <thead class="text-xs uppercase tracking-wider text-gray-400 border-b border-charcoal-600">
                 <tr><th class="text-left py-2">Name</th><th class="text-left py-2">Pricing</th><th class="text-left py-2">Active</th><th class="text-left py-2">Customer</th><th class="text-left py-2">Agreement</th><th class="text-left py-2">Instructions</th><th class="text-right py-2">Actions</th></tr>
             </thead>
             <tbody>
                 <template x-for="e in equipment" :key="e.id">
                     <tr class="border-b border-charcoal-700/60" :class="!e.active && 'opacity-50'">
-                        <td class="py-2">
-                            <span x-show="editingId !== e.id" x-text="e.name"></span>
-                            <input x-show="editingId === e.id" x-model="ed.name" class="input-dark py-1 text-sm" x-cloak>
-                        </td>
-                        <td class="py-2">
-                            <span x-show="editingId !== e.id" x-text="pricingLabel(e)" class="whitespace-nowrap"></span>
-                            <div x-show="editingId === e.id" x-cloak class="space-y-1 min-w-[210px]">
-                                <div class="grid grid-cols-2 gap-1">
-                                    <input type="number" x-model="ed.cost" class="input-dark py-1 text-xs" placeholder="$/hr">
-                                    <input type="number" x-model="ed.daily" class="input-dark py-1 text-xs" placeholder="$/day">
-                                </div>
-                                <div class="grid grid-cols-3 gap-1">
-                                    <input type="number" x-model="ed.flat" class="input-dark py-1 text-xs" placeholder="flat $">
-                                    <input type="number" x-model="ed.incDays" class="input-dark py-1 text-xs" placeholder="incl d">
-                                    <input type="number" x-model="ed.incTons" class="input-dark py-1 text-xs" placeholder="incl t">
-                                </div>
-                                <div class="grid grid-cols-2 gap-1">
-                                    <input type="number" x-model="ed.addTon" class="input-dark py-1 text-xs" placeholder="+$/ton">
-                                    <input type="number" x-model="ed.addDay" class="input-dark py-1 text-xs" placeholder="+$/day">
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-2"><span x-text="e.active ? 'Yes' : 'No'" :class="e.active ? 'text-emerald-400' : 'text-gray-500'"></span></td>
-                        <td class="py-2">
+                        <td class="py-2.5 pr-3 font-medium text-gray-100" x-text="e.name"></td>
+                        <td class="py-2.5 pr-3 whitespace-nowrap" x-text="pricingLabel(e)"></td>
+                        <td class="py-2.5"><span x-text="e.active ? 'Yes' : 'No'" :class="e.active ? 'text-emerald-400' : 'text-gray-500'"></span></td>
+                        <td class="py-2.5">
                             <button @click="toggleCustomerVisible(e)" type="button"
                                     class="text-xs px-2 py-0.5 rounded-full border transition-colors"
                                     :class="e.customer_visible ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' : 'border-charcoal-600 text-gray-500 hover:bg-charcoal-700'"
                                     :title="e.customer_visible ? 'Shown on the public quote form — click to hide' : 'Hidden from the public quote form — click to show'"
                                     x-text="e.customer_visible ? 'Visible' : 'Hidden'"></button>
                         </td>
-                        <td class="py-2">
-                            <span x-show="editingId !== e.id" x-text="agreementName(e) || '—'" class="text-xs text-amber-300/90"></span>
-                            <select x-show="editingId === e.id" x-model="ed.agreement_id" class="input-dark py-1 text-sm" x-cloak>
-                                <option value="">— None —</option>
-                                <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
-                            </select>
-                        </td>
-                        <td class="py-2">
-                            <span x-show="editingId !== e.id" x-text="e.customer_instructions || '—'" class="text-xs text-gray-400 block max-w-[220px] truncate" :title="e.customer_instructions || ''"></span>
-                            <textarea x-show="editingId === e.id" x-model="ed.instructions" rows="2" class="input-dark py-1 text-sm w-56" x-cloak placeholder="Customer instructions"></textarea>
-                        </td>
-                        <td class="py-2 text-right whitespace-nowrap">
-                            <template x-if="editingId === e.id">
-                                <span>
-                                    <button @click="saveEdit(e)" class="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Save</button>
-                                    <button @click="cancelEdit()" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300">Cancel</button>
-                                </span>
-                            </template>
-                            <template x-if="editingId !== e.id">
-                                <span>
-                                    <button @click="startEdit(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700">Edit</button>
-                                    <button @click="toggleActive(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700" x-text="e.active ? 'Hide' : 'Show'"></button>
-                                    <button @click="remove(e)" class="text-xs px-2 py-1 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10">Delete</button>
-                                </span>
-                            </template>
+                        <td class="py-2.5 pr-3 text-xs text-amber-300/90" x-text="agreementName(e) || '—'"></td>
+                        <td class="py-2.5 pr-3"><span class="text-xs text-gray-400 block max-w-[220px] truncate" :title="e.customer_instructions || ''" x-text="e.customer_instructions || '—'"></span></td>
+                        <td class="py-2.5 text-right whitespace-nowrap">
+                            <button @click="startEdit(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700">Edit</button>
+                            <button @click="toggleActive(e)" class="text-xs px-2 py-1 rounded border border-charcoal-600 text-gray-300 hover:bg-charcoal-700" x-text="e.active ? 'Hide' : 'Show'"></button>
+                            <button @click="remove(e)" class="text-xs px-2 py-1 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10">Delete</button>
                         </td>
                     </tr>
                 </template>
             </tbody>
         </table>
+        <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet.</div>
       </div>
 
       {{-- Mobile cards --}}
       <div class="md:hidden space-y-3">
         <template x-for="e in equipment" :key="e.id">
             <div class="rounded-lg border border-charcoal-700 p-3" :class="!e.active && 'opacity-60'">
-                {{-- View --}}
-                <template x-if="editingId !== e.id">
-                    <div>
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="font-semibold text-gray-100 break-words" x-text="e.name"></div>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" :class="e.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-charcoal-700 text-gray-400'" x-text="e.active ? 'Active' : 'Hidden'"></span>
-                        </div>
-                        <div class="mt-1 text-sm text-gray-300" x-text="pricingLabel(e)"></div>
-                        <div class="mt-2">
-                            <button @click="toggleCustomerVisible(e)" type="button"
-                                    class="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                                    :class="e.customer_visible ? 'border-emerald-500/40 text-emerald-400' : 'border-charcoal-600 text-gray-400'"
-                                    x-text="e.customer_visible ? '✓ Visible to customers' : 'Hidden from customers'"></button>
-                        </div>
-                        <div x-show="agreementName(e)" x-cloak class="mt-1.5 text-xs text-amber-300/90">Agreement: <span x-text="agreementName(e)"></span></div>
-                        <div x-show="e.customer_instructions" x-cloak class="mt-2 text-xs text-gray-400 whitespace-pre-wrap" x-text="e.customer_instructions"></div>
-                        <div class="mt-3 grid grid-cols-3 gap-2">
-                            <button @click="startEdit(e)" class="min-h-[42px] rounded-lg border border-charcoal-600 text-gray-200 text-sm hover:bg-charcoal-700">Edit</button>
-                            <button @click="toggleActive(e)" class="min-h-[42px] rounded-lg border border-charcoal-600 text-gray-200 text-sm hover:bg-charcoal-700" x-text="e.active ? 'Hide' : 'Show'"></button>
-                            <button @click="remove(e)" class="min-h-[42px] rounded-lg border border-red-500/40 text-red-400 text-sm hover:bg-red-500/10">Delete</button>
-                        </div>
-                    </div>
-                </template>
-                {{-- Edit --}}
-                <template x-if="editingId === e.id">
-                    <div class="space-y-2">
-                        <div><label class="block text-xs text-gray-400 mb-1">Name</label><input x-model="ed.name" class="input-dark"></div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div><label class="block text-xs text-gray-400 mb-1">Avg $/hr</label><input type="number" x-model="ed.cost" class="input-dark"></div>
-                            <div><label class="block text-xs text-gray-400 mb-1">Daily Rate</label><input type="number" x-model="ed.daily" class="input-dark"></div>
-                        </div>
-                        <div class="rounded-lg border border-charcoal-700 p-2.5">
-                            <div class="text-xs font-semibold text-gray-300 mb-2">Flat-rate rental <span class="text-gray-500 font-normal">(dumpster/trailer)</span></div>
-                            <div class="grid grid-cols-3 gap-2">
-                                <div><label class="block text-xs text-gray-400 mb-1">Base $</label><input type="number" x-model="ed.flat" class="input-dark"></div>
-                                <div><label class="block text-xs text-gray-400 mb-1">Incl. days</label><input type="number" x-model="ed.incDays" class="input-dark"></div>
-                                <div><label class="block text-xs text-gray-400 mb-1">Incl. tons</label><input type="number" x-model="ed.incTons" class="input-dark"></div>
-                                <div><label class="block text-xs text-gray-400 mb-1">$/extra ton</label><input type="number" x-model="ed.addTon" class="input-dark"></div>
-                                <div><label class="block text-xs text-gray-400 mb-1">$/extra day</label><input type="number" x-model="ed.addDay" class="input-dark"></div>
-                            </div>
-                        </div>
-                        <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions</label><textarea x-model="ed.instructions" rows="2" class="input-dark"></textarea></div>
-                        <div><label class="block text-xs text-gray-400 mb-1">Agreement</label>
-                            <select x-model="ed.agreement_id" class="input-dark"><option value="">— None —</option><template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template></select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button @click="saveEdit(e)" class="min-h-[44px] rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Save</button>
-                            <button @click="cancelEdit()" class="min-h-[44px] rounded-lg border border-charcoal-600 text-gray-300 text-sm hover:bg-charcoal-700">Cancel</button>
-                        </div>
-                    </div>
-                </template>
+                <div class="flex items-start justify-between gap-2">
+                    <div class="font-semibold text-gray-100 break-words" x-text="e.name"></div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" :class="e.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-charcoal-700 text-gray-400'" x-text="e.active ? 'Active' : 'Hidden'"></span>
+                </div>
+                <div class="mt-1 text-sm text-gray-300" x-text="pricingLabel(e)"></div>
+                <div class="mt-2">
+                    <button @click="toggleCustomerVisible(e)" type="button"
+                            class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                            :class="e.customer_visible ? 'border-emerald-500/40 text-emerald-400' : 'border-charcoal-600 text-gray-400'"
+                            x-text="e.customer_visible ? '✓ Visible to customers' : 'Hidden from customers'"></button>
+                </div>
+                <div x-show="agreementName(e)" x-cloak class="mt-1.5 text-xs text-amber-300/90">Agreement: <span x-text="agreementName(e)"></span></div>
+                <div x-show="e.customer_instructions" x-cloak class="mt-2 text-xs text-gray-400 whitespace-pre-wrap" x-text="e.customer_instructions"></div>
+                <div class="mt-3 grid grid-cols-3 gap-2">
+                    <button @click="startEdit(e)" class="min-h-[42px] rounded-lg border border-charcoal-600 text-gray-200 text-sm hover:bg-charcoal-700">Edit</button>
+                    <button @click="toggleActive(e)" class="min-h-[42px] rounded-lg border border-charcoal-600 text-gray-200 text-sm hover:bg-charcoal-700" x-text="e.active ? 'Hide' : 'Show'"></button>
+                    <button @click="remove(e)" class="min-h-[42px] rounded-lg border border-red-500/40 text-red-400 text-sm hover:bg-red-500/10">Delete</button>
+                </div>
             </div>
         </template>
         <div x-show="equipment.length === 0" class="text-sm text-gray-500 text-center py-6">No equipment yet.</div>
       </div>
+    </div>
+
+    {{-- Edit modal --}}
+    <div x-show="editingId !== null" x-cloak class="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" @keydown.escape.window="cancelEdit()">
+        <div class="absolute inset-0 bg-black/60" @click="cancelEdit()"></div>
+        <div class="relative bg-charcoal-800 border border-charcoal-700 rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-charcoal-700">
+                <div class="text-sm font-semibold text-gray-200">Edit Equipment</div>
+                <button type="button" @click="cancelEdit()" class="p-1.5 -mr-1.5 text-gray-400 hover:text-white"><x-icon name="x" class="w-5 h-5"/></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div><label class="block text-xs text-gray-400 mb-1">Name</label><input type="text" x-model="ed.name" class="input-dark"></div>
+
+                @include('partials.admin.equipment-pricing-fields', ['s' => 'ed'])
+
+                <div><label class="block text-xs text-gray-400 mb-1">Customer Instructions</label><textarea x-model="ed.instructions" rows="2" class="input-dark"></textarea></div>
+                <div><label class="block text-xs text-gray-400 mb-1">Agreement</label>
+                    <select x-model="ed.agreement_id" class="input-dark">
+                        <option value="">— None —</option>
+                        <template x-for="a in agreements" :key="a.id"><option :value="a.id" x-text="a.title"></option></template>
+                    </select>
+                </div>
+                <span x-show="error && editingId !== null" x-text="error" class="block text-red-400 text-sm" x-cloak></span>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-charcoal-700">
+                <button type="button" @click="cancelEdit()" class="px-4 py-2 rounded-lg border border-charcoal-600 text-gray-300 text-sm hover:bg-charcoal-700">Cancel</button>
+                <button type="button" @click="saveEdit()" class="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Save changes</button>
+            </div>
+        </div>
     </div>
 </div>

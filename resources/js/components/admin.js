@@ -1570,11 +1570,11 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
     urls: cfg.urls,
     equipment: cfg.equipment || [],
     agreements: cfg.agreements || [],
-    blank: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
-    nw: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
+    blank: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
+    nw: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
     error: '',
     editingId: null,
-    ed: { name: '', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
+    ed: { name: '', pricingType: 'machinery', cost: '', daily: '', flat: '', incDays: '', incTons: '', addTon: '', addDay: '', instructions: '', agreement_id: '' },
 
     async reload() { try { const r = await fetch(this.urls.index, { headers: window.jsonHeaders() }); if (r.ok) { const d = await r.json(); this.equipment = d.equipment || []; } } catch {} },
 
@@ -1596,14 +1596,20 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
         return r.length ? r.join(' · ') : '—';
     },
 
-    // Build the request body from a form-state object (nw or ed).
+    // Build the request body from a form-state object (nw or ed). Only the fields
+    // for the chosen pricing type are sent; the other type's fields are cleared.
     _payload(s) {
         const n = (v) => (v === '' || v == null ? null : v);
+        const flat = s.pricingType === 'flat';
         return {
             name: s.name,
-            avg_cost_per_hour: n(s.cost), daily_rate: n(s.daily),
-            flat_price: n(s.flat), included_days: n(s.incDays), included_tons: n(s.incTons),
-            price_per_additional_ton: n(s.addTon), price_per_additional_day: n(s.addDay),
+            avg_cost_per_hour: flat ? null : n(s.cost),
+            daily_rate: flat ? null : n(s.daily),
+            flat_price: flat ? n(s.flat) : null,
+            included_days: flat ? n(s.incDays) : null,
+            included_tons: flat ? n(s.incTons) : null,
+            price_per_additional_ton: flat ? n(s.addTon) : null,
+            price_per_additional_day: flat ? n(s.addDay) : null,
             customer_instructions: s.instructions, agreement_id: s.agreement_id || null,
         };
     },
@@ -1617,16 +1623,20 @@ Alpine.data('equipmentCatalog', (cfg = {}) => ({
     startEdit(e) {
         this.editingId = e.id;
         this.ed = {
-            name: e.name, cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '',
+            name: e.name, pricingType: e.flat_price ? 'flat' : 'machinery',
+            cost: e.avg_cost_per_hour ?? '', daily: e.daily_rate ?? '',
             flat: e.flat_price ?? '', incDays: e.included_days ?? '', incTons: e.included_tons ?? '',
             addTon: e.price_per_additional_ton ?? '', addDay: e.price_per_additional_day ?? '',
             instructions: e.customer_instructions ?? '', agreement_id: e.agreement_id ?? '',
         };
     },
+    editingItem() { return this.equipment.find((e) => e.id === this.editingId) || null; },
     cancelEdit() { this.editingId = null; },
-    async saveEdit(e) {
-        const r = await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.ed)) });
+    async saveEdit() {
+        this.error = '';
+        const r = await fetch(this.urls.update.replace('__ID__', this.editingId), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify(this._payload(this.ed)) });
         if (r.ok) { this.editingId = null; await this.reload(); }
+        else { const d = await r.json().catch(() => ({})); this.error = d.error || 'Failed to save changes'; }
     },
     async toggleActive(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ active: !e.active }) }); await this.reload(); },
     async toggleCustomerVisible(e) { await fetch(this.urls.update.replace('__ID__', e.id), { method: 'PATCH', headers: window.jsonHeaders(true), body: JSON.stringify({ customer_visible: !e.customer_visible }) }); await this.reload(); },
