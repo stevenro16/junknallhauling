@@ -161,8 +161,13 @@ class QuoteDetailRequestTest extends TestCase
         $this->assertSame($agreement->id, $signed->agreement_id);
         $this->assertSame('Boom Lift Agreement', $signed->content_snapshot['title']);
 
-        // The customer was emailed their signed copy.
-        $this->assertCount(1, Mail::mailer('array')->getSymfonyTransport()->messages());
+        // The customer was emailed their signed copy, with their signature embedded
+        // as an inline (cid) attachment rather than inline base64 in the HTML.
+        $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $messages);
+        $email = $messages[0]->getOriginalMessage();
+        $this->assertNotEmpty($email->getAttachments());
+        $this->assertStringContainsString('cid:', $email->getHtmlBody());
     }
 
     public function test_service_with_attached_agreement_needs_one(): void

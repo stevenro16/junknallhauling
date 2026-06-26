@@ -7,6 +7,12 @@
     $instructions = $content['instructions'] ?? null;
     $signedOn = '';
     try { $signedOn = \Illuminate\Support\Carbon::parse($signedAt)->format('F j, Y \a\t g:i A'); } catch (\Throwable $e) {}
+    // Embed the customer's signature as an inline (cid:) attachment — keeps the HTML
+    // small and renders in clients that block data: URIs (e.g. Gmail).
+    $signatureCid = null;
+    if (! empty($signature) && preg_match('#^data:(image/[\w.+-]+);base64,(.+)$#is', (string) $signature, $sm)) {
+        $signatureCid = $message->embedData(base64_decode($sm[2]), 'signature.png', $sm[1]);
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -42,6 +48,14 @@
                                     </td>
                                 </tr>
                             </table>
+
+                            {{-- Signature --}}
+                            @if($signatureCid)
+                                <div style="margin:0 0 20px;">
+                                    <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#a1a1aa;margin:0 0 6px;">Signature</div>
+                                    <img src="{{ $signatureCid }}" alt="Customer signature" width="280" style="max-width:280px;width:100%;height:auto;border:1px solid #e4e4e7;border-radius:8px;background:#ffffff;">
+                                </div>
+                            @endif
 
                             {{-- Terms --}}
                             @if(! empty($acks))

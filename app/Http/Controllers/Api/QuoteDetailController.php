@@ -226,11 +226,11 @@ class QuoteDetailController extends Controller
             'ip_address' => $ip ?: null,
         ]);
 
-        $this->emailSignedAgreement($inquiry, $snapshot, $signedAt);
+        $this->emailSignedAgreement($inquiry, $snapshot, $signedAt, $signature);
     }
 
-    /** Email the customer their signed agreement copy; never throws. */
-    private function emailSignedAgreement(Inquiry $inquiry, array $snapshot, string $signedAt): void
+    /** Email the customer their signed agreement copy (with their signature); never throws. */
+    private function emailSignedAgreement(Inquiry $inquiry, array $snapshot, string $signedAt, string $signature): void
     {
         if (! $inquiry->email) {
             return;
@@ -240,6 +240,7 @@ class QuoteDetailController extends Controller
                 'inquiry' => $inquiry,
                 'content' => $snapshot,
                 'signedAt' => $signedAt,
+                'signature' => $signature,
             ], function ($message) use ($inquiry, $snapshot) {
                 $message->to($inquiry->email)
                     ->subject(($snapshot['title'] ?? 'Rental Agreement').' — '.config('business.name'));
