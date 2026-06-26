@@ -21,7 +21,7 @@
 
     {{-- Services vs Equipment Rental — split + drill-down --}}
     <div class="card-light p-5 mb-6">
-        <div class="text-sm font-semibold text-gray-700 mb-4">Services vs Equipment Rental</div>
+        <div class="text-sm font-semibold text-gray-700 mb-4">Services vs Rentals</div>
 
         {{-- Selectable category tiles (revenue collected + job count) --}}
         <div class="grid grid-cols-2 gap-4 mb-5">
@@ -41,7 +41,7 @@
                     class="text-left rounded-xl border-2 p-4 transition-colors"
                     :class="category === 'equipment' ? 'border-amber-400 bg-amber-50/60' : 'border-gray-200 hover:border-gray-300'">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs uppercase tracking-widest text-gray-500">Equipment Rental</span>
+                    <span class="text-xs uppercase tracking-widest text-gray-500">Rentals</span>
                     <span class="text-[10px] text-gray-400" x-text="equipmentTotal.jobs + (equipmentTotal.jobs === 1 ? ' job' : ' jobs')"></span>
                 </div>
                 <div class="text-2xl font-black text-indigo-600 mt-1">$<span x-text="money(equipmentTotal.revenue)"></span></div>

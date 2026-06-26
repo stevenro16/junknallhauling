@@ -78,7 +78,7 @@ const STATUS_CLASSES = {
 };
 const SERVICE_LABELS = {
     'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental',
-    equipment: 'Equipment Rental', other: 'Other / Not Sure',
+    equipment: 'Rentals', other: 'Other / Not Sure',
 };
 // Full US state name → 2-letter code (for parsing a pasted/auto-filled full address).
 const US_STATE_ABBR = {

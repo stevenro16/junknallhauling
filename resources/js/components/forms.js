@@ -95,7 +95,7 @@ const FALLBACK_SERVICES = [
     { key: 'junk-removal', label: 'Junk Removal' },
     { key: '10yd-dumpster', label: '10 Yard Dumpster Rental' },
     { key: '20yd-dumpster', label: '20 Yard Dumpster Rental' },
-    { key: 'equipment', label: 'Equipment Rental' },
+    { key: 'equipment', label: 'Rentals' },
     { key: 'other', label: 'Other / Not Sure' },
 ];
 
@@ -747,7 +747,7 @@ Alpine.data('quoteDetailsForm', (token, needsAgreement = false) => ({
             const dur = (i.equipment_rental_duration && i.equipment_rental_unit) ? ` — ${i.equipment_rental_duration} ${i.equipment_rental_unit}` : '';
             return i.equipment_type + dur;
         }
-        const labels = { 'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental', equipment: 'Equipment Rental', other: 'Other' };
+        const labels = { 'junk-removal': 'Junk Removal', '10yd-dumpster': '10 Yard Dumpster Rental', '20yd-dumpster': '20 Yard Dumpster Rental', equipment: 'Rentals', other: 'Other' };
         return labels[i.service_type] || (i.service_type || '').replace(/-/g, ' ');
     },
     confirmedDateTimeLong() {

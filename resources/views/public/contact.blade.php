@@ -109,7 +109,7 @@
                                         :class="jobType === 'service' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Service</button>
                                 <button type="button" @click="setJobType('equipment')"
                                         class="flex-1 px-3 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
-                                        :class="jobType === 'equipment' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Equipment Rental</button>
+                                        :class="jobType === 'equipment' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Rentals</button>
                                 <button type="button" @click="setJobType('help')"
                                         class="flex-1 px-3 py-2 text-sm font-medium border-l border-gray-300 transition-colors"
                                         :class="jobType === 'help' ? 'bg-[#EAB308] text-charcoal-900' : 'bg-white text-slate-700 hover:bg-gray-50'">Help Me Decide</button>

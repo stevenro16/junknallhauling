@@ -538,7 +538,7 @@
                                     :class="!isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Service</button>
                             <button type="button" @click="setJobType('equipment')"
                                     class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Equipment Rental</button>
+                                    :class="isEquipment ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'">Rentals</button>
                         </div>
                         <p x-show="jobError" x-cloak class="text-xs text-red-600 mt-1.5">Please select a <span x-text="isEquipment ? 'equipment type' : 'service'"></span> before saving.</p>
                     </div>

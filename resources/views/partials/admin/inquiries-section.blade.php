@@ -111,7 +111,7 @@
                             <td class="px-4 py-3">
                                 <div class="text-gray-800 capitalize" x-text="i.equipment_type || serviceLabel(i.service_type)"></div>
                                 <div class="text-xs text-gray-500 mt-0.5" x-show="i.equipment_type">
-                                    Equipment Rental<span x-show="rentalLabel(i)"> &middot; <span x-text="rentalLabel(i)"></span></span>
+                                    Rental<span x-show="rentalLabel(i)"> &middot; <span x-text="rentalLabel(i)"></span></span>
                                 </div>
                                 <div class="text-xs font-medium text-emerald-600 mt-0.5" x-show="i.quoted_price">$<span x-text="money(i.quoted_price)"></span></div>
                             </td>

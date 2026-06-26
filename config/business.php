@@ -20,7 +20,7 @@ return [
         ['value' => 'junk-removal',  'label' => 'Junk Removal'],
         ['value' => '10yd-dumpster', 'label' => '10 Yard Dumpster Rental'],
         ['value' => '20yd-dumpster', 'label' => '20 Yard Dumpster Rental'],
-        ['value' => 'equipment',     'label' => 'Equipment Rental (Scissor Lift / Excavator)'],
+        ['value' => 'equipment',     'label' => 'Rentals (Scissor Lift / Excavator)'],
         ['value' => 'other',         'label' => 'Other / Not Sure'],
     ],
 
