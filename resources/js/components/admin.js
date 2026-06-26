@@ -792,6 +792,36 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const e = this.estimatedPickup;
         if (e) this.pickupDateTime = `${e.date}T${e.time24}`;
     },
+    // For a rental, the last date before per-day extra charges apply: the delivery
+    // date + the included period (flat-rate included_days, else the requested
+    // duration in days), counting the delivery day as day 1.
+    get rentalFreeUntil() {
+        if (!this.isEquipment) return null;
+        const dDate = this.datePart(this.confirmedDateTime);
+        if (!dDate) return null;
+        const equip = this.equipmentOptions.find((e) => e.name === this.equipmentType);
+        const days = (equip && equip.included_days) ? Number(equip.included_days)
+            : (((this.equipmentRentalUnit || '') === 'days' && this.equipmentRentalDuration) ? Number(this.equipmentRentalDuration) : null);
+        if (!days || days < 1) return null;
+        const d = new Date(`${dDate}T00:00:00`);
+        d.setDate(d.getDate() + (days - 1));
+        const p = (n) => String(n).padStart(2, '0');
+        return {
+            date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+            label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+            days,
+            hasOverage: !!(equip && Number(equip.price_per_additional_day) > 0),
+        };
+    },
+    // Pre-fill the pickup to that last free date once the delivery date+time is
+    // set (only if the admin hasn't already chosen a pickup).
+    maybeDefaultPickup() {
+        if (!this.isEquipment || this.datePart(this.pickupDateTime)) return;
+        const t = this.timePart(this.confirmedDateTime);
+        if (!t) return;                       // need a complete delivery date+time
+        const f = this.rentalFreeUntil;
+        if (f) this.pickupDateTime = `${f.date}T${t}`;
+    },
     get currentPickupWindow() {
         if (!this.pickupDateTime) return null;
         const start = new Date(this.pickupDateTime);
@@ -1257,7 +1287,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
     },
 
     // confirmed date/time split-field setters
-    setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime); this.confirmedDateTime = v ? `${v}T${t}` : ''; },
+    setConfirmedDate(v) { const t = this.timePart(this.confirmedDateTime); this.confirmedDateTime = v ? `${v}T${t}` : ''; this.maybeDefaultPickup(); },
     // Nudge the visit date a day at a time (defaults to today when unset).
     stepConfirmedDate(dir) {
         const cur = this.datePart(this.confirmedDateTime);
@@ -1266,7 +1296,7 @@ Alpine.data('inquiryDetail', (cfg = {}) => ({
         const p = (n) => String(n).padStart(2, '0');
         this.setConfirmedDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
     },
-    setConfirmedTime(v) { const d = this.datePart(this.confirmedDateTime); if (!v) { this.confirmedDateTime = d ? `${d}T` : ''; return; } this.confirmedDateTime = d ? `${d}T${v}` : v; },
+    setConfirmedTime(v) { const d = this.datePart(this.confirmedDateTime); if (!v) { this.confirmedDateTime = d ? `${d}T` : ''; return; } this.confirmedDateTime = d ? `${d}T${v}` : v; this.maybeDefaultPickup(); },
 
     // equipment pickup date/time split-field setters
     setPickupDate(v) { const t = this.timePart(this.pickupDateTime); this.pickupDateTime = v ? `${v}T${t}` : ''; },

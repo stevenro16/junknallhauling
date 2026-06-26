@@ -197,6 +197,13 @@
                         <template x-for="slot in TIME_SLOTS" :key="slot"><option :value="slot" x-text="fmtTime12(slot)"></option></template>
                     </select>
                 </div>
+                {{-- Rental: last day before extra (per-day) charges --}}
+                <template x-if="rentalFreeUntil">
+                    <div class="mt-1.5 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[11px] text-amber-800">
+                        <x-icon name="calendar" class="w-3.5 h-3.5 text-amber-500 shrink-0 mt-px"/>
+                        <span>Pick up by <strong x-text="rentalFreeUntil.label"></strong><span x-show="rentalFreeUntil.hasOverage" x-cloak> — last day before extra-day charges (<span x-text="rentalFreeUntil.days"></span> days included)</span></span>
+                    </div>
+                </template>
                 {{-- assigned-to quick buttons --}}
                 <div class="mt-2">
                     <div class="text-xs text-gray-500 mb-1">Assigned to</div>
@@ -222,7 +229,7 @@
                         <option value="">Service…</option>
                         <template x-for="svc in serviceCatalog" :key="svc.id"><option :value="svc.key" x-text="svc.label"></option></template>
                     </select>
-                    <select x-show="isEquipment" x-cloak x-model="equipmentType" @change="jobError = false; saveError = ''" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
+                    <select x-show="isEquipment" x-cloak x-model="equipmentType" @change="jobError = false; saveError = ''; maybeDefaultPickup()" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
                         <option value="">Equipment…</option>
                         <template x-for="opt in equipmentOptions" :key="opt.id"><option :value="opt.name" x-text="opt.name"></option></template>
                         <option value="__other__">Other…</option>
@@ -585,7 +592,7 @@
                             {{-- Equipment picker (from the equipment catalog) --}}
                             <div x-show="isEquipment" x-cloak>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Equipment Needed <span class="text-red-500">*</span></label>
-                                <select x-model="equipmentType" @change="jobError = false; saveError = ''" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
+                                <select x-model="equipmentType" @change="jobError = false; saveError = ''; maybeDefaultPickup()" x-init="$nextTick(() => { $el.value = equipmentType })" class="input-light text-sm py-2 w-full">
                                     <option value="">Select equipment type...</option>
                                     <template x-for="opt in equipmentOptions" :key="opt.id">
                                         <option :value="opt.name" x-text="opt.name + (opt.avg_cost_per_hour ? ' (~$' + opt.avg_cost_per_hour + '/hr)' : '')"></option>
