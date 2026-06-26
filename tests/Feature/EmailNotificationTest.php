@@ -47,6 +47,11 @@ class EmailNotificationTest extends TestCase
         $messages = $this->sentMessages();
         $this->assertCount(1, $messages);
         $this->assertSame('boss@example.com', $messages[0]->getOriginalMessage()->getTo()[0]->getAddress());
+
+        // Branded HTML email links straight to the record in the CRM.
+        $html = $messages[0]->getOriginalMessage()->getHtmlBody();
+        $this->assertStringContainsString('View in dashboard', $html);
+        $this->assertStringContainsString(route('admin.inquiries.show', $inquiry->id), $html);
     }
 
     public function test_customer_emailed_only_when_prefers_email_and_globally_on(): void
@@ -68,6 +73,9 @@ class EmailNotificationTest extends TestCase
         $messages = $this->sentMessages();
         $this->assertCount(1, $messages);
         $this->assertSame('erin@example.com', $messages[0]->getOriginalMessage()->getTo()[0]->getAddress());
+
+        // Customer email links to the public status lookup.
+        $this->assertStringContainsString(route('status'), $messages[0]->getOriginalMessage()->getHtmlBody());
     }
 
     public function test_phone_preferring_customer_is_not_emailed(): void

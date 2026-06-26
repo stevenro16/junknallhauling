@@ -45,7 +45,14 @@ class Notifier
                 $this->sms->send($phone, $message);
             }
             if (($channels['email'] ?? false) && ($email = $prefs['email'] ?? null)) {
-                $this->email($email, $this->adminSubject($event), $message);
+                // Admin email: branded template with a button straight to the record.
+                $this->email($email, $this->adminSubject($event), [
+                    'heading' => $this->adminHeading($event),
+                    'lines' => [$this->adminIntro($event)],
+                    'details' => $this->recordDetails($inquiry),
+                    'ctaLabel' => 'View in dashboard',
+                    'ctaUrl' => route('admin.inquiries.show', $inquiry->id),
+                ]);
             }
         }
     }
@@ -62,18 +69,26 @@ class Notifier
         if ($channel === 'sms') {
             $this->sms->send($inquiry->phone, $message);
         } elseif ($channel === 'email') {
-            $this->email($inquiry->email, $this->customerSubject($event), $message);
+            // Customer email: branded template; the record link is the public status lookup.
+            $this->email($inquiry->email, $this->customerSubject($event), [
+                'heading' => $this->customerHeading($event),
+                'lines' => [$message],
+                'details' => $this->customerDetails($event, $inquiry),
+                'ctaLabel' => 'Check your request status',
+                'ctaUrl' => route('status'),
+                'footnote' => 'Reply STOP to opt out of texts at any time. Message and data rates may apply.',
+            ]);
         }
     }
 
-    /** Send a plain-text email; never throws (logged on failure). */
-    private function email(?string $to, string $subject, string $body): void
+    /** Send a branded HTML email from the notification template; never throws. */
+    private function email(?string $to, string $subject, array $data): void
     {
         if (! $to) {
             return;
         }
         try {
-            Mail::raw($body, function ($message) use ($to, $subject) {
+            Mail::send('emails.notification', $data, function ($message) use ($to, $subject) {
                 $message->to($to)->subject($subject);
             });
         } catch (\Throwable $e) {
@@ -130,6 +145,70 @@ class Notifier
             'payment_received' => "Payment received — {$biz}",
             default => $biz,
         };
+    }
+
+    private function adminHeading(string $event): string
+    {
+        return match ($event) {
+            'new_quote' => 'New quote request',
+            'details_submitted' => 'Customer submitted details',
+            'agreement_signed' => 'Rental agreement signed',
+            'payment_received' => 'Payment received',
+            default => config('business.name'),
+        };
+    }
+
+    private function adminIntro(string $event): string
+    {
+        return match ($event) {
+            'new_quote' => 'A new quote request just came in. The details are below.',
+            'details_submitted' => 'A customer completed their request details. The latest details are below.',
+            'agreement_signed' => 'A customer signed their rental agreement.',
+            'payment_received' => 'A payment was just recorded for this job.',
+            default => '',
+        };
+    }
+
+    private function customerHeading(string $event): string
+    {
+        return match ($event) {
+            'new_quote' => 'We received your request',
+            'payment_received' => 'Payment received',
+            default => config('business.name'),
+        };
+    }
+
+    /** Key facts about the job, shown as a detail table in admin emails. */
+    private function recordDetails(Inquiry $inquiry): array
+    {
+        $rows = ['Customer' => $inquiry->name ?: '—'];
+        if ($inquiry->phone) {
+            $rows['Phone'] = $inquiry->phone;
+        }
+        if ($service = $inquiry->equipment_type ?: $inquiry->service_type) {
+            $rows['Service'] = $service;
+        }
+        if ($inquiry->ref) {
+            $rows['Reference'] = $inquiry->ref;
+        }
+        if ((float) $inquiry->quoted_price > 0) {
+            $rows['Amount'] = '$'.number_format((float) $inquiry->quoted_price, 2);
+        }
+
+        return $rows;
+    }
+
+    private function customerDetails(string $event, Inquiry $inquiry): array
+    {
+        $rows = [];
+        if ($inquiry->ref) {
+            $rows['Reference'] = $inquiry->ref;
+        }
+        if ($event === 'payment_received' && (float) $inquiry->quoted_price > 0) {
+            $rows['Amount paid'] = '$'.number_format((float) $inquiry->quoted_price, 2);
+        }
+
+        return $rows;
     }
 
     private function amount(Inquiry $inquiry): string

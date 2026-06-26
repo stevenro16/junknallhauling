@@ -123,7 +123,10 @@ class NotificationSettingsController extends Controller
         }
 
         try {
-            Mail::raw('Test from '.config('business.name').' — your email notifications are working.', function ($message) use ($email) {
+            Mail::send('emails.notification', [
+                'heading' => 'Test notification',
+                'lines' => ['This is a test from '.config('business.name').'. Your email notifications are set up and working.'],
+            ], function ($message) use ($email) {
                 $message->to($email)->subject(config('business.name').' — test notification');
             });
         } catch (\Throwable $e) {
