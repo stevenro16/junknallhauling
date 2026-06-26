@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ServiceCatalog;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreQuoteRequest extends FormRequest
 {
@@ -16,11 +18,21 @@ class StoreQuoteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Allowed service types track the editable Service Catalog (the source of
+        // truth shown in the form), plus the special 'equipment'/'other' options
+        // and the built-in fallback keys used before the catalog loads. This keeps
+        // admin-added services (e.g. "moving") from being rejected at submit.
+        $serviceTypes = ServiceCatalog::pluck('key')
+            ->merge(['junk-removal', '10yd-dumpster', '20yd-dumpster', 'equipment', 'other'])
+            ->unique()
+            ->values()
+            ->all();
+
         return [
             'name' => 'required|string|min:2',
             'phone' => 'required|string|min:10',
             'email' => 'required|email',
-            'service_type' => 'required|in:junk-removal,10yd-dumpster,20yd-dumpster,equipment,other',
+            'service_type' => ['required', 'string', Rule::in($serviceTypes)],
             'description' => 'nullable|string',
             'photo_base64' => 'nullable|string',
             'photo_mime' => 'nullable|string',

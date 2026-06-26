@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Inquiry;
+use App\Models\ServiceCatalog;
 use Database\Seeders\EquipmentTypeSeeder;
 use Database\Seeders\ServiceCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,6 +52,30 @@ class PublicApiTest extends TestCase
         $this->assertSame('Test Customer', $inq->name);
         $this->assertSame(120, $inq->expected_duration_minutes); // junk-removal default
         $this->assertSame('new', $inq->status);
+    }
+
+    public function test_quote_accepts_an_admin_added_catalog_service(): void
+    {
+        // A custom service whose key isn't in the old hardcoded enum (like "moving").
+        ServiceCatalog::create(['key' => 'moving', 'label' => 'Moving']);
+
+        $this->postJson('/api/quote', [
+            'name' => 'Test Customer',
+            'phone' => '(909) 555-7777',
+            'email' => 'test@example.com',
+            'service_type' => 'moving',
+            'zip_code' => '92399',
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $this->assertSame('moving', Inquiry::first()->service_type);
+    }
+
+    public function test_quote_rejects_unknown_service_type(): void
+    {
+        $this->postJson('/api/quote', [
+            'name' => 'Test Customer', 'phone' => '(909) 555-7777', 'email' => 'test@example.com',
+            'service_type' => 'totally-made-up', 'zip_code' => '92399',
+        ])->assertStatus(422);
     }
 
     public function test_quote_honeypot_silently_succeeds_without_creating(): void
