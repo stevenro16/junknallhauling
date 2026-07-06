@@ -101,7 +101,7 @@ class SiteContentController extends Controller
      */
     protected function sanitizeHtml(string $html): string
     {
-        $html = strip_tags($html, '<p><br><strong><b><em><i><u><a><ul><ol><li><h2><h3><h4><blockquote>');
+        $html = strip_tags($html, '<p><br><strong><b><em><i><u><a><ul><ol><li><h2><h3><h4><blockquote><trix-align-left><trix-align-center><trix-align-right>');
         $html = preg_replace('/\son\w+\s*=\s*"[^"]*"/i', '', $html);
         $html = preg_replace("/\son\w+\s*=\s*'[^']*'/i", '', $html);
         $html = preg_replace('/javascript\s*:/i', '', $html);

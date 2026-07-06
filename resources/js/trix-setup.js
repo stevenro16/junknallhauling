@@ -18,9 +18,15 @@ const ALIGNMENTS = [
 ];
 const ALIGN_ATTRS = ALIGNMENTS.map((a) => a.attr);
 
-// Snapshot original HTML before Trix loads and sanitizes it away.
+// Snapshot each editor's original HTML the instant before Trix parses it — at
+// that point the config below isn't applied yet, so Trix's DOMPurify pass strips
+// our alignment tags. `trix-before-initialize` fires for every editor (including
+// the Alpine-rendered card editors) right before it loads its content, so we
+// capture the untouched HTML and re-load it once the config is ready.
+// Registered before importing Trix so it's listening before any editor upgrades.
 const originals = new Map();
-document.querySelectorAll('trix-editor').forEach((el) => {
+document.addEventListener('trix-before-initialize', (event) => {
+    const el = event.target;
     const inputId = el.getAttribute('input');
     const input = inputId ? document.getElementById(inputId) : null;
     originals.set(el, input ? input.value : el.innerHTML);

@@ -415,7 +415,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-COshmG3M.js",
+    "file": "assets/app-mMpzX1qy.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -432,7 +432,7 @@
     ]
   },
   "resources/js/trix-setup.js": {
-    "file": "assets/trix-setup-BNbgtLT4.js",
+    "file": "assets/trix-setup-BAZpYP3Z.js",
     "name": "trix-setup",
     "src": "resources/js/trix-setup.js",
     "isDynamicEntry": true,
