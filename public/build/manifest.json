@@ -406,7 +406,7 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-Ce02da7t.css",
+    "file": "assets/app-mPDhWN15.css",
     "name": "app",
     "names": [
       "app.css"
@@ -415,12 +415,12 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-C8uM5R7w.js",
+    "file": "assets/app-COshmG3M.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "node_modules/trix/dist/trix.esm.min.js"
+      "resources/js/trix-setup.js"
     ],
     "css": [
       "assets/app-1DTFk8zz.css"
@@ -429,6 +429,18 @@
       "assets/layers-BWBAp2CZ.png",
       "assets/layers-2x-Bpkbi35X.png",
       "assets/marker-icon-hN30_KVU.png"
+    ]
+  },
+  "resources/js/trix-setup.js": {
+    "file": "assets/trix-setup-BNbgtLT4.js",
+    "name": "trix-setup",
+    "src": "resources/js/trix-setup.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ],
+    "dynamicImports": [
+      "node_modules/trix/dist/trix.esm.min.js"
     ]
   }
 }

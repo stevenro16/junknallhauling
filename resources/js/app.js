@@ -38,8 +38,9 @@ import './components/reveal.js';
 
 // Trix rich-text editor JS — only pulled in on the admin Site Content page so
 // it never weighs down the public bundle. Its CSS is bundled into app.css.
+// The setup module imports Trix and adds the text-alignment toolbar controls.
 if (document.querySelector('trix-editor')) {
-    import('trix');
+    import('./trix-setup.js');
 }
 
 Alpine.start();
