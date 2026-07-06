@@ -73,11 +73,6 @@
                 @endforeach
             </div>
 
-            <div class="text-center mt-10">
-                <a href="{{ route('services') }}" class="inline-flex items-center gap-2 text-orange-600 font-semibold hover:text-orange-500">
-                    View full pricing &amp; details <x-icon name="arrow-right" class="w-4 h-4"/>
-                </a>
-            </div>
         </div>
     </section>
 
