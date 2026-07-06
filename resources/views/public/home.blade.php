@@ -38,19 +38,19 @@
     {{-- Services --}}
     <section class="py-20 bg-white border-b border-gray-100">
         <div class="container-wide">
-            <div data-reveal="up" class="text-center mb-12">
+            <div data-reveal="up" class="text-center mb-8">
                 <p class="section-label">What We Offer</p>
-                <h2 class="text-5xl font-black tracking-tighter">Our Services</h2>
-                <p class="mt-3 text-xl text-slate-600 max-w-md mx-auto">
+                <h2 class="text-3xl font-black tracking-tighter">Our Services</h2>
+                <p class="mt-2 text-lg text-slate-600 max-w-md mx-auto">
                     Professional hauling solutions for homes and businesses across the Inland Empire.
                 </p>
             </div>
 
             @php($serviceCards = \App\Models\SiteContent::cards('home_service_cards'))
-            <div class="flex flex-wrap justify-center gap-6">
+            <div class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
                 @foreach($serviceCards as $i => $card)
                     <div data-reveal="up" @if($i) data-reveal-delay="{{ $i * 100 }}" @endif
-                         class="service-card basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)] max-w-sm">
+                         class="service-card">
                         <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6 overflow-hidden">
                             @if(!empty($card['image']))
                                 <img src="{{ $card['image'] }}" alt="{{ $card['title'] ?? '' }}" class="w-10 h-10 object-contain">
