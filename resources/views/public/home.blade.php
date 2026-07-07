@@ -49,8 +49,15 @@
             @php($serviceCards = \App\Models\SiteContent::cards('home_service_cards'))
             <div class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
                 @foreach($serviceCards as $i => $card)
+                    @php($ctaLabel = trim($card['link_label'] ?? ''))
+                    @php($ctaUrl = trim($card['link_url'] ?? ''))
+                    @php($resolvedUrl = $ctaUrl === '' ? '' : (\Illuminate\Support\Str::startsWith($ctaUrl, ['http://', 'https://', 'mailto:', 'tel:', '#']) ? $ctaUrl : url($ctaUrl)))
                     <div data-reveal="up" @if($i) data-reveal-delay="{{ $i * 100 }}" @endif
-                         class="service-card">
+                         class="service-card group relative">
+                        {{-- Stretched link: the whole card navigates to the bottom link URL when set. --}}
+                        @if($resolvedUrl !== '')
+                            <a href="{{ $resolvedUrl }}" class="absolute inset-0 z-10" aria-label="{{ $card['title'] ?? 'Learn more' }}"></a>
+                        @endif
                         <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6 overflow-hidden">
                             @if(!empty($card['image']))
                                 <img src="{{ $card['image'] }}" alt="{{ $card['title'] ?? '' }}" class="w-10 h-10 object-contain">
@@ -63,11 +70,9 @@
                             <p class="text-slate-500 text-sm mb-3">{{ $card['subheader'] }}</p>
                         @endif
                         <div class="text-slate-600 text-[15px] mb-6 flex-1 cms-content">{!! $card['body'] ?? '' !!}</div>
-                        @php($ctaLabel = trim($card['link_label'] ?? ''))
-                        @php($ctaUrl = trim($card['link_url'] ?? ''))
-                        @if($ctaLabel !== '' && $ctaUrl !== '')
-                            <a href="{{ \Illuminate\Support\Str::startsWith($ctaUrl, ['http://', 'https://', 'mailto:', 'tel:', '#']) ? $ctaUrl : url($ctaUrl) }}"
-                               class="text-orange-600 font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all">{{ $ctaLabel }} <x-icon name="arrow-right" class="w-4 h-4"/></a>
+                        @if($ctaLabel !== '' && $resolvedUrl !== '')
+                            <a href="{{ $resolvedUrl }}"
+                               class="text-orange-600 font-semibold inline-flex items-center gap-1.5 group-hover:gap-2 transition-all">{{ $ctaLabel }} <x-icon name="arrow-right" class="w-4 h-4"/></a>
                         @endif
                     </div>
                 @endforeach
