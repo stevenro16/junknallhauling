@@ -237,7 +237,7 @@
 
                     {{-- equipment: rental qty + hours/days (drives the estimate) --}}
                     <div x-show="isEquipment" x-cloak class="flex items-center gap-2">
-                        <input type="number" min="0" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
+                        <input type="number" min="0" x-model="equipmentRentalDuration" @input="if (equipmentRentalDuration < 0) equipmentRentalDuration = 0" class="input-light text-sm py-2 w-20" placeholder="Qty">
                         <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-xs">
                             <button type="button" @click="equipmentRentalUnit = 'hours'" class="px-3 py-1.5 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-white text-gray-600' : 'bg-amber-500 text-white'">Hours</button>
                             <button type="button" @click="equipmentRentalUnit = 'days'" class="px-3 py-1.5 border-l border-gray-300 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600'">Days</button>
@@ -531,6 +531,7 @@
                             <div class="space-y-1 text-sm">
                                 <template x-for="inq in previousCustomerAddresses.slice(0, 6)" :key="inq.id">
                                     <div class="flex items-start gap-2 text-gray-700 text-sm">
+                                        <button type="button" @click="usePreviousAddress(inq)" :disabled="address.trim().toLowerCase() === inq.address.trim().toLowerCase()" class="mt-0.5 shrink-0 w-5 h-5 flex items-center justify-center rounded-full border border-amber-400 text-amber-600 hover:bg-amber-50 disabled:opacity-30 transition-colors" title="Use this address for this quote"><x-icon name="plus" class="w-3 h-3"/></button>
                                         <span class="font-mono text-[10px] text-gray-500 w-20 shrink-0 pt-0.5" x-text="date(inq.created_at)"></span>
                                         <span class="flex-1 leading-snug break-words" x-text="inq.address"></span>
                                         <button type="button" @click="openAddressInMaps(inq.address)" class="mt-0.5 p-1 text-amber-500 opacity-70 hover:opacity-100" title="Open in Google Maps"><x-icon name="map" class="w-3.5 h-3.5"/></button>
@@ -637,7 +638,7 @@
                     <div x-show="isEquipment" x-cloak>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Rental Duration</label>
                         <div class="flex items-center gap-2 flex-wrap">
-                            <input type="number" x-model="equipmentRentalDuration" class="input-light text-sm py-2 w-20" placeholder="Qty">
+                            <input type="number" min="0" x-model="equipmentRentalDuration" @input="if (equipmentRentalDuration < 0) equipmentRentalDuration = 0" class="input-light text-sm py-2 w-20" placeholder="Qty">
                             {{-- Hours / Days pill toggle (Hours is the default) --}}
                             <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
                                 <button type="button" @click="equipmentRentalUnit = 'hours'" class="px-4 py-1.5 transition-colors" :class="equipmentRentalUnit === 'days' ? 'bg-white text-gray-600 hover:bg-gray-50' : 'bg-amber-500 text-white'">Hours</button>

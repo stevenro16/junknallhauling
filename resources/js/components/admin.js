@@ -2331,6 +2331,18 @@ Alpine.data('siteContent', (cfg = {}) => ({
         this.dirty = true;
     },
 
+    // Reorder a card within its set. Reassigns the array so Alpine's keyed
+    // x-for moves the existing DOM (keeping each card's Trix editor intact).
+    moveCard(key, i, dir) {
+        const set = this.cardSets[key];
+        const j = i + dir;
+        if (!set || j < 0 || j >= set.length) return;
+        const next = set.slice();
+        [next[i], next[j]] = [next[j], next[i]];
+        this.cardSets[key] = next;
+        this.dirty = true;
+    },
+
     // Read an uploaded image, downscale it to <=128px, store as a base64 data URL.
     uploadIcon(card, event) {
         const file = event.target.files && event.target.files[0];

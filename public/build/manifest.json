@@ -406,7 +406,7 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-DJKGdBCR.css",
+    "file": "assets/app-B09-5zLD.css",
     "name": "app",
     "names": [
       "app.css"
@@ -415,7 +415,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-mMpzX1qy.js",
+    "file": "assets/app-CHERbdMr.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -432,7 +432,7 @@
     ]
   },
   "resources/js/trix-setup.js": {
-    "file": "assets/trix-setup-BAZpYP3Z.js",
+    "file": "assets/trix-setup-C6lvkrMN.js",
     "name": "trix-setup",
     "src": "resources/js/trix-setup.js",
     "isDynamicEntry": true,

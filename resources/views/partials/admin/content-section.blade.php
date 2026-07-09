@@ -117,8 +117,20 @@
                                             <div>
                                                 <div class="flex items-center mb-3">
                                                     <span class="text-xs font-semibold text-gray-500" x-text="'Card ' + (i + 1)"></span>
-                                                    <button type="button" @click="removeCard('{{ $key }}', i)"
-                                                            class="ml-auto text-xs text-red-500 hover:text-red-600">Remove</button>
+                                                    <div class="ml-auto flex items-center gap-1.5">
+                                                        <button type="button" @click="moveCard('{{ $key }}', i, -1)" :disabled="i === 0"
+                                                                class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                title="Move up" aria-label="Move card up">
+                                                            <x-icon name="chevron-down" class="w-4 h-4 rotate-180"/>
+                                                        </button>
+                                                        <button type="button" @click="moveCard('{{ $key }}', i, 1)" :disabled="i === cardSets['{{ $key }}'].length - 1"
+                                                                class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                title="Move down" aria-label="Move card down">
+                                                            <x-icon name="chevron-down" class="w-4 h-4"/>
+                                                        </button>
+                                                        <button type="button" @click="removeCard('{{ $key }}', i)"
+                                                                class="text-xs text-red-500 hover:text-red-600">Remove</button>
+                                                    </div>
                                                 </div>
                                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                                                     <div>
