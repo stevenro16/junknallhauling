@@ -28,6 +28,7 @@
     <meta name="twitter:description" content="{!! $metaDescription !!}">
     <meta name="twitter:image" content="{{ asset('images/trailer.jpg') }}">
     <link rel="icon" href="{{ asset('images/logo.jpg') }}">
+    @include('partials.jsonld')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full flex flex-col bg-white text-slate-900">
