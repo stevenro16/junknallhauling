@@ -1338,7 +1338,9 @@ Alpine.data('analytics', (cfg = {}) => ({
 
     init() {
         this.$nextTick(() => {
-            if (this.$refs.map && window.HaulMap) { this.mapApi = window.HaulMap.init(this.$refs.map); this.refreshMap(); }
+            if (this.$refs.map && window.HaulMap) {
+                window.HaulMap.init(this.$refs.map).then((api) => { this.mapApi = api; this.refreshMap(); });
+            }
         });
     },
 

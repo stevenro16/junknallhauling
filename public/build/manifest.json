@@ -399,6 +399,19 @@
     "file": "assets/marker-icon-hN30_KVU.png",
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
+  "node_modules/leaflet/dist/leaflet-src.js": {
+    "file": "assets/leaflet-src-D_UUBlbB.js",
+    "name": "leaflet-src",
+    "src": "node_modules/leaflet/dist/leaflet-src.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "node_modules/leaflet/dist/leaflet.css": {
+    "file": "assets/leaflet-1DTFk8zz.css",
+    "src": "node_modules/leaflet/dist/leaflet.css"
+  },
   "node_modules/trix/dist/trix.esm.min.js": {
     "file": "assets/trix.esm.min-C_xKF4-Y.js",
     "name": "trix.esm.min",
@@ -406,7 +419,7 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-B09-5zLD.css",
+    "file": "assets/app-DSCFdQUn.css",
     "name": "app",
     "names": [
       "app.css"
@@ -415,24 +428,17 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-CHERbdMr.js",
+    "file": "assets/app-DV_JczD2.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
+      "node_modules/leaflet/dist/leaflet-src.js",
       "resources/js/trix-setup.js"
-    ],
-    "css": [
-      "assets/app-1DTFk8zz.css"
-    ],
-    "assets": [
-      "assets/layers-BWBAp2CZ.png",
-      "assets/layers-2x-Bpkbi35X.png",
-      "assets/marker-icon-hN30_KVU.png"
     ]
   },
   "resources/js/trix-setup.js": {
-    "file": "assets/trix-setup-C6lvkrMN.js",
+    "file": "assets/trix-setup-B84bM_Ru.js",
     "name": "trix-setup",
     "src": "resources/js/trix-setup.js",
     "isDynamicEntry": true,

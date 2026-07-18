@@ -1,6 +1,7 @@
 // Vanilla Leaflet job-locations map, ported from the Next.js InquiryMapInner
-// component. Exposes window.HaulMap.init(el) → { setInquiries(list) }.
-import L from 'leaflet';
+// component. Exposes window.HaulMap.init(el) → Promise<{ setInquiries(list) }>.
+// Leaflet is loaded on demand (dynamic import) so it stays out of the public
+// bundle — only admin pages with a map fetch its chunk.
 
 const CENTER = [34.05, -117.18];
 const ZOOM = 10;
@@ -76,7 +77,11 @@ function popupHtml(inq) {
 const ACTIVE_STATUSES = ['scheduled', 'service_performed', 'quoted', 'reviewing', 'new'];
 
 window.HaulMap = {
-    init(el) {
+    async init(el) {
+        const [{ default: L }] = await Promise.all([
+            import('leaflet'),
+            import('leaflet/dist/leaflet.css'),
+        ]);
         const map = L.map(el).setView(CENTER, ZOOM);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

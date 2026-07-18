@@ -1,11 +1,8 @@
 import Alpine from 'alpinejs';
 import persist from '@alpinejs/persist';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 Alpine.plugin(persist);
 window.Alpine = Alpine;
-window.L = L;
 
 // ---------------------------------------------------------------------------
 // Small shared helpers
