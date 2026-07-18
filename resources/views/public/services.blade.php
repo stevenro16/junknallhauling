@@ -45,6 +45,45 @@
             </div>
         @endforeach
 
+        {{-- Equipment rentals — from the equipment catalog (Admin → Equipment) --}}
+        @php($equipment = \App\Models\EquipmentType::active()->where('customer_visible', true)->orderBy('name')->get())
+        @php($money = fn ($n) => rtrim(rtrim(number_format((float) $n, 2), '0'), '.'))
+        @if($equipment->isNotEmpty())
+            <div class="border-t border-gray-100 pt-16 mt-16">
+                <div data-reveal="up">
+                    <p class="section-label">Equipment Rentals</p>
+                    <h2 class="text-4xl font-black tracking-tight mb-8">Rent Our Equipment</h2>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @foreach($equipment as $i => $item)
+                        <div data-reveal="up" data-reveal-delay="{{ ($i % 3) * 120 }}" class="card p-6">
+                            <h3 class="text-xl font-bold mb-3">{{ $item->name }}</h3>
+                            <div class="text-[15px] text-slate-700 space-y-1">
+                                @if($item->flat_price)
+                                    <p><span class="text-orange-600 font-bold">${{ $money($item->flat_price) }}</span> flat rate{{ $item->included_days ? ' — '.$item->included_days.' '.\Illuminate\Support\Str::plural('day', $item->included_days).' included' : '' }}</p>
+                                @endif
+                                @if($item->avg_cost_per_hour)
+                                    <p><span class="text-orange-600 font-bold">${{ $money($item->avg_cost_per_hour) }}</span>/hour</p>
+                                @endif
+                                @if($item->daily_rate)
+                                    <p><span class="text-orange-600 font-bold">${{ $money($item->daily_rate) }}</span>/day</p>
+                                @endif
+                                @if($item->included_tons)
+                                    <p class="text-sm text-slate-500">{{ $money($item->included_tons) }} {{ \Illuminate\Support\Str::plural('ton', $item->included_tons) }} disposal included{{ $item->price_per_additional_ton ? ', then $'.$money($item->price_per_additional_ton).'/ton' : '' }}</p>
+                                @endif
+                                @if($item->price_per_additional_day)
+                                    <p class="text-sm text-slate-500">${{ $money($item->price_per_additional_day) }} per additional day</p>
+                                @endif
+                            </div>
+                            @if($item->customer_instructions)
+                                <p class="mt-3 text-sm text-slate-500">{{ $item->customer_instructions }}</p>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <div data-reveal="up" class="mt-16 pt-10 border-t text-center">
             <p class="text-lg mb-4">Ready to book or need a custom quote?</p>
             <div class="flex flex-wrap gap-4 justify-center">
