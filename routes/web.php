@@ -38,6 +38,16 @@ Route::view('/reviews', 'public.reviews')->name('reviews');
 Route::get('/contact', [ContactController::class, 'index'])->name('contact');
 Route::get('/status', [StatusController::class, 'index'])->name('status');
 
+Route::get('/sitemap.xml', function () {
+    $urls = [route('home'), route('services'), route('about'), route('reviews'), route('contact')];
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+        .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        .implode('', array_map(fn ($u) => '<url><loc>'.e($u).'</loc></url>', $urls))
+        .'</urlset>';
+
+    return response($xml, 200, ['Content-Type' => 'application/xml']);
+})->name('sitemap');
+
 Route::get('/rental-agreement/{token}', [RentalAgreementController::class, 'show'])->name('rental-agreement.show');
 Route::get('/quote-details/{token}', [QuoteDetailController::class, 'show'])->name('quote-details.show');
 Route::get('/pay/{token}', [PaymentController::class, 'show'])->name('payment.show');
