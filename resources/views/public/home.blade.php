@@ -86,7 +86,7 @@
         <div class="container-wide">
             <div class="grid lg:grid-cols-2 gap-14 items-center">
                 <div data-reveal="left" class="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] lg:aspect-auto lg:h-[520px]">
-                    <img src="{{ asset('images/trailer.jpg') }}" alt="Junk N All Hauling team at work" class="absolute inset-0 w-full h-full object-cover">
+                    <img src="{{ asset('images/trailer.jpg') }}" alt="Junk N All Hauling team at work" width="808" height="419" loading="lazy" class="absolute inset-0 w-full h-full object-cover">
                     <div class="absolute inset-0 bg-gradient-to-r from-black/40 to-black/10"></div>
                 </div>
                 <div data-reveal="right" data-reveal-delay="120">
