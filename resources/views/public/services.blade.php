@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Our Services & Pricing | '.config('business.name'))
+@section('description', 'Junk removal, 10 and 20 yard dumpster rentals, and equipment rentals with upfront pricing in Yucaipa, Redlands, and the Inland Empire. Call '.config('business.phone').'.')
 
 @section('content')
 <div>

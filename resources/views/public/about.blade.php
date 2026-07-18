@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'About '.config('business.name'))
+@section('description', 'Locally owned junk removal and hauling company serving Yucaipa, Redlands, Beaumont, and the Inland Empire. Fast, honest, and responsible service.')
 
 @section('content')
 <div>

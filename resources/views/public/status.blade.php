@@ -1,6 +1,8 @@
 @extends('layouts.public')
 
 @section('title', 'Check Status | '.config('business.name'))
+@section('description', 'Check the status of your Junk N All Hauling quote or scheduled junk removal, dumpster rental, or equipment rental service.')
+@section('robots', 'noindex')
 
 @section('content')
 <div class="max-w-3xl mx-auto px-6 py-16" x-data="statusLookup()">
